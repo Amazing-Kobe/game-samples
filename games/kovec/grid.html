@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>バイオガス・グリッド｜コベック エコ・ゲームパーク</title>
+<meta name="description" content="パイプをつないで、廃棄物からガス、ガスから電気へ。神戸の街を灯すパズル「バイオガス・グリッド」。">
+<style>
+  :root{
+    --cream:#F6F3EA; --green:#1D5C3C; --leaf:#7CC24E; --blue:#2E7CB8;
+    --orange:#F5A623; --cyan:#3EC8E0; --ink:#24332B;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; background:
+      linear-gradient(rgba(216,250,255,.36),rgba(92,197,211,.28)),
+      url('assets/card_grid.jpg') center/cover no-repeat #A6E5EE; overflow:hidden;
+    font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+    touch-action:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; color:var(--cream); }
+  #stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #box{ position:relative; }
+  canvas{ display:block; border-radius:6px; }
+
+  .chip{ position:absolute; z-index:50; background:rgba(255,255,255,.86); border:1px solid rgba(255,255,255,.95);
+    border-radius:99px; color:#14566B; font-weight:800; font-size:12px; padding:7px 14px;
+    backdrop-filter:blur(5px); cursor:pointer; text-decoration:none; font-family:inherit; }
+  #back{ top:10px; left:10px; }
+  #mute{ top:10px; right:10px; width:38px; height:38px; padding:0; font-size:15px; border-radius:50%; }
+
+  .ov{ position:absolute; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:22px; }
+  .ov.dim{ background:rgba(72,176,188,.55); backdrop-filter:blur(2px); }
+  .ov.hidden{ display:none; }
+  .panel{ background:var(--cream); color:var(--ink); border:1px solid rgba(29,92,60,.25); border-radius:22px;
+    padding:20px 18px; max-width:344px; width:100%; box-shadow:0 18px 44px rgba(0,10,5,.55);
+    animation:pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes pop{ from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .panel h2{ font-size:19px; font-weight:900; color:var(--green); letter-spacing:.04em; }
+  .panel p{ font-size:13px; line-height:1.75; }
+  .btn{ display:inline-block; border:none; border-radius:99px; padding:12px 28px; margin-top:12px;
+    font-family:inherit; font-size:15px; font-weight:900; color:var(--cream); background:var(--green);
+    box-shadow:0 4px 0 #123C27; cursor:pointer; transition:transform .12s; letter-spacing:.05em; }
+  .btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #123C27; }
+  .btn.hot{ background:var(--orange); color:var(--ink); box-shadow:0 4px 0 #B87708; }
+  .btn.hot:active{ box-shadow:0 1px 0 #B87708; }
+  .btn.sub{ background:transparent; color:var(--green); box-shadow:none; border:1.5px solid rgba(29,92,60,.45);
+    font-size:12.5px; padding:9px 18px; }
+  .btn+.btn{ margin-left:8px; }
+  .pulse{ animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.05);} }
+  .mkun{ width:96px; height:96px; }
+  .bob{ animation:bob 3s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-9px);} }
+
+  /* ---- タイトル ---- */
+  #ovTitle{ justify-content:flex-start; padding-top:120px;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.04),rgba(173,231,235,.16) 54%,rgba(26,132,148,.43)),
+      url('assets/card_grid.jpg') center/cover no-repeat #A6E5EE; }
+  #ovTitle .kicker{ font-size:11px; font-weight:800; letter-spacing:.34em; color:#DFFFFF; text-shadow:0 2px 5px rgba(8,86,103,.65); }
+  #ovTitle h1{ margin-top:8px; font-size:37px; font-weight:900; line-height:1.2; letter-spacing:.02em;
+    text-shadow:0 2px 0 #0F2E1F, 0 10px 30px rgba(0,0,0,.65); }
+  #ovTitle h1 b{ color:var(--orange); }
+  #ovTitle .lead{ margin-top:10px; font-size:12.5px; font-weight:800; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.86); line-height:1.7; }
+  #ovTitle .eco{ margin-top:6px; font-size:10.5px; font-weight:800; letter-spacing:.22em; color:#9CEBFF; text-shadow:0 1px 5px rgba(0,0,0,.75); }
+  #ovTitle .foot{ position:absolute; bottom:16px; left:0; right:0; font-size:10px; letter-spacing:.12em; color:rgba(246,243,234,.55); }
+
+  /* ---- ステージ選択 ---- */
+  #selGrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+  .stg{ border:none; border-radius:14px; padding:9px 4px 7px; font-family:inherit; cursor:pointer;
+    background:#EAF2E2; color:var(--ink); border:1.5px solid rgba(29,92,60,.22); transition:transform .1s; }
+  .stg:active{ transform:scale(.94); }
+  .stg .no{ display:block; font-size:17px; font-weight:900; color:var(--green); line-height:1.1; }
+  .stg .nm{ display:block; font-size:8.5px; font-weight:800; opacity:.75; margin-top:2px; height:11px; overflow:hidden; }
+  .stg .st{ display:block; font-size:10px; letter-spacing:.1em; color:var(--orange); margin-top:2px; font-weight:900; }
+  .stg.lock{ background:#DDDDD4; color:#9A9A90; border-color:transparent; }
+  .stg.lock .no{ color:#9A9A90; }
+  .stg.lock .st{ color:#B5B5AA; }
+  #selHead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; }
+  #selStars{ font-size:12px; font-weight:900; color:var(--orange); }
+
+  /* ---- カード ---- */
+  #cardsGrid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px; }
+  .card{ border-radius:12px; overflow:hidden; border:1.5px solid rgba(29,92,60,.25); background:var(--green); }
+  .card canvas{ display:block; width:100%; }
+  .card .cn{ font-size:10px; font-weight:900; padding:5px 4px 6px; background:#EAF2E2; color:var(--ink); }
+  .card.new{ box-shadow:0 0 0 2.5px var(--orange), 0 6px 18px rgba(245,166,35,.35); }
+
+  /* ---- 星 ---- */
+  .stars{ font-size:34px; letter-spacing:.12em; height:44px; margin:6px 0 2px; }
+  .stars span{ display:inline-block; color:#CFCFC4; transform:scale(0); }
+  .stars span.on{ color:var(--orange); text-shadow:0 2px 0 rgba(184,119,8,.5); }
+  .stars.go span{ animation:starpop .5s cubic-bezier(.2,1.6,.4,1) forwards; }
+  .stars.go span:nth-child(2){ animation-delay:.18s; }
+  .stars.go span:nth-child(3){ animation-delay:.36s; }
+  @keyframes starpop{ from{ transform:scale(0) rotate(-40deg);} to{ transform:scale(1) rotate(0);} }
+
+  /* ---- 豆知識 ---- */
+  .tip{ margin-top:12px; text-align:left; background:#EAF2E2; border:1.5px dashed rgba(29,92,60,.4);
+    border-radius:14px; padding:10px 12px; }
+  .tip .tt{ font-size:10px; font-weight:900; letter-spacing:.2em; color:var(--blue); }
+  .tip .tb{ font-size:12px; font-weight:700; line-height:1.75; margin-top:3px; }
+  .tip b{ color:#C46A00; }
+
+  /* ---- 引き継ぎコード ---- */
+  .codelab{ margin-top:10px; text-align:left; font-size:10px; font-weight:900; letter-spacing:.14em; color:var(--blue); }
+  .codebox{ display:block; width:100%; margin-top:4px; border:1.5px solid rgba(29,92,60,.35); border-radius:10px;
+    background:#EAF2E2; color:var(--ink); font-family:inherit; font-size:11px; font-weight:700; line-height:1.5;
+    padding:8px 10px; resize:none; height:64px; word-break:break-all;
+    -webkit-user-select:text; user-select:text; }
+  .codebox:focus{ outline:2px solid var(--leaf); }
+
+  /* ---- トースト ---- */
+  #toast{ position:absolute; z-index:35; left:50%; top:60px; transform:translateX(-50%) translateY(-16px);
+    width:88%; max-width:340px; background:rgba(246,243,234,.97); color:var(--ink); border-radius:16px;
+    border-left:5px solid var(--orange); padding:11px 14px; font-size:12.5px; font-weight:800; line-height:1.6;
+    box-shadow:0 10px 26px rgba(0,0,0,.45); opacity:0; pointer-events:none; transition:all .4s cubic-bezier(.2,1.2,.4,1); }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast b{ color:var(--green); }
+</style>
+</head>
+<body>
+<div id="stage"><div id="box">
+  <canvas id="cv"></canvas>
+  <a id="back" class="chip" href="index.html">← もどる</a>
+  <button id="mute" class="chip" aria-label="サウンド切替">♪</button>
+  <div id="toast"></div>
+
+  <!-- タイトル -->
+  <div id="ovTitle" class="ov">
+    <div class="kicker">KOBEC ECO GAME PARK</div>
+    <h1>バイオガス<b>・</b><br>グリッド</h1>
+    <div class="lead">パイプをつないで 流して、<br>廃棄物のちからで神戸を灯せ。</div>
+    <div class="eco">─ 神戸から始めるECOLOGY ─</div>
+    <canvas id="titleMkun" class="mkun bob" width="192" height="192" style="margin-top:14px"></canvas>
+    <div style="margin-top:8px">
+      <button class="btn hot pulse" id="btnStart">はじめる ▶</button>
+    </div>
+    <div style="margin-top:4px">
+      <button class="btn sub" id="btnCards" style="color:var(--cream);border-color:rgba(246,243,234,.5)">カード</button>
+      <button class="btn sub" id="btnCode" style="color:var(--cream);border-color:rgba(246,243,234,.5)">引き継ぎコード</button>
+      <button class="btn sub" id="btnReset" style="color:var(--cream);border-color:rgba(246,243,234,.5)">初期化</button>
+    </div>
+    <div class="foot">株式会社コベック「バイオガスKOBE」｜デモ版</div>
+  </div>
+
+  <!-- ステージ選択 -->
+  <div id="ovSelect" class="ov dim hidden">
+    <div class="panel">
+      <div id="selHead">
+        <h2>ステージ</h2><div id="selStars">★ 0 / 36</div>
+      </div>
+      <div id="selGrid"></div>
+      <div style="margin-top:6px">
+        <button class="btn sub" id="btnSelCards">カード</button>
+        <button class="btn sub" id="btnSelTitle">タイトル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- チュートリアル -->
+  <div id="ovTut" class="ov dim hidden">
+    <div class="panel">
+      <canvas id="tutMkun" class="mkun" width="192" height="192"></canvas>
+      <h2 id="tutTitle">あそびかた 1/3</h2>
+      <p id="tutText" style="margin-top:6px"></p>
+      <button class="btn" id="tutNext">つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- クリア -->
+  <div id="ovClear" class="ov dim hidden">
+    <div class="panel">
+      <canvas id="clearMkun" class="mkun" width="192" height="192"></canvas>
+      <h2 id="clearTitle">STAGE CLEAR!</h2>
+      <div class="stars" id="clearStars"><span>★</span><span>★</span><span>★</span></div>
+      <div id="clearStats" style="font-size:12px;font-weight:800;color:#5A6B5F"></div>
+      <div class="tip"><div class="tt">バイオガスKOBE 豆知識</div><div class="tb" id="tipBody"></div></div>
+      <div id="cardNotice" class="hidden" style="margin-top:10px;font-size:12px;font-weight:900;color:#C46A00">
+        新しいランドマークカードを手に入れた！
+      </div>
+      <div style="margin-top:4px">
+        <button class="btn sub" id="btnRetry">もう一回</button>
+        <button class="btn sub" id="btnList">一覧</button>
+        <button class="btn hot" id="btnNext">つぎへ ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- カードコレクション -->
+  <div id="ovCards" class="ov dim hidden">
+    <div class="panel">
+      <div id="selHead2" style="display:flex;align-items:center;justify-content:space-between">
+        <h2>神戸ランドマークカード</h2><div id="cardStars" style="font-size:12px;font-weight:900;color:var(--orange)"></div>
+      </div>
+      <div id="cardsGrid"></div>
+      <button class="btn" id="btnCardsClose">とじる</button>
+    </div>
+  </div>
+
+  <!-- 引き継ぎコード -->
+  <div id="ovCode" class="ov dim hidden">
+    <div class="panel">
+      <h2>引き継ぎコード</h2>
+      <p style="margin-top:6px">星とカードの記録を、べつの端末に引き継げるで。</p>
+      <div class="codelab">あなたのコード（タップで全選択）</div>
+      <textarea id="codeOut" class="codebox" readonly></textarea>
+      <div class="codelab">コードを入力して読み込み</div>
+      <textarea id="codeIn" class="codebox" placeholder="KOBEC1.…"></textarea>
+      <div style="margin-top:8px">
+        <button class="btn sub" id="btnCodeClose">とじる</button>
+        <button class="btn hot" id="btnCodeLoad">読み込む</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 初期化の確認 -->
+  <div id="ovConfirm" class="ov dim hidden">
+    <div class="panel">
+      <canvas id="confirmMkun" class="mkun" width="192" height="192"></canvas>
+      <h2>データの初期化</h2>
+      <p style="margin-top:6px">セーブデータ（星・カード）をぜんぶ消して最初からにするで。<br>この操作は元に戻せへん。ほんまにええか？</p>
+      <div style="margin-top:8px">
+        <button class="btn sub" id="btnConfirmNo">やめる</button>
+        <button class="btn hot" id="btnConfirmYes">初期化する</button>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+/* ============================================================
+   バイオガス・グリッド — 2フェーズ制パイプ接続パズル
+   株式会社コベック「バイオガスKOBE」デモ / 1 file / no deps
+   コア（盤面・回転・接続・フロー・星・セーブ）はDOM非依存。
+   ============================================================ */
+
+/* ================= CORE (DOM非依存) ================= */
+
+var COLS = 6, ROWS = 8;
+/* 方位 0=N 1=E 2=S 3=W */
+var DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+/* パイプ形状の基本ポート(rot=0): I=直線 L=エル T=ティー X=十字 V=一方通行弁(rot方向へのみ流す) */
+var BASE = { I:[1,0,1,0], L:[1,1,0,0], T:[1,1,1,0], X:[1,1,1,1], V:[1,0,1,0] };
+
+/* ステージ定義: map=盤面(6x8) sol=クリア回転(既知解)
+   S=排出元 K=発酵タンク G=発電機 B=建物 #=工事中 .=空き */
+var STAGES = [
+  { name:'はじめてのパイプ', chain:1,
+    map:['......','..S...','..I...','..I...','..I...','..I...','..K...','......'],
+    sol:['000000','000000','000000','000000','000000','000000','000000','000000'] },
+  { name:'まがりかど', chain:1,
+    map:['......','.S....','.I....','.LIIL.','....I.','....K.','......','......'],
+    sol:['000000','000000','000000','001120','000000','000000','000000','000000'] },
+  { name:'ふたまたの分かれ道', chain:1,
+    map:['......','..S...','..I...','LITIIL','I....I','K....K','......','......'],
+    sol:['000000','000000','000000','113112','000000','000000','000000','000000'] },
+  { name:'クロスロード', chain:1,
+    map:['......','....K.','SIL.I.','..I.I.','SIXIL.','..I...','..K...','......'],
+    sol:['000000','000000','012000','000000','010130','000000','000000','000000'] },
+  { name:'ガスへんかん', chain:2,
+    map:['......','.S....','.I....','.K....','.I....','.LIIG.','......','......'],
+    sol:['000000','000000','000000','000000','000000','001100','000000','000000'] },
+  { name:'とおまわりガス管', chain:2,
+    map:['......','....S.','....I.','.KIIL.','.I....','.I....','.LIIIG','......'],
+    sol:['000000','000000','000000','001130','000000','000000','001110','000000'] },
+  { name:'ダブルタンク', chain:2,
+    map:['......','S....S','I....I','I....I','K....K','I....I','LITIIL','..G...'],
+    sol:['000000','000000','000000','000000','000000','000000','011113','000000'] },
+  { name:'フルチェーン', chain:3,
+    map:['......','.S....','.I....','.KIIG.','....I.','....I.','....B.','......'],
+    sol:['000000','000000','000000','001100','000000','000000','000000','000000'] },
+  { name:'こうじちゅう！', chain:3,
+    map:['......','SIIIL.','..#.I.','.##.LK','...#.I','GIIIIL','I.#...','LIIIIB'],
+    sol:['000000','011120','000000','000000','000000','011113','000000','011110'] },
+  { name:'いっぽうつうこう', chain:3,
+    map:['......','.S....','.ILVG.','.II.I.','.KL.I.','....V.','....B.','......'],
+    sol:['000000','000000','001100','000000','003000','000020','000000','000000'] },
+  { name:'まちにひかりを', chain:3,
+    map:['......','SIIK..','..#V#.','...I..','..#G#.','...I..','BIITIB','......'],
+    sol:['000000','011000','000200','000000','000000','000000','011310','000000'] },
+  { name:'神戸グランドグリッド', chain:3,
+    map:['S....S','I.##.I','I.##.I','K....K','LITVIL','.#G#..','LITIIL','B....B'],
+    sol:['000000','000000','000000','000000','011313','000000','113112','000000'] }
+];
+
+/* クリア画面の実データ豆知識(ステージ番号=インデックス) */
+var TIPS = [
+  '「バイオガスKOBE」は食品廃棄物を<b>1日60トン</b>も処理できる施設。今きみが流したのは、その最初の一滴や。',
+  '受け入れるのは食品工場・コンビニ・スーパーなどから出る<b>食品のごみ</b>。捨てればごみ、つなげば資源。',
+  '許可品目は食品残さ・動植物性残さ・食品由来の汚泥や廃油まで。<b>「食べものから出たもの」</b>が原料になる。',
+  '運営するのは神戸環境クリエートと神鋼環境ソリューションがつくった会社。<b>2022年4月</b>、神戸に誕生した。',
+  'タンクの中では微生物が廃棄物を分解して<b>バイオガス</b>を作る。これを「メタン発酵」と呼ぶんや。',
+  'バイオガスKOBEのガス供給量は<b>1日約6,900N立方メートル</b>。学校のプールを軽々満たすほどの量や。',
+  'バイオガスの主成分はメタン。その濃度は<b>約60%</b>。ちゃんと燃える、立派な燃料や。',
+  '発電機の出力は<b>1,000kW</b>。ガスエンジンをぶん回して、廃棄物のエネルギーを電気に変える。',
+  '年間発電量は<b>約5,000MWh</b>。これは一般家庭<b>約1,500世帯分</b>の電気に相当するんやで。',
+  '<b>2026年3月に売電開始</b>。神戸のごみから生まれた電気が、ほんまに街へ流れ始めた。',
+  'この取り組みで<b>神戸市環境局長から感謝状</b>をもらった。街に認められた循環の仕組みや。',
+  '施設があるのは<b>神戸市兵庫区遠矢浜町</b>。合言葉は「神戸から始めるECOLOGY」。きみの街から、次の循環を。'
+];
+
+/* 神戸ランドマークカード: th=解放に必要な累計星 */
+var CARDS = [
+  { name:'神戸ポートタワー',   th:2  },
+  { name:'モザイク大観覧車',   th:6  },
+  { name:'六甲山',             th:11 },
+  { name:'明石海峡大橋',       th:17 },
+  { name:'風見鶏の館',         th:24 },
+  { name:'BE KOBE モニュメント', th:31 }
+];
+
+/* ---------- 盤面ヘルパ ---------- */
+function idxOf(c, r){ return r * COLS + c; }
+function inBoard(c, r){ return c >= 0 && c < COLS && r >= 0 && r < ROWS; }
+function isPipe(t){ return t === 'I' || t === 'L' || t === 'T' || t === 'X' || t === 'V'; }
+function isFac(t){ return t === 'S' || t === 'K' || t === 'G' || t === 'B'; }
+
+/* 回転rでの開口ポート([N,E,S,W]) 施設は全方位 */
+function portsOf(t, rot){
+  if (isFac(t)) return [1, 1, 1, 1];
+  var base = BASE[t];
+  if (!base) return [0, 0, 0, 0];
+  var p = [0, 0, 0, 0], r = ((rot % 4) + 4) % 4;
+  for (var d = 0; d < 4; d++) p[d] = base[(d - r + 4) % 4];
+  return p;
+}
+
+/* 初期スクランブル回転（決定的）: 解の回転 + 1〜3 */
+function scrambleRot(sol, c, r, pipeIdx){
+  return (sol + 1 + ((c * 2 + r * 3 + pipeIdx) % 3)) % 4;
+}
+
+/* ステージ→盤面セル配列 {t,rot,sol} */
+function makeBoard(st){
+  var cells = [], pipeIdx = 0;
+  for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++){
+    var t = st.map[r][c];
+    if (isPipe(t)){
+      var sol = +st.sol[r][c];
+      cells.push({ t: t, rot: scrambleRot(sol, c, r, pipeIdx), sol: sol });
+      pipeIdx++;
+    } else {
+      cells.push({ t: t, rot: 0, sol: 0 });
+    }
+  }
+  return cells;
+}
+
+function applySolution(board){
+  board.forEach(function(cell){ if (isPipe(cell.t)) cell.rot = cell.sol; });
+}
+
+/* タップ回転。回転が意味を持つ場合のみ true（十字は機能不変なのでカウント外） */
+function tapTile(board, i){
+  var cell = board[i];
+  if (!cell || !isPipe(cell.t)) return false;
+  cell.rot = (cell.rot + 1) % 4;
+  return cell.t !== 'X';
+}
+
+/* セルciから方向dへ進めるなら移動先index、無理なら-1
+   弁(V)は「rotの方向へ進む流れ」だけを通す */
+function canGo(board, ci, d){
+  var c = ci % COLS, r = (ci - c) / COLS;
+  var nc = c + DIRS[d][0], nr = r + DIRS[d][1];
+  if (!inBoard(nc, nr)) return -1;
+  var a = board[ci], b = board[idxOf(nc, nr)];
+  if (!(isPipe(b.t) || isFac(b.t))) return -1;
+  if (!portsOf(a.t, a.rot)[d]) return -1;
+  if (a.t === 'V' && d !== a.rot % 4) return -1;
+  if (!portsOf(b.t, b.rot)[(d + 2) % 4]) return -1;
+  if (b.t === 'V' && d !== b.rot % 4) return -1;
+  return idxOf(nc, nr);
+}
+
+/* 1種の流体をBFS。sources=index配列 accept=変換先施設文字
+   施設に到達したら流れはそこで止まる(変換) */
+function runPass(board, sources, accept){
+  var visited = {}, parent = {}, hits = [], q = [], qi = 0;
+  sources.forEach(function(s){ visited[s] = true; parent[s] = -1; q.push(s); });
+  while (qi < q.length){
+    var u = q[qi++];
+    if (isFac(board[u].t) && parent[u] !== -1) continue;
+    for (var d = 0; d < 4; d++){
+      var v = canGo(board, u, d);
+      if (v < 0 || visited[v]) continue;
+      visited[v] = true; parent[v] = u; q.push(v);
+      if (board[v].t === accept) hits.push(v);
+    }
+  }
+  var paths = hits.map(function(h){
+    var p = [], x = h;
+    while (x !== -1){ p.push(x); x = parent[x]; }
+    return p.reverse();
+  });
+  return { visited: visited, hits: hits, paths: paths };
+}
+
+/* 3チェーン解決: 廃棄物(0)→タンク→ガス(1)→発電機→電気(2)→建物 */
+function resolveFlow(board){
+  var srcs = [], tanks = [], gens = [], blds = [];
+  board.forEach(function(cell, i){
+    if (cell.t === 'S') srcs.push(i);
+    else if (cell.t === 'K') tanks.push(i);
+    else if (cell.t === 'G') gens.push(i);
+    else if (cell.t === 'B') blds.push(i);
+  });
+  var pipeKind = board.map(function(){ return -1; });
+  function paint(vis, k){
+    for (var key in vis){ var i = +key; if (isPipe(board[i].t) && pipeKind[i] < 0) pipeKind[i] = k; }
+  }
+  var empty = { visited: {}, hits: [], paths: [] };
+  var p0 = srcs.length ? runPass(board, srcs, 'K') : empty;
+  paint(p0.visited, 0);
+  var fed = p0.hits;
+  var p1 = fed.length ? runPass(board, fed, 'G') : empty;
+  paint(p1.visited, 1);
+  var powered = p1.hits;
+  var p2 = powered.length ? runPass(board, powered, 'B') : empty;
+  paint(p2.visited, 2);
+  var lit = p2.hits;
+  function allIn(need, got){
+    return need.every(function(i){ return got.indexOf(i) >= 0; });
+  }
+  var ok = tanks.length > 0 && allIn(tanks, fed) && allIn(gens, powered) && allIn(blds, lit);
+  return { passes: [p0, p1, p2], fed: fed, powered: powered, lit: lit, ok: ok,
+           pipeKind: pipeKind, srcs: srcs, tanks: tanks, gens: gens, blds: blds };
+}
+
+/* 機能等価を考慮した最小タップ数(I=180度対称, X=常に0) */
+function minTaps(t, from, to){
+  if (t === 'X') return 0;
+  var eq = (t === 'I') ? [to % 4, (to + 2) % 4] : [to % 4];
+  var best = 9;
+  eq.forEach(function(e){ var n = ((e - from) % 4 + 4) % 4; if (n < best) best = n; });
+  return best;
+}
+
+/* 星3の基準回転数 = 既知解までの最小タップ合計 */
+var _parCache = {};
+function parOf(stIdx){
+  if (stIdx in _parCache) return _parCache[stIdx];
+  var st = STAGES[stIdx], board = makeBoard(st), sum = 0;
+  board.forEach(function(cell){ if (isPipe(cell.t)) sum += minTaps(cell.t, cell.rot, cell.sol); });
+  _parCache[stIdx] = sum;
+  return sum;
+}
+
+function starsFor(stIdx, rot){
+  var p = parOf(stIdx);
+  return rot <= p ? 3 : rot <= p + 4 ? 2 : 1;
+}
+
+/* ---------- セーブ直列化 ---------- */
+function defaultSave(){
+  var st = [], bs = [];
+  for (var i = 0; i < STAGES.length; i++){ st.push(0); bs.push(-1); }
+  return { ver: 1, stars: st, best: bs, seen: 0 };
+}
+function encodeSave(s){ return JSON.stringify(s); }
+function decodeSave(str){
+  try {
+    var d = JSON.parse(str);
+    if (!d || d.ver !== 1) return null;
+    if (!Array.isArray(d.stars) || d.stars.length !== STAGES.length) return null;
+    if (!Array.isArray(d.best) || d.best.length !== STAGES.length) return null;
+    for (var i = 0; i < STAGES.length; i++){
+      var a = d.stars[i], b = d.best[i];
+      if (typeof a !== 'number' || a % 1 !== 0 || a < 0 || a > 3) return null;
+      if (typeof b !== 'number' || b % 1 !== 0 || b < -1) return null;
+    }
+    return { ver: 1, stars: d.stars.slice(), best: d.best.slice(), seen: +d.seen || 0 };
+  } catch (e){ return null; }
+}
+/* ---------- 引き継ぎコード(他ゲーム共通フォーマット) ----------
+   'KOBEC1.' + btoa(unescape(encodeURIComponent(JSON))) + '.' + checksum(base64部) */
+var XFER_PREFIX = 'KOBEC1';
+function checksum(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return h.toString(36); }
+function b64enc(str){
+  if (typeof btoa === 'function') return btoa(str);
+  return Buffer.from(str, 'binary').toString('base64'); /* Node(テスト)用 */
+}
+function b64dec(b64){
+  if (typeof atob === 'function') return atob(b64);
+  return Buffer.from(b64, 'base64').toString('binary');
+}
+function encodeTransfer(s){
+  var b64 = b64enc(unescape(encodeURIComponent(encodeSave(s))));
+  return XFER_PREFIX + '.' + b64 + '.' + checksum(b64);
+}
+function decodeTransfer(code){
+  if (typeof code !== 'string') return null;
+  var parts = code.replace(/\s+/g, '').split('.');
+  if (parts.length !== 3 || parts[0] !== XFER_PREFIX || !parts[1]) return null;
+  if (checksum(parts[1]) !== parts[2]) return null;
+  try {
+    return decodeSave(decodeURIComponent(escape(b64dec(parts[1]))));
+  } catch (e){ return null; }
+}
+function totalStars(s){
+  var n = 0;
+  for (var i = 0; i < s.stars.length; i++) n += s.stars[i];
+  return n;
+}
+function cardsUnlocked(s){
+  var t = totalStars(s), n = 0;
+  CARDS.forEach(function(cd){ if (t >= cd.th) n++; });
+  return n;
+}
+
+var GridCore = {
+  COLS: COLS, ROWS: ROWS, BASE: BASE, STAGES: STAGES, TIPS: TIPS, CARDS: CARDS,
+  idxOf: idxOf, inBoard: inBoard, isPipe: isPipe, isFac: isFac, portsOf: portsOf,
+  scrambleRot: scrambleRot, makeBoard: makeBoard, applySolution: applySolution,
+  tapTile: tapTile, canGo: canGo, runPass: runPass, resolveFlow: resolveFlow,
+  minTaps: minTaps, parOf: parOf, starsFor: starsFor,
+  defaultSave: defaultSave, encodeSave: encodeSave, decodeSave: decodeSave,
+  checksum: checksum, encodeTransfer: encodeTransfer, decodeTransfer: decodeTransfer,
+  totalStars: totalStars, cardsUnlocked: cardsUnlocked
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = GridCore;
+
+/* ================= ここからDOM依存(ブラウザのみ) ================= */
+if (typeof window !== 'undefined'){ (function(){
+
+/* ---------- キャンバス ---------- */
+var VW = 420, VH = 740, SCALE = 1, DPR = 1;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var box = document.getElementById('box');
+function fit(){
+  SCALE = Math.min(innerWidth / VW, innerHeight / VH, 1.25); /* 拡大上限1.25(他ゲーム統一) */
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = VW * SCALE + 'px'; cv.style.height = VH * SCALE + 'px';
+  box.style.width = VW * SCALE + 'px'; box.style.height = VH * SCALE + 'px';
+  cv.width = Math.round(VW * SCALE * DPR); cv.height = Math.round(VH * SCALE * DPR);
+  ctx.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
+}
+addEventListener('resize', fit); fit();
+
+/* ---------- 配色 ---------- */
+var COL = {
+  cream: '#F6F3EA', green: '#1D5C3C', leaf: '#7CC24E', blue: '#2E7CB8',
+  orange: '#F5A623', cyan: '#3EC8E0', ink: '#24332B',
+  bgTop: '#1E5A3C', bgBot: '#12382655', pipeIdle: '#A9B4A0', pipeDark: '#0E2A1D'
+};
+var KIND_COL = [COL.leaf, COL.cyan, COL.orange];
+var KIND_NAME = ['廃棄物', 'バイオガス', '電気'];
+
+/* ---------- セーブ ---------- */
+var SAVE_KEY = 'kobec_grid_save', TUT_KEY = 'kobec_grid_tut', MUTE_KEY = 'kobec_mute';
+var save = defaultSave();
+try {
+  var loaded = decodeSave(localStorage.getItem(SAVE_KEY));
+  if (loaded) save = loaded;
+} catch (e){}
+function persist(){
+  try { localStorage.setItem(SAVE_KEY, encodeSave(save)); } catch (e){}
+}
+
+/* ---------- サウンド(WebAudio合成) ---------- */
+var AC = null, master = null, muted = false;
+try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch (e){}
+var muteBtn = document.getElementById('mute');
+function syncMute(){ muteBtn.textContent = muted ? '×' : '♪'; if (master) master.gain.value = muted ? 0 : .5; }
+syncMute();
+muteBtn.addEventListener('click', function(){
+  muted = !muted;
+  try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e){}
+  syncMute();
+});
+function unlockAudio(){
+  if (AC){ if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = muted ? 0 : .5; master.connect(AC.destination);
+  } catch (e){ AC = null; }
+}
+function beep(f, dur, type, vol, slide){
+  if (!AC || muted) return;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.value = f;
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, AC.currentTime + dur);
+  g.gain.setValueAtTime(vol || .15, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime + dur);
+}
+function arp(notes, step, dur, type, vol){
+  notes.forEach(function(f, i){ setTimeout(function(){ beep(f, dur, type, vol); }, i * step); });
+}
+function whoosh(dur, vol){
+  if (!AC || muted) return;
+  var n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  var s = AC.createBufferSource(); s.buffer = buf;
+  var f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(300, AC.currentTime);
+  f.frequency.exponentialRampToValueAtTime(1800, AC.currentTime + dur); f.Q.value = 1.2;
+  var g = AC.createGain(); g.gain.value = vol || .3;
+  s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+var sfx = {
+  rotate: function(){ beep(560, .06, 'square', .12, 760); },
+  ui:     function(){ beep(440, .05, 'triangle', .12, 520); },
+  flow:   function(){ whoosh(.5, .35); beep(150, .35, 'sawtooth', .08, 300); },
+  tank:   function(){ beep(210, .18, 'sine', .2, 90); arp([300, 420], 70, .1, 'sine', .12); },
+  gen:    function(){ beep(120, .3, 'sawtooth', .14, 240); arp([392, 523], 80, .12, 'triangle', .14); },
+  light:  function(){ arp([1047, 1319, 1568], 60, .14, 'triangle', .16); },
+  clear:  function(){ arp([523, 659, 784, 1047, 1319], 110, .22, 'square', .14); },
+  star:   function(){ beep(1568, .12, 'triangle', .18, 1760); },
+  fail:   function(){ beep(160, .25, 'sawtooth', .2, 90); },
+  unlock: function(){ arp([392, 523, 659, 784, 1047], 90, .18, 'triangle', .16); }
+};
+
+/* ---------- 画像差し替えフォールバック ---------- */
+var IMG = {};
+var mascotSrc={
+  mascot:'assets/mascot_v2.png?v=20260715c',
+  mascot_joy:'assets/mascot_joy.png?v=20260715c',
+  mascot_sad:'assets/mascot_sad.png?v=20260715c',
+  mascot_point:'assets/mascot_point.png?v=20260715c'
+};
+['mascot', 'mascot_joy', 'mascot_sad', 'mascot_point',
+ 'landmark1', 'landmark2', 'landmark3', 'landmark4', 'landmark5', 'landmark6'
+].forEach(function(n){
+  var im = new Image();
+  im.onload = function(){ IMG[n] = im; };
+  im.onerror = function(){};
+  im.src = mascotSrc[n] || ('assets/' + n + (n.indexOf('landmark') === 0 ? '.jpg' : '.png'));
+});
+function loadGameplayArt(key,src){
+  var im=new Image();im.onload=function(){IMG[key]=im};im.onerror=function(){};im.src=src;
+}
+loadGameplayArt('gameBg','assets/gameplay/grid_play_bg.jpg');
+loadGameplayArt('pipeAtlas','assets/gameplay/grid_pipes.png');
+loadGameplayArt('facilityAtlas','assets/gameplay/grid_facilities.png');
+function atlasSquare(img,index,cols,rows,x,y,size){
+  var cw=img.width/cols,rh=img.height/rows,ss=Math.min(cw,rh)*.98;
+  var col=index%cols,row=Math.floor(index/cols);
+  ctx.drawImage(img,col*cw+(cw-ss)/2,row*rh+(rh-ss)/2,ss,ss,x-size/2,y-size/2,size,size);
+}
+
+/* ---------- コベッくん（画像読込失敗時は簡易描画） ---------- */
+function drawMetankun(g, x, y, size, mood){
+  var s = size / 100;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  /* 炎のしずく本体 */
+  var grd = g.createRadialGradient(0, 10, 6, 0, 8, 46);
+  grd.addColorStop(0, '#EAFBFF'); grd.addColorStop(.45, '#8FE3F2'); grd.addColorStop(1, '#3EC8E0');
+  g.beginPath();
+  g.moveTo(0, -46);
+  g.bezierCurveTo(20, -22, 34, -6, 34, 12);
+  g.bezierCurveTo(34, 34, 19, 46, 0, 46);
+  g.bezierCurveTo(-19, 46, -34, 34, -34, 12);
+  g.bezierCurveTo(-34, -6, -20, -22, 0, -46);
+  g.closePath();
+  g.fillStyle = grd; g.fill();
+  g.lineWidth = 3; g.strokeStyle = '#1D8FA6'; g.stroke();
+  /* 内炎 */
+  g.beginPath();
+  g.moveTo(0, -18);
+  g.bezierCurveTo(10, -6, 15, 2, 15, 14);
+  g.bezierCurveTo(15, 26, 8, 32, 0, 32);
+  g.bezierCurveTo(-8, 32, -15, 26, -15, 14);
+  g.bezierCurveTo(-15, 2, -10, -6, 0, -18);
+  g.closePath();
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.fill();
+  /* 目と口 */
+  g.fillStyle = '#17414E'; g.strokeStyle = '#17414E'; g.lineWidth = 3; g.lineCap = 'round';
+  if (mood === 'joy'){
+    g.beginPath(); g.arc(-11, 6, 5.5, Math.PI, 0); g.stroke();
+    g.beginPath(); g.arc(11, 6, 5.5, Math.PI, 0); g.stroke();
+    g.beginPath(); g.arc(0, 17, 8, .15 * Math.PI, .85 * Math.PI); g.stroke();
+  } else if (mood === 'sad'){
+    g.beginPath(); g.arc(-11, 8, 3.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(11, 8, 3.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(0, 26, 7, 1.15 * Math.PI, 1.85 * Math.PI); g.stroke();
+    g.fillStyle = '#8FD7EF';
+    g.beginPath(); g.arc(-20, 16, 4, 0, 7); g.fill();
+  } else if (mood === 'point'){
+    g.beginPath(); g.arc(-11, 6, 3.6, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(6, 6); g.lineTo(16, 6); g.stroke();
+    g.beginPath(); g.arc(-1, 18, 6.5, .1 * Math.PI, .9 * Math.PI); g.stroke();
+    g.beginPath(); g.moveTo(26, 14); g.lineTo(44, 2); g.stroke();
+    g.fillStyle = '#3EC8E0';
+    g.beginPath(); g.arc(45, 1, 4.5, 0, 7); g.fill();
+    g.lineWidth = 2; g.strokeStyle = '#1D8FA6'; g.stroke();
+  } else {
+    g.beginPath(); g.arc(-11, 6, 3.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(11, 6, 3.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(0, 16, 6.5, .1 * Math.PI, .9 * Math.PI); g.stroke();
+  }
+  /* ほっぺ */
+  g.fillStyle = 'rgba(245,166,35,.4)';
+  g.beginPath(); g.arc(-20, 14, 4.2, 0, 7); g.fill();
+  g.beginPath(); g.arc(20, 14, 4.2, 0, 7); g.fill();
+  g.restore();
+}
+function drawMascot(g, x, y, size, mood){
+  var key = mood === 'normal' ? 'mascot' : 'mascot_' + mood;
+  var im = IMG[key] || IMG.mascot;
+  if (im){
+    var iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;
+    var scale=size/Math.max(iw,ih),cw=iw*scale,ch=ih*scale;
+    g.save();g.shadowColor='rgba(255,255,255,.98)';g.shadowBlur=Math.max(5,size*.075);
+    g.drawImage(im,x-cw/2,y-ch/2,cw,ch);g.restore();
+    g.save();g.shadowColor='rgba(6,70,82,.34)';g.shadowBlur=Math.max(4,size*.055);g.shadowOffsetY=Math.max(2,size*.025);
+    g.drawImage(im,x-cw/2,y-ch/2,cw,ch);g.restore();
+  }
+}
+function paintMkun(id, mood){
+  var c = document.getElementById(id), g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.save(); g.scale(2, 2);
+  drawMascot(g, 48, 50, 84, mood);
+  g.restore();
+}
+
+/* ---------- 神戸ランドマーク線画(仮canvas・差し替え可) ---------- */
+function drawLandmark(g, i, w, h){
+  g.save();
+  var grd = g.createLinearGradient(0, 0, 0, h);
+  grd.addColorStop(0, '#1D5C3C'); grd.addColorStop(1, '#123C27');
+  g.fillStyle = grd; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(246,243,234,.16)'; g.lineWidth = 1;
+  g.strokeRect(4.5, 4.5, w - 9, h - 9);
+  /* 海の線 */
+  g.strokeStyle = 'rgba(62,200,224,.5)'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(10, h - 16); g.lineTo(w - 10, h - 16); g.stroke();
+  g.strokeStyle = COL.cream; g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+  var cx = w / 2, base = h - 16;
+  if (i === 0){ /* ポートタワー: 鼓型 */
+    g.beginPath();
+    g.moveTo(cx - 13, base); g.bezierCurveTo(cx - 4, base - 26, cx - 4, base - 34, cx - 12, base - 52);
+    g.moveTo(cx + 13, base); g.bezierCurveTo(cx + 4, base - 26, cx + 4, base - 34, cx + 12, base - 52);
+    g.moveTo(cx - 12, base - 52); g.lineTo(cx + 12, base - 52);
+    g.moveTo(cx - 8, base - 56); g.lineTo(cx + 8, base - 56);
+    g.moveTo(cx, base - 56); g.lineTo(cx, base - 63);
+    for (var k = 1; k < 5; k++){
+      var t = k / 5, yy = base - 52 * t;
+      var wds = 13 - 9 * Math.sin(Math.PI * t * .92);
+      g.moveTo(cx - wds, yy); g.lineTo(cx + wds, yy);
+    }
+    g.stroke();
+    g.strokeStyle = COL.orange;
+    g.beginPath(); g.moveTo(cx - 13, base); g.bezierCurveTo(cx - 4, base - 26, cx - 4, base - 34, cx - 12, base - 52); g.stroke();
+  } else if (i === 1){ /* モザイク大観覧車 */
+    g.beginPath(); g.arc(cx, base - 34, 26, 0, 7); g.stroke();
+    g.beginPath();
+    for (var a = 0; a < 8; a++){
+      var an = a * Math.PI / 4;
+      g.moveTo(cx, base - 34); g.lineTo(cx + Math.cos(an) * 26, base - 34 + Math.sin(an) * 26);
+    }
+    g.moveTo(cx - 12, base); g.lineTo(cx, base - 34); g.lineTo(cx + 12, base);
+    g.stroke();
+    g.fillStyle = COL.orange;
+    for (var a2 = 0; a2 < 8; a2++){
+      var an2 = a2 * Math.PI / 4 + .4;
+      g.beginPath(); g.arc(cx + Math.cos(an2) * 26, base - 34 + Math.sin(an2) * 26, 2.6, 0, 7); g.fill();
+    }
+  } else if (i === 2){ /* 六甲山とケーブル */
+    g.beginPath();
+    g.moveTo(8, base); g.lineTo(w * .32, base - 34); g.lineTo(w * .48, base - 20);
+    g.lineTo(w * .66, base - 44); g.lineTo(w - 8, base);
+    g.stroke();
+    g.strokeStyle = 'rgba(246,243,234,.55)';
+    g.beginPath(); g.moveTo(w * .2, base - 8); g.lineTo(w * .66, base - 44); g.stroke();
+    g.fillStyle = COL.leaf;
+    g.fillRect(w * .4 - 4, base - 27, 8, 6);
+    g.fillStyle = COL.orange;
+    g.beginPath(); g.arc(w * .66, base - 44, 3, 0, 7); g.fill();
+  } else if (i === 3){ /* 明石海峡大橋 */
+    g.beginPath();
+    g.moveTo(8, base - 12); g.lineTo(w - 8, base - 12);
+    g.moveTo(w * .3, base - 12); g.lineTo(w * .3, base - 46);
+    g.moveTo(w * .7, base - 12); g.lineTo(w * .7, base - 46);
+    g.moveTo(8, base - 30);
+    g.quadraticCurveTo(w * .3, base - 48, w * .5, base - 24);
+    g.quadraticCurveTo(w * .7, base - 48, w - 8, base - 30);
+    g.stroke();
+    g.strokeStyle = 'rgba(246,243,234,.45)'; g.lineWidth = 1;
+    g.beginPath();
+    for (var xk = .34; xk < .67; xk += .066){
+      var xx = w * xk;
+      g.moveTo(xx, base - 12); g.lineTo(xx, base - 24 - Math.sin((xk - .3) / .4 * Math.PI) * -6 - 12);
+    }
+    g.stroke();
+    g.fillStyle = COL.orange;
+    g.beginPath(); g.arc(w * .3, base - 46, 2.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(w * .7, base - 46, 2.6, 0, 7); g.fill();
+  } else if (i === 4){ /* 風見鶏の館 */
+    g.beginPath();
+    g.moveTo(cx - 20, base); g.lineTo(cx - 20, base - 26); g.lineTo(cx, base - 40);
+    g.lineTo(cx + 20, base - 26); g.lineTo(cx + 20, base);
+    g.moveTo(cx + 8, base - 34) ; g.lineTo(cx + 8, base - 56);
+    g.moveTo(cx - 6, base - 8); g.lineTo(cx - 6, base - 18); g.lineTo(cx + 6, base - 18); g.lineTo(cx + 6, base - 8);
+    g.stroke();
+    g.strokeStyle = COL.orange;
+    g.beginPath();
+    g.moveTo(cx + 2, base - 56); g.lineTo(cx + 15, base - 56);
+    g.moveTo(cx + 8, base - 56); g.lineTo(cx + 8, base - 62);
+    g.moveTo(cx + 5, base - 60) ; g.lineTo(cx + 13, base - 60); g.lineTo(cx + 9, base - 63);
+    g.stroke();
+  } else { /* BE KOBE */
+    g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = COL.cream;
+    g.fillText('BE KOBE', cx, base - 30);
+    g.strokeStyle = 'rgba(246,243,234,.5)'; g.lineWidth = 1.5;
+    g.strokeRect(cx - 44, base - 44, 88, 28);
+    g.strokeStyle = COL.cyan;
+    g.beginPath();
+    g.moveTo(14, base - 6); g.quadraticCurveTo(cx, base - 12, w - 14, base - 6);
+    g.stroke();
+  }
+  g.restore();
+}
+
+/* ---------- ゲーム状態 ---------- */
+var TILE = 58, BX = 36, BY = 118;
+var scene = 'title';           /* title | game */
+var phase = 'plan';            /* plan | flow | ambient */
+var stageIdx = 0, board = null, rotCount = 0;
+var preview = null;            /* プラン中のライブ接続判定 */
+var vis = [];                  /* セル見た目 {ang,target,pulse} */
+var flowCtl = null;
+var sparks = [], floats = [], flowPs = [];
+var shakeT = 0, tGlobal = 0, failPulse = 0;
+var activatedNow = {};         /* フロー演出中に点火済みの施設 */
+var genSpin = 0;
+var cursor = { c: 0, r: 0, on: false };
+var justCards = 0;             /* クリアで新解放されたカード数 */
+
+function cellX(c){ return BX + c * TILE + TILE / 2; }
+function cellY(r){ return BY + r * TILE + TILE / 2; }
+function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+function easeOut(t){ return 1 - Math.pow(1 - t, 3); }
+function rr(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+function refreshPreview(){ preview = resolveFlow(board); }
+
+/* ---------- FX ---------- */
+function addFloat(txt, x, y, col, big){
+  floats.push({ t: txt, x: x, y: y, life: 1.2, c: col || COL.orange, big: !!big });
+}
+function addSparks(x, y, col, n, sp){
+  for (var i = 0; i < n; i++){
+    var a = Math.random() * Math.PI * 2, v = (0.3 + Math.random() * .7) * sp;
+    sparks.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * .25,
+      life: .45 + Math.random() * .55, c: col, r: 1.5 + Math.random() * 2.6, grav: 60 });
+  }
+}
+function confetti(){
+  var cols = [COL.leaf, COL.cyan, COL.orange, COL.blue, COL.cream];
+  for (var i = 0; i < 60; i++){
+    sparks.push({ x: 210 + (Math.random() - .5) * 200, y: 240 + (Math.random() - .5) * 120,
+      vx: (Math.random() - .5) * 220, vy: -60 - Math.random() * 160,
+      life: 1 + Math.random() * .9, c: cols[i % 5], r: 2 + Math.random() * 3, grav: 260 });
+  }
+}
+function updateFx(dt){
+  for (var i = sparks.length - 1; i >= 0; i--){
+    var p = sparks[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.grav || 0) * dt;
+    if (p.life <= 0) sparks.splice(i, 1);
+  }
+  for (var j = floats.length - 1; j >= 0; j--){
+    var f = floats[j];
+    f.life -= dt; f.y -= 34 * dt;
+    if (f.life <= 0) floats.splice(j, 1);
+  }
+}
+function drawFx(){
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  sparks.forEach(function(p){
+    ctx.globalAlpha = clamp(p.life, 0, 1) * .9;
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  });
+  ctx.restore();
+  floats.forEach(function(f){
+    var a = clamp(f.life / 1.2, 0, 1);
+    ctx.globalAlpha = a;
+    ctx.font = '900 ' + (f.big ? 17 : 13) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(15,40,26,.85)';
+    ctx.strokeText(f.t, f.x, f.y); ctx.fillStyle = f.c; ctx.fillText(f.t, f.x, f.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+/* ---------- 流体粒子(トレイル付き) ---------- */
+function pathPts(path){
+  return path.map(function(i){ var c = i % COLS; return { x: cellX(c), y: cellY((i - c) / COLS) }; });
+}
+function posAt(pts, s){
+  var L = pts.length - 1;
+  s = clamp(s, 0, L);
+  var i = Math.min(Math.floor(s), L - 1), t = s - i;
+  return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t };
+}
+function spawnFlowP(pts, kind, sp){
+  flowPs.push({ pts: pts, s: 0, sp: sp || 5.2, kind: kind, dead: false });
+}
+function updateFlowPs(dt){
+  for (var i = flowPs.length - 1; i >= 0; i--){
+    var p = flowPs[i];
+    p.s += p.sp * dt;
+    if (p.s >= p.pts.length - 1){
+      var e = p.pts[p.pts.length - 1];
+      addSparks(e.x, e.y, KIND_COL[p.kind], 3, 40);
+      flowPs.splice(i, 1);
+    }
+  }
+}
+function drawFlowPs(){
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  flowPs.forEach(function(p){
+    var col = KIND_COL[p.kind];
+    for (var k = 7; k >= 0; k--){
+      var q = posAt(p.pts, p.s - k * .16);
+      ctx.globalAlpha = (1 - k / 8) * .75;
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 4.2 - k * .38, 0, 7); ctx.fill();
+    }
+    var h = posAt(p.pts, p.s);
+    ctx.globalAlpha = .9; ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(h.x, h.y, 1.8, 0, 7); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- タイル描画 ---------- */
+function pipeColorOf(i){
+  var k = -1;
+  if (phase === 'plan' && preview) k = preview.pipeKind[i];
+  else if (flowCtl) k = flowCtl.res.pipeKind[i];
+  return k;
+}
+function drawPipe(cell, i, x, y){
+  var v = vis[i];
+  var k = pipeColorOf(i);
+  var live = k >= 0 && (phase !== 'plan');
+  var soft = k >= 0 && phase === 'plan';
+  if(IMG.pipeAtlas){
+    var pi={I:0,L:1,T:2,X:3,V:4}[cell.t];
+    ctx.save();ctx.translate(x,y);ctx.rotate(v.ang);ctx.scale(1+v.pulse*.1,1+v.pulse*.1);
+    if(live||soft){ctx.shadowColor=KIND_COL[k];ctx.shadowBlur=live?14:8;}
+    atlasSquare(IMG.pipeAtlas,pi,5,1,0,0,TILE+8);
+    if(live||soft){
+      ctx.globalCompositeOperation='screen';ctx.globalAlpha=live?.28:.16;
+      ctx.fillStyle=KIND_COL[k];ctx.beginPath();ctx.arc(0,0,TILE*.34,0,7);ctx.fill();
+    }
+    ctx.restore();return;
+  }
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(v.ang);
+  var sc = 1 + v.pulse * .12;
+  ctx.scale(sc, sc);
+  var arm = TILE / 2 - 2;
+  function arms(w, col, blur){
+    ctx.lineWidth = w; ctx.strokeStyle = col; ctx.lineCap = 'round';
+    if (blur){ ctx.shadowColor = col; ctx.shadowBlur = blur; } else ctx.shadowBlur = 0;
+    ctx.beginPath();
+    for (var d = 0; d < 4; d++){
+      if (!BASE[cell.t][d]) continue;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(DIRS[d][0] * arm, DIRS[d][1] * arm);
+    }
+    ctx.stroke();
+  }
+  arms(13, COL.pipeDark, 0);
+  var inner = COL.pipeIdle;
+  if (live) inner = KIND_COL[k];
+  arms(7, inner, live ? 9 : 0);
+  if (soft){
+    ctx.globalAlpha = .38 + .14 * Math.sin(tGlobal * 4);
+    arms(7, KIND_COL[k], 8);
+    ctx.globalAlpha = 1;
+  }
+  ctx.shadowBlur = 0;
+  /* 中心ジョイント */
+  ctx.fillStyle = COL.pipeDark;
+  ctx.beginPath(); ctx.arc(0, 0, 6.6, 0, 7); ctx.fill();
+  ctx.fillStyle = live ? KIND_COL[k] : (soft ? KIND_COL[k] : '#7B8877');
+  ctx.globalAlpha = soft && !live ? .6 : 1;
+  ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, 7); ctx.fill();
+  ctx.globalAlpha = 1;
+  /* 弁の矢印(rot方向にのみ流れる) */
+  if (cell.t === 'V'){
+    ctx.fillStyle = COL.cream;
+    ctx.beginPath();
+    ctx.moveTo(0, -15); ctx.lineTo(6.5, -5); ctx.lineTo(-6.5, -5); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = COL.pipeDark; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- 施設描画 ---------- */
+function facAccent(t){ return t === 'S' ? COL.leaf : t === 'K' ? COL.cyan : t === 'G' ? COL.orange : COL.blue; }
+function drawFacility(cell, i, x, y, active){
+  var t = cell.t;
+  if(IMG.facilityAtlas){
+    var fi={S:0,K:1,G:2,B:3}[t];
+    ctx.save();
+    if(active){ctx.shadowColor=facAccent(t);ctx.shadowBlur=16;}
+    atlasSquare(IMG.facilityAtlas,fi,5,1,x,y,TILE+14);
+    if(active){ctx.globalCompositeOperation='screen';ctx.globalAlpha=.2+.08*Math.sin(tGlobal*5+i);ctx.fillStyle=facAccent(t);ctx.beginPath();ctx.arc(x,y,TILE*.42,0,7);ctx.fill();}
+    ctx.restore();return;
+  }
+  ctx.save();
+  ctx.translate(x, y);
+  /* 台座 */
+  rr(ctx, -25, -25, 50, 50, 9);
+  ctx.fillStyle = 'rgba(246,243,234,.09)'; ctx.fill();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = active ? facAccent(t) : 'rgba(246,243,234,.3)';
+  if (active){ ctx.shadowColor = facAccent(t); ctx.shadowBlur = 10; }
+  ctx.stroke(); ctx.shadowBlur = 0;
+  /* 接続口(4方位) */
+  ctx.fillStyle = 'rgba(246,243,234,.35)';
+  for (var d = 0; d < 4; d++){
+    ctx.save(); ctx.rotate(d * Math.PI / 2);
+    ctx.fillRect(-4, -28, 8, 5);
+    ctx.restore();
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (t === 'S'){
+    var variant = (i * 7) % 3;
+    ctx.strokeStyle = COL.cream; ctx.lineWidth = 2;
+    if (variant === 2){ /* 工場 */
+      ctx.beginPath();
+      ctx.moveTo(-16, 12); ctx.lineTo(-16, -4); ctx.lineTo(-6, -12); ctx.lineTo(-6, -4);
+      ctx.lineTo(4, -12); ctx.lineTo(4, -4); ctx.lineTo(14, -12); ctx.lineTo(14, 12); ctx.closePath();
+      ctx.stroke();
+      ctx.strokeRect(-11, 2, 7, 10);
+      ctx.beginPath(); ctx.moveTo(9, -12); ctx.lineTo(9, -18); ctx.stroke();
+    } else { /* 店舗 */
+      ctx.strokeRect(-14, -6, 28, 18);
+      ctx.fillStyle = variant === 0 ? COL.leaf : COL.blue;
+      for (var s2 = 0; s2 < 4; s2++) ctx.fillRect(-15 + s2 * 8, -12, 6, 6);
+      ctx.strokeRect(-15, -12, 30, 7);
+      ctx.strokeRect(-3, 2, 8, 10);
+    }
+    /* 廃棄物ドット */
+    ctx.fillStyle = COL.leaf;
+    ctx.globalAlpha = .6 + .4 * Math.sin(tGlobal * 5 + i);
+    ctx.beginPath(); ctx.arc(17, 15, 3.4, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (t === 'K'){
+    ctx.strokeStyle = COL.cream; ctx.lineWidth = 2;
+    rr(ctx, -13, -8, 26, 22, 4); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -8, 13, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -21); ctx.lineTo(0, -25); ctx.stroke();
+    ctx.fillStyle = active ? COL.cyan : 'rgba(62,200,224,.25)';
+    rr(ctx, -10, 2, 20, 9, 3); ctx.fill();
+    if (active){ /* 気泡 */
+      ctx.fillStyle = 'rgba(234,251,255,.9)';
+      for (var b2 = 0; b2 < 3; b2++){
+        var bt = (tGlobal * .9 + b2 * .37) % 1;
+        ctx.globalAlpha = 1 - bt;
+        ctx.beginPath(); ctx.arc(-6 + b2 * 6, 8 - bt * 16, 1.6 + b2 * .4, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = active ? COL.cyan : 'rgba(246,243,234,.55)';
+    ctx.font = '900 8px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('タンク', 0, 21);
+  } else if (t === 'G'){
+    ctx.strokeStyle = COL.cream; ctx.lineWidth = 2;
+    rr(ctx, -16, -13, 32, 28, 5); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 1, 10, 0, 7); ctx.stroke();
+    ctx.save();
+    ctx.rotate(active ? genSpin : 0);
+    ctx.strokeStyle = active ? COL.orange : 'rgba(246,243,234,.6)';
+    for (var bl = 0; bl < 3; bl++){
+      ctx.rotate(Math.PI * 2 / 3);
+      ctx.beginPath(); ctx.moveTo(0, 1); ctx.quadraticCurveTo(4, -4, 0, -8.5); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = active ? COL.orange : 'rgba(246,243,234,.55)';
+    ctx.font = '900 8px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('1,000kW', 0, 22);
+  } else if (t === 'B'){
+    if (active){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      var bg = ctx.createRadialGradient(0, 0, 4, 0, 0, 42);
+      bg.addColorStop(0, 'rgba(245,166,35,.5)'); bg.addColorStop(1, 'rgba(245,166,35,0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.arc(0, 0, 42, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+    ctx.strokeStyle = COL.cream; ctx.lineWidth = 2;
+    rr(ctx, -12, -17, 24, 34, 3); ctx.stroke();
+    for (var wy = 0; wy < 3; wy++) for (var wx = 0; wx < 2; wx++){
+      ctx.fillStyle = active ? COL.orange : 'rgba(246,243,234,.22)';
+      if (active){ ctx.shadowColor = COL.orange; ctx.shadowBlur = 6; }
+      ctx.fillRect(-8 + wx * 9, -12 + wy * 9, 7, 6);
+      ctx.shadowBlur = 0;
+    }
+    if (active){
+      ctx.fillStyle = COL.orange;
+      ctx.beginPath(); ctx.arc(0, -20, 2.2, 0, 7); ctx.fill();
+    }
+  }
+  /* 未達成の点滅(フロー失敗時) */
+  if (failPulse > 0 && !active && (t === 'K' || t === 'G' || t === 'B')){
+    ctx.globalAlpha = .35 + .35 * Math.sin(tGlobal * 10);
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#E05B4B';
+    rr(ctx, -27, -27, 54, 54, 10); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function drawObstacle(x, y){
+  if(IMG.facilityAtlas){
+    ctx.save();atlasSquare(IMG.facilityAtlas,4,5,1,x,y,TILE+12);ctx.restore();return;
+  }
+  ctx.save();
+  ctx.translate(x, y);
+  rr(ctx, -25, -25, 50, 50, 9);
+  ctx.fillStyle = 'rgba(15,40,26,.5)'; ctx.fill();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(246,243,234,.14)'; ctx.lineWidth = 5;
+  ctx.beginPath();
+  for (var k = -2; k < 4; k++){ ctx.moveTo(-30 + k * 18, 30); ctx.lineTo(0 + k * 18, -30); }
+  ctx.stroke();
+  /* コーン */
+  ctx.fillStyle = COL.orange;
+  ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(7, 7); ctx.lineTo(-7, 7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = COL.cream; ctx.fillRect(-4.4, -2, 8.8, 3);
+  ctx.fillStyle = 'rgba(246,243,234,.65)';
+  ctx.font = '900 8px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('工事中', 0, 17);
+  ctx.restore();
+}
+
+/* ---------- 盤面・HUD描画 ---------- */
+function bgGradient(){
+  if(IMG.gameBg){
+    ctx.drawImage(IMG.gameBg,0,0,VW,VH);
+    var ov=ctx.createLinearGradient(0,0,0,VH);ov.addColorStop(0,'rgba(255,255,255,.025)');ov.addColorStop(.18,'rgba(0,90,103,.025)');ov.addColorStop(.8,'rgba(0,73,86,.035)');ov.addColorStop(1,'rgba(4,69,90,.10)');
+    ctx.fillStyle=ov;ctx.fillRect(0,0,VW,VH);return;
+  }
+  var g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, '#1E5A3C'); g.addColorStop(1, '#0F3322');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  ctx.save();
+  ctx.globalAlpha = .05; ctx.strokeStyle = COL.cream; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (var k = 0; k < 16; k++){ ctx.moveTo(-80 + k * 60, VH); ctx.lineTo(120 + k * 60, -60); }
+  ctx.stroke();
+  ctx.restore();
+}
+function chainSteps(chain){
+  var steps = [{ ic: 'S', lab: 'ごみ' }, { k: 0 }, { ic: 'K', lab: 'タンク' }];
+  if (chain >= 2){ steps.push({ k: 1 }, { ic: 'G', lab: '発電' }); }
+  if (chain >= 3){ steps.push({ k: 2 }, { ic: 'B', lab: 'まち' }); }
+  return steps;
+}
+function drawHeader(){
+  var st = STAGES[stageIdx];
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(246,243,234,.55)';
+  ctx.font = '900 10px sans-serif';
+  ctx.fillText('STAGE ' + (stageIdx + 1) + ' / 12', 18, 58);
+  ctx.fillStyle = COL.cream;
+  ctx.font = '900 17px sans-serif';
+  ctx.fillText(st.name, 18, 76);
+  /* 回転数と星予測 */
+  var p = parOf(stageIdx), stars = starsFor(stageIdx, rotCount);
+  ctx.textAlign = 'right';
+  ctx.font = '900 12px sans-serif';
+  ctx.fillStyle = 'rgba(246,243,234,.75)';
+  ctx.fillText('回転 ' + rotCount + '（★3は' + p + '回）', 402, 58);
+  ctx.font = '900 15px sans-serif';
+  for (var s2 = 0; s2 < 3; s2++){
+    ctx.fillStyle = s2 < stars ? COL.orange : 'rgba(246,243,234,.22)';
+    ctx.fillText('★', 402 - (2 - s2) * 17, 77);
+  }
+  /* チェーン凡例 */
+  var steps = chainSteps(st.chain), x = 18, y = 99;
+  ctx.textAlign = 'left'; ctx.font = '900 9.5px sans-serif';
+  steps.forEach(function(sp){
+    if (sp.k !== undefined){
+      ctx.strokeStyle = KIND_COL[sp.k]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 14, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 14, y); ctx.lineTo(x + 9, y - 3.5); ctx.moveTo(x + 14, y); ctx.lineTo(x + 9, y + 3.5); ctx.stroke();
+      x += 20;
+    } else {
+      ctx.fillStyle = 'rgba(246,243,234,.85)';
+      ctx.fillText(sp.lab, x, y);
+      x += ctx.measureText(sp.lab).width + 6;
+    }
+  });
+  var goal = st.chain === 1 ? 'タンクへ廃棄物を届けよう' : st.chain === 2 ? '発電機までガスを届けよう' : 'まちに電気を灯そう';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(124,194,78,.9)';
+  ctx.fillText(goal, 402, 99);
+}
+function drawBoard(){
+  rr(ctx, BX - 8, BY - 8, COLS * TILE + 16, ROWS * TILE + 16, 16);
+  ctx.fillStyle = 'rgba(4,91,96,.14)'; ctx.fill();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(246,255,255,.30)'; ctx.stroke();
+  for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++){
+    var i = idxOf(c, r), cell = board[i];
+    var x = cellX(c), y = cellY(r);
+    if (cell.t !== '#'){
+      rr(ctx, x - 26, y - 26, 52, 52, 7);
+      ctx.fillStyle = 'rgba(246,255,255,.055)'; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(246,255,255,.11)'; ctx.stroke();
+    }
+    if (cell.t === '#') drawObstacle(x, y);
+    else if (isPipe(cell.t)) drawPipe(cell, i, x, y);
+  }
+  /* 施設はパイプの上に */
+  for (var r2 = 0; r2 < ROWS; r2++) for (var c2 = 0; c2 < COLS; c2++){
+    var i2 = idxOf(c2, r2), cl = board[i2];
+    if (!isFac(cl.t)) continue;
+    var act = false;
+    if (phase === 'plan'){
+      act = cl.t === 'S';
+    } else if (flowCtl){
+      act = cl.t === 'S' || !!activatedNow[i2];
+    }
+    drawFacility(cl, i2, cellX(c2), cellY(r2), act);
+  }
+  if (cursor.on && phase === 'plan'){
+    ctx.lineWidth = 2.5; ctx.strokeStyle = COL.leaf;
+    ctx.shadowColor = COL.leaf; ctx.shadowBlur = 8;
+    rr(ctx, cellX(cursor.c) - 27, cellY(cursor.r) - 27, 54, 54, 8); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+}
+/* ---------- キャンバス内ボタン ---------- */
+var BTN = {
+  flow:  { x: 120, y: 616, w: 180, h: 54 },
+  retry: { x: 16,  y: 626, w: 92,  h: 36 },
+  list:  { x: 312, y: 626, w: 92,  h: 36 }
+};
+function inBtn(b, x, y){ return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; }
+function drawButtons(){
+  if (phase !== 'plan'){
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '900 14px sans-serif';
+    ctx.fillStyle = 'rgba(246,243,234,.75)';
+    var msg = phase === 'flow' ? '……ながれ中（タップで早送り）' : '';
+    if (msg) ctx.fillText(msg, 210, 643);
+    return;
+  }
+  var b = BTN.flow;
+  var ready = preview && preview.ok;
+  var pu = ready ? 1 + Math.sin(tGlobal * 5) * .03 : 1;
+  ctx.save();
+  ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+  ctx.scale(pu, pu);
+  rr(ctx, -b.w / 2, -b.h / 2 + 4, b.w, b.h, 16);
+  ctx.fillStyle = '#B87708'; ctx.fill();
+  rr(ctx, -b.w / 2, -b.h / 2, b.w, b.h, 16);
+  var g = ctx.createLinearGradient(0, -b.h / 2, 0, b.h / 2);
+  g.addColorStop(0, '#FFC24E'); g.addColorStop(1, COL.orange);
+  ctx.fillStyle = g; ctx.fill();
+  if (ready){ ctx.shadowColor = COL.orange; ctx.shadowBlur = 16; ctx.strokeStyle = 'rgba(255,220,150,.9)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.shadowBlur = 0; }
+  ctx.fillStyle = COL.ink;
+  ctx.font = '900 21px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('流す！', 0, -1);
+  ctx.restore();
+  [['retry', 'やりなおす'], ['list', 'ステージ']].forEach(function(pair){
+    var bb = BTN[pair[0]];
+    rr(ctx, bb.x, bb.y, bb.w, bb.h, 12);
+    ctx.fillStyle = 'rgba(246,243,234,.08)'; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(246,243,234,.4)'; ctx.stroke();
+    ctx.fillStyle = 'rgba(246,243,234,.85)';
+    ctx.font = '900 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(pair[1], bb.x + bb.w / 2, bb.y + bb.h / 2);
+  });
+  ctx.textAlign = 'center';
+  ctx.font = '800 10.5px sans-serif';
+  ctx.fillStyle = 'rgba(246,243,234,.5)';
+  ctx.fillText('タイルをタップで90°回転 → ぜんぶ繋いだら「流す！」', 210, 700);
+}
+
+/* ---------- タイトル背景 ---------- */
+var titleSeeds = [];
+for (var ts = 0; ts < 26; ts++) titleSeeds.push({ x: Math.random() * VW, y: 180 + Math.random() * 480, sp: 8 + Math.random() * 20, r: 1 + Math.random() * 2 });
+function drawTitleBg(){
+  bgGradient();
+  /* 港の海 */
+  ctx.fillStyle = 'rgba(46,124,184,.25)';
+  ctx.fillRect(0, 600, VW, 140);
+  ctx.strokeStyle = 'rgba(62,200,224,.3)'; ctx.lineWidth = 1;
+  for (var w2 = 0; w2 < 4; w2++){
+    ctx.beginPath();
+    for (var x2 = 0; x2 <= VW; x2 += 20)
+      ctx.lineTo(x2, 615 + w2 * 26 + Math.sin(x2 * .04 + tGlobal * 1.4 + w2) * 2.5);
+    ctx.stroke();
+  }
+  /* スカイライン(シルエット) */
+  ctx.fillStyle = '#0C271A';
+  ctx.beginPath();
+  ctx.moveTo(0, 600);
+  ctx.lineTo(0, 560); ctx.lineTo(34, 560); ctx.lineTo(34, 528); ctx.lineTo(58, 528); ctx.lineTo(58, 572);
+  ctx.lineTo(92, 572); ctx.lineTo(92, 540); ctx.lineTo(114, 540); ctx.lineTo(114, 600);
+  ctx.closePath(); ctx.fill();
+  /* ポートタワー */
+  ctx.strokeStyle = '#0C271A'; ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(160, 600); ctx.bezierCurveTo(168, 560, 168, 550, 158, 512);
+  ctx.moveTo(184, 600); ctx.bezierCurveTo(176, 560, 176, 550, 186, 512);
+  ctx.stroke();
+  ctx.fillStyle = '#0C271A'; ctx.fillRect(154, 505, 36, 9);
+  /* 観覧車 */
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(280, 548, 34, 0, 7); ctx.stroke();
+  ctx.beginPath();
+  for (var a3 = 0; a3 < 6; a3++){
+    var an3 = a3 * Math.PI / 3 + tGlobal * .15;
+    ctx.moveTo(280, 548); ctx.lineTo(280 + Math.cos(an3) * 34, 548 + Math.sin(an3) * 34);
+  }
+  ctx.moveTo(266, 600); ctx.lineTo(280, 548); ctx.lineTo(294, 600);
+  ctx.stroke();
+  /* クレーン */
+  ctx.beginPath();
+  ctx.moveTo(360, 600); ctx.lineTo(360, 526); ctx.lineTo(408, 540); ctx.moveTo(360, 545); ctx.lineTo(388, 534);
+  ctx.stroke();
+  /* 浮遊粒(循環イメージ) */
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  titleSeeds.forEach(function(p, i3){
+    var yy = p.y - (tGlobal * p.sp) % 560;
+    if (yy < 120) yy += 560;
+    ctx.globalAlpha = .35;
+    ctx.fillStyle = KIND_COL[i3 % 3];
+    ctx.beginPath(); ctx.arc(p.x, yy, p.r, 0, 7); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- フロー実行(フェーズ2) ---------- */
+var P_SPEED = 5.2; /* 粒の速度(マス/秒) */
+function startFlow(){
+  var res = resolveFlow(board);
+  flowCtl = { res: res, t: 0, passIdx: 0, spawnAcc: 0, speed: 1,
+              pathsPts: [], arrivals: [], passEnd: 0, doneT: -1, ambT: 0, clearShown: false };
+  activatedNow = {};
+  phase = 'flow';
+  sfx.flow();
+  setupPass(0);
+}
+function setupPass(pi){
+  var ctl = flowCtl;
+  if (pi > 2){ endFlow(); return; }
+  var pass = ctl.res.passes[pi];
+  ctl.passIdx = pi; ctl.t = 0; ctl.spawnAcc = .2;
+  ctl.pathsPts = pass.paths.map(pathPts);
+  var maxT = 0;
+  ctl.arrivals = pass.paths.map(function(p){
+    var at = (p.length - 1) / P_SPEED;
+    if (at > maxT) maxT = at;
+    return { t: at, sink: p[p.length - 1], done: false };
+  });
+  ctl.passEnd = pass.paths.length ? maxT + .4 : .2;
+}
+function fireArrival(sink){
+  var t = board[sink].t, c = sink % COLS, x = cellX(c), y = cellY((sink - c) / COLS);
+  activatedNow[sink] = true;
+  shakeT = .25;
+  if (t === 'K'){ sfx.tank(); addFloat('ガス発生！', x, y - 34, COL.cyan, true); addSparks(x, y, COL.cyan, 14, 90); }
+  else if (t === 'G'){ sfx.gen(); addFloat('発電！', x, y - 34, COL.orange, true); addSparks(x, y, COL.orange, 14, 90); }
+  else if (t === 'B'){ sfx.light(); addFloat('点灯！', x, y - 34, '#FFD98A', true); addSparks(x, y, COL.orange, 18, 110); }
+}
+function updateFlow(dt0){
+  var ctl = flowCtl;
+  var dt = dt0 * ctl.speed;
+  if (phase === 'flow'){
+    ctl.t += dt;
+    ctl.spawnAcc += dt;
+    while (ctl.spawnAcc >= .17){
+      ctl.spawnAcc -= .17;
+      if (ctl.t < ctl.passEnd - .15)
+        ctl.pathsPts.forEach(function(pts){ spawnFlowP(pts, ctl.passIdx, P_SPEED); });
+    }
+    ctl.arrivals.forEach(function(a){ if (!a.done && ctl.t >= a.t){ a.done = true; fireArrival(a.sink); } });
+    if (ctl.t >= ctl.passEnd) setupPass(ctl.passIdx + 1);
+  } else if (phase === 'ambient'){
+    ctl.doneT += dt0;
+    ctl.ambT += dt0;
+    if (ctl.ambT >= .55){
+      ctl.ambT = 0;
+      ctl.res.passes.forEach(function(pass, k){
+        pass.paths.forEach(function(p){ spawnFlowP(pathPts(p), k, P_SPEED); });
+      });
+    }
+    if (!ctl.clearShown && ctl.doneT >= .8){ ctl.clearShown = true; showClear(); }
+  }
+}
+function endFlow(){
+  var res = flowCtl.res;
+  if (res.ok){
+    phase = 'ambient';
+    flowCtl.doneT = 0;
+  } else {
+    sfx.fail();
+    failPulse = 2.5;
+    var m = [];
+    if (res.tanks.length) m.push('タンク ' + res.fed.length + '/' + res.tanks.length);
+    if (res.gens.length) m.push('発電機 ' + res.powered.length + '/' + res.gens.length);
+    if (res.blds.length) m.push('建物 ' + res.lit.length + '/' + res.blds.length);
+    failToast('<b>まだ途切れてるで！</b><br>とどいた施設 ─ ' + m.join('｜'), 3000);
+    phase = 'plan';
+    flowCtl = null;
+    refreshPreview();
+  }
+}
+
+/* ---------- トースト ---------- */
+var toastEl = document.getElementById('toast'), toastTimer = 0;
+function toast(html, dur){
+  toastEl.innerHTML = html;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, dur || 2400);
+}
+function failToast(html, dur){
+  toastEl.innerHTML = '<canvas id="toastMkun" width="88" height="88" style="float:left;width:44px;height:44px;margin:-2px 8px 0 -2px"></canvas>' + html;
+  toastEl.classList.add('show');
+  var c = document.getElementById('toastMkun'), g = c.getContext('2d');
+  g.scale(2, 2); drawMascot(g, 22, 23, 40, 'sad');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, dur || 2600);
+}
+
+/* ---------- オーバーレイ ---------- */
+var ovTitle = document.getElementById('ovTitle'), ovSelect = document.getElementById('ovSelect'),
+    ovTut = document.getElementById('ovTut'), ovClear = document.getElementById('ovClear'),
+    ovCards = document.getElementById('ovCards'), ovCode = document.getElementById('ovCode'),
+    ovConfirm = document.getElementById('ovConfirm');
+var OVERLAYS = [ovTitle, ovSelect, ovTut, ovClear, ovCards, ovCode, ovConfirm];
+function show(el){ el.classList.remove('hidden'); }
+function hide(el){ el.classList.add('hidden'); }
+function hideAll(){ OVERLAYS.forEach(hide); }
+/* オーバーレイ表示中は背後の盤面入力(キー・ポインタ)を遮断する */
+function overlayOpen(){
+  for (var i = 0; i < OVERLAYS.length; i++)
+    if (!OVERLAYS[i].classList.contains('hidden')) return true;
+  return false;
+}
+function on(id, fn){
+  document.getElementById(id).addEventListener('click', function(e){
+    unlockAudio(); sfx.ui(); fn(); if (e.currentTarget.blur) e.currentTarget.blur();
+  });
+}
+
+/* ステージ選択 */
+function showSelect(){
+  hideAll();
+  var grid = document.getElementById('selGrid');
+  grid.innerHTML = '';
+  STAGES.forEach(function(st, i){
+    var unlocked = i === 0 || save.stars[i - 1] > 0;
+    var b = document.createElement('button');
+    b.className = 'stg' + (unlocked ? '' : ' lock');
+    var starTxt = unlocked
+      ? ('★★★'.slice(0, save.stars[i]) + '<span style="opacity:.3">' + '★★★'.slice(0, 3 - save.stars[i]) + '</span>')
+      : 'ロック';
+    b.innerHTML = '<span class="no">' + (i + 1) + '</span><span class="nm">' + (unlocked ? st.name : '？？？') +
+                  '</span><span class="st">' + starTxt + '</span>';
+    if (unlocked) b.addEventListener('click', function(){ unlockAudio(); sfx.ui(); enterStage(i); });
+    grid.appendChild(b);
+  });
+  document.getElementById('selStars').textContent = '★ ' + totalStars(save) + ' / 36';
+  show(ovSelect);
+}
+
+/* カード */
+function openCards(){
+  hideAll();
+  var grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  var total = totalStars(save), unlockedN = cardsUnlocked(save);
+  CARDS.forEach(function(cd, i){
+    var div = document.createElement('div');
+    var got = total >= cd.th;
+    div.className = 'card' + (got && i >= save.seen ? ' new' : '');
+    var c = document.createElement('canvas');
+    c.width = 300; c.height = 190;
+    var g = c.getContext('2d');
+    g.scale(2, 2);
+    if (got){
+      var im = IMG['landmark' + (i + 1)];
+      if (im) g.drawImage(im, 0, 0, 150, 95);
+      else drawLandmark(g, i, 150, 95);
+    } else {
+      g.fillStyle = '#152F21'; g.fillRect(0, 0, 150, 95);
+      g.fillStyle = 'rgba(246,243,234,.4)';
+      g.font = '900 12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('★' + cd.th + ' で解放', 75, 48);
+    }
+    var nm = document.createElement('div');
+    nm.className = 'cn';
+    nm.textContent = (got ? cd.name : '？？？') + '（★' + cd.th + '）';
+    div.appendChild(c); div.appendChild(nm); grid.appendChild(div);
+  });
+  document.getElementById('cardStars').textContent = '★ ' + total + ' / 36';
+  if (unlockedN > save.seen){ save.seen = unlockedN; persist(); }
+  show(ovCards);
+}
+
+/* チュートリアル */
+var TUT = [
+  { mood: 'point', tt: 'あそびかた 1/3',
+    tx: 'お店や工場から出る<b>食品ごみ</b>がエネルギーの原料や。タイルをタップすると<b>90°回転</b>。パイプをつないで、緑のごみを<b>発酵タンク</b>へ届けよう。' },
+  { mood: 'normal', tt: 'あそびかた 2/3',
+    tx: 'つながったら<b>「流す！」</b>で実行や。タンクはごみを<b>バイオガス</b>（シアン）に、発電機はガスを<b>電気</b>（オレンジ）に変えるで。' },
+  { mood: 'joy', tt: 'あそびかた 3/3',
+    tx: '<b>少ない回転数</b>でクリアするほど星が増える（最大3つ）。星を集めて<b>神戸ランドマークカード</b>を全部そろえよう！' }
+];
+var tutStep = 0;
+function maybeTutorial(){
+  var done = false;
+  try { done = localStorage.getItem(TUT_KEY) === '1'; } catch (e){}
+  if (done) return;
+  tutStep = 0;
+  showTutPage();
+  show(ovTut);
+}
+function showTutPage(){
+  var p = TUT[tutStep];
+  document.getElementById('tutTitle').textContent = p.tt;
+  document.getElementById('tutText').innerHTML = p.tx;
+  document.getElementById('tutNext').textContent = tutStep === 2 ? 'あそぶ！ ▶' : 'つぎへ ▶';
+  paintMkun('tutMkun', p.mood);
+}
+on('tutNext', function(){
+  tutStep++;
+  if (tutStep >= 3){
+    hide(ovTut);
+    try { localStorage.setItem(TUT_KEY, '1'); } catch (e){}
+  } else showTutPage();
+});
+
+/* クリア画面 */
+function showClear(){
+  var stars = starsFor(stageIdx, rotCount);
+  var before = cardsUnlocked(save);
+  if (stars > save.stars[stageIdx]) save.stars[stageIdx] = stars;
+  if (save.best[stageIdx] < 0 || rotCount < save.best[stageIdx]) save.best[stageIdx] = rotCount;
+  justCards = cardsUnlocked(save) - before;
+  persist();
+  confetti();
+  sfx.clear();
+  setTimeout(function(){ for (var s2 = 0; s2 < stars; s2++) setTimeout(sfx.star, s2 * 180); }, 350);
+  shakeT = .3;
+  paintMkun('clearMkun', 'joy');
+  var wrap = document.getElementById('clearStars');
+  wrap.classList.remove('go');
+  var spans = wrap.children;
+  for (var i = 0; i < 3; i++) spans[i].className = i < stars ? 'on' : '';
+  void wrap.offsetWidth;
+  wrap.classList.add('go');
+  document.getElementById('clearStats').textContent =
+    '回転 ' + rotCount + ' 回（★3ラインは ' + parOf(stageIdx) + ' 回）';
+  document.getElementById('tipBody').innerHTML = TIPS[stageIdx];
+  var notice = document.getElementById('cardNotice');
+  if (justCards > 0){ notice.classList.remove('hidden'); sfx.unlock(); }
+  else notice.classList.add('hidden');
+  document.getElementById('btnNext').textContent = stageIdx + 1 < STAGES.length ? 'つぎへ ▶' : 'いちらんへ ▶';
+  show(ovClear);
+}
+
+/* ---------- ステージ進行 ---------- */
+function enterStage(i){
+  stageIdx = i;
+  board = makeBoard(STAGES[i]);
+  vis = board.map(function(cell){ return { ang: cell.rot * Math.PI / 2, target: cell.rot * Math.PI / 2, pulse: 0 }; });
+  rotCount = 0;
+  phase = 'plan';
+  flowCtl = null;
+  flowPs.length = 0; sparks.length = 0; floats.length = 0;
+  activatedNow = {};
+  failPulse = 0;
+  cursor.on = false;
+  refreshPreview();
+  hideAll();
+  scene = 'game';
+  if (i === 0) maybeTutorial();
+}
+function resetStage(){
+  var i = stageIdx;
+  enterStage(i);
+  toast('盤面を<b>やりなおし</b>たで（回転カウントもリセット）');
+}
+
+on('btnStart', function(){ showSelect(); });
+on('btnCards', function(){ openCards(); });
+on('btnSelCards', function(){ openCards(); });
+on('btnSelTitle', function(){ hideAll(); scene = 'title'; show(ovTitle); });
+on('btnReset', function(){
+  paintMkun('confirmMkun', 'sad');
+  hideAll();
+  show(ovConfirm);
+});
+on('btnConfirmYes', function(){
+  save = defaultSave(); persist();
+  try { localStorage.removeItem(TUT_KEY); } catch (e){}
+  hideAll();
+  scene = 'title';
+  show(ovTitle);
+  toast('データを初期化したで');
+});
+on('btnConfirmNo', function(){
+  hideAll();
+  scene = 'title';
+  show(ovTitle);
+});
+
+/* 引き継ぎコード */
+var codeOut = document.getElementById('codeOut'), codeIn = document.getElementById('codeIn');
+function openCode(){
+  hideAll();
+  codeOut.value = encodeTransfer(save);
+  codeIn.value = '';
+  show(ovCode);
+}
+on('btnCode', openCode);
+codeOut.addEventListener('focus', function(){ codeOut.select(); });
+codeOut.addEventListener('click', function(){ codeOut.select(); });
+on('btnCodeClose', function(){
+  hideAll();
+  scene = 'title';
+  show(ovTitle);
+});
+on('btnCodeLoad', function(){
+  var d = decodeTransfer(codeIn.value);
+  if (!d){
+    failToast('<b>コードが読めへん…</b><br>コピーもれや入力ミスがないか確認してな。');
+    return;
+  }
+  save = d;
+  persist();
+  hideAll();
+  scene = 'title';
+  show(ovTitle);
+  toast('<b>引き継ぎ完了！</b> ★' + totalStars(save) + ' 個の記録を読み込んだで');
+});
+on('btnCardsClose', function(){
+  hideAll();
+  if (scene === 'game' && phase === 'ambient') show(ovClear);
+  else if (scene === 'game') ; else show(ovTitle);
+});
+on('btnRetry', function(){ enterStage(stageIdx); });
+on('btnList', function(){ showSelect(); });
+on('btnNext', function(){
+  if (stageIdx + 1 < STAGES.length) enterStage(stageIdx + 1);
+  else {
+    showSelect();
+    if (save.stars.every(function(s2){ return s2 > 0; }))
+      toast('<b>全ステージクリア！</b> 星とカードのコンプリートも目指してな。');
+  }
+});
+document.getElementById('cardNotice').addEventListener('click', function(){ openCards(); });
+
+/* ---------- 入力 ---------- */
+function toGame(e){
+  var rect = cv.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) / SCALE, y: (e.clientY - rect.top) / SCALE };
+}
+function tapCell(c, r){
+  if (!inBoard(c, r)) return;
+  var i = idxOf(c, r), cell = board[i];
+  if (!isPipe(cell.t)) return;
+  var counted = tapTile(board, i);
+  if (counted) rotCount++;
+  vis[i].target += Math.PI / 2;
+  vis[i].pulse = 1;
+  sfx.rotate();
+  refreshPreview();
+}
+cv.addEventListener('pointerdown', function(e){
+  unlockAudio();
+  if (overlayOpen()) return; /* チュートリアル等の表示中は盤面入力を遮断 */
+  if (scene !== 'game') return;
+  var p = toGame(e);
+  if (phase === 'flow'){ flowCtl.speed = 2.6; return; }
+  if (phase !== 'plan') return;
+  if (inBtn(BTN.flow, p.x, p.y)){ startFlow(); return; }
+  if (inBtn(BTN.retry, p.x, p.y)){ sfx.ui(); resetStage(); return; }
+  if (inBtn(BTN.list, p.x, p.y)){ sfx.ui(); showSelect(); return; }
+  var c = Math.floor((p.x - BX) / TILE), r = Math.floor((p.y - BY) / TILE);
+  if (inBoard(c, r)){ cursor.c = c; cursor.r = r; tapCell(c, r); }
+});
+addEventListener('keydown', function(e){
+  if (overlayOpen()) return; /* チュートリアル等の表示中は盤面入力を遮断 */
+  if (scene !== 'game' || phase !== 'plan') return;
+  var k = e.key;
+  if (k === 'ArrowUp' || k === 'ArrowDown' || k === 'ArrowLeft' || k === 'ArrowRight'){
+    e.preventDefault();
+    cursor.on = true;
+    if (k === 'ArrowUp') cursor.r = clamp(cursor.r - 1, 0, ROWS - 1);
+    if (k === 'ArrowDown') cursor.r = clamp(cursor.r + 1, 0, ROWS - 1);
+    if (k === 'ArrowLeft') cursor.c = clamp(cursor.c - 1, 0, COLS - 1);
+    if (k === 'ArrowRight') cursor.c = clamp(cursor.c + 1, 0, COLS - 1);
+  } else if (k === ' ' || k === 'Enter'){
+    e.preventDefault();
+    if (cursor.on){ unlockAudio(); tapCell(cursor.c, cursor.r); }
+  } else if (k === 'f' || k === 'F'){
+    e.preventDefault(); unlockAudio(); startFlow();
+  }
+});
+
+/* ---------- メインループ ---------- */
+var lastT = 0;
+function update(dt){
+  tGlobal += dt;
+  genSpin += dt * 6;
+  if (shakeT > 0) shakeT -= dt;
+  if (failPulse > 0) failPulse -= dt;
+  if (board) vis.forEach(function(v){
+    v.ang += (v.target - v.ang) * Math.min(1, dt * 13);
+    v.pulse = Math.max(0, v.pulse - dt * 5);
+  });
+  updateFx(dt);
+  updateFlowPs(dt);
+  if (flowCtl) updateFlow(dt);
+}
+function draw(){
+  if (scene === 'title'){ drawTitleBg(); return; }
+  bgGradient();
+  ctx.save();
+  if (shakeT > 0){
+    var sh = shakeT * 14;
+    ctx.translate((Math.random() - .5) * sh, (Math.random() - .5) * sh);
+  }
+  drawHeader();
+  drawBoard();
+  drawFlowPs();
+  drawFx();
+  drawButtons();
+  ctx.restore();
+}
+function loop(ts){
+  requestAnimationFrame(loop);
+  var dt = Math.min(.05, (ts - lastT) / 1000 || 0);
+  lastT = ts;
+  update(dt);
+  draw();
+}
+document.addEventListener('visibilitychange', function(){ if (document.hidden) persist(); });
+
+/* ---------- 起動 ---------- */
+paintMkun('titleMkun', 'normal');
+setTimeout(function(){ paintMkun('titleMkun', 'normal'); }, 600); /* 差し替え画像ロード後の再描画 */
+show(ovTitle);
+requestAnimationFrame(loop);
+
+})(); }
+</script>
+</body>
+</html>

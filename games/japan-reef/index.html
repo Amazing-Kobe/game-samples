@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>うみのゲームパーク｜日本リーフグループ こうしきミニゲーム</title>
+<style>
+:root{
+  --navy:#0d2b45; --aqua:#35c9dd; --green:#3fae6a; --sand:#e8d5a0; --coral:#ff7f66; --white:#f4f9ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+  background:var(--navy); color:var(--white); min-height:100vh; overflow-x:hidden;
+}
+.bg{
+  position:fixed; inset:0; z-index:0;
+  background:url('assets/entrance_bg.jpg') center top / cover no-repeat var(--navy);
+}
+.bg::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(13,43,69,.30) 0%, rgba(13,43,69,.05) 22%, rgba(13,43,69,.28) 55%, rgba(9,30,50,.86) 88%, rgba(7,24,41,.96) 100%);
+}
+.wrap{position:relative; z-index:1; max-width:960px; margin:0 auto; padding:34px 18px 30px; text-align:center;}
+.badge{
+  display:inline-block; padding:7px 20px; border-radius:999px;
+  background:rgba(13,43,69,.72); border:1px solid rgba(53,201,221,.55);
+  color:#bfeef6; font-size:13px; letter-spacing:.12em; backdrop-filter:blur(3px);
+}
+h1{
+  margin-top:14px; font-size:clamp(34px,7vw,58px); letter-spacing:.06em;
+  color:var(--sand); text-shadow:0 3px 14px rgba(0,0,0,.55), 0 0 34px rgba(53,201,221,.35);
+}
+h1 .aq{color:var(--aqua);}
+.sub{margin-top:8px; font-size:clamp(13px,2.6vw,16px); color:#ffe9b8; font-weight:bold; letter-spacing:.14em; text-shadow:0 2px 8px rgba(0,0,0,.6);}
+.mascot{margin:20px auto 0; width:min(190px,44vw); position:relative;}
+.mascot img{width:100%; filter:drop-shadow(0 14px 22px rgba(0,0,0,.45)); animation:floaty 3.4s ease-in-out infinite;}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.5deg);}50%{transform:translateY(-13px) rotate(1.5deg);}}
+.welcome{
+  display:inline-block; margin-top:14px; padding:9px 22px; border-radius:999px;
+  background:rgba(13,43,69,.78); border:1px solid rgba(232,213,160,.4);
+  color:var(--sand); font-size:14px; letter-spacing:.08em;
+}
+.cards{
+  margin-top:30px; display:grid; gap:20px;
+  grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+  text-align:left;
+}
+.card{
+  background:rgba(16,49,78,.88); border:1px solid rgba(53,201,221,.28); border-radius:20px;
+  overflow:hidden; position:relative;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  transition:transform .25s ease, box-shadow .25s ease;
+  display:flex; flex-direction:column;
+}
+.card:hover{transform:translateY(-6px) scale(1.015); box-shadow:0 20px 44px rgba(0,0,0,.5), 0 0 0 2px rgba(53,201,221,.45);}
+.card .thumb{position:relative; aspect-ratio:3/2; overflow:hidden;}
+.card .thumb img{width:100%; height:100%; object-fit:cover; display:block; transition:transform .4s ease;}
+.card:hover .thumb img{transform:scale(1.06);}
+.tag{
+  position:absolute; top:12px; left:12px; padding:5px 14px; border-radius:999px;
+  font-size:12px; font-weight:bold; color:#3a1d00; background:var(--coral);
+  box-shadow:0 3px 8px rgba(0,0,0,.35); letter-spacing:.05em;
+}
+.tag.aqua{background:var(--aqua); color:#052733;}
+.tag.green{background:var(--green); color:#08290f; }
+.card .body{padding:16px 16px 18px; display:flex; flex-direction:column; gap:8px; flex:1;}
+.card h2{font-size:19px; color:var(--white); letter-spacing:.04em;}
+.card p{font-size:13px; line-height:1.65; color:#cfe3ef; flex:1;}
+.play{
+  align-self:flex-end; display:inline-flex; align-items:center; gap:8px;
+  padding:10px 26px; border-radius:999px; text-decoration:none;
+  background:linear-gradient(180deg,#ffd27a,#f7a83a); color:#3a2400; font-weight:bold; font-size:15px;
+  box-shadow:0 5px 0 #b06f14, 0 8px 18px rgba(0,0,0,.35);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.play:active{transform:translateY(4px); box-shadow:0 1px 0 #b06f14, 0 3px 8px rgba(0,0,0,.3);}
+.play .tri{width:0;height:0;border-left:10px solid #3a2400;border-top:6px solid transparent;border-bottom:6px solid transparent;}
+footer{margin-top:38px; font-size:12px; color:#9fc3d8; line-height:2;}
+footer .copy{color:var(--sand); font-size:13px; letter-spacing:.1em;}
+footer a{color:var(--aqua);}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <span class="badge">日本リーフグループ こうしきミニゲーム</span>
+  <h1>うみの<span class="aq">ゲームパーク</span></h1>
+  <div class="sub">あそんで学ぼう！ 魚礁がつくる豊かな海・淡路島</div>
+
+  <div class="mascot"><img src="assets/mascot.png" alt="マスコット"></div>
+  <div class="welcome">ようこそ！ すきなゲームをえらんでね</div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="thumb"><span class="tag">イチオシ！</span><img src="assets/card_tsumi.jpg" alt="つみつみ魚礁"></div>
+      <div class="body">
+        <h2>つみつみ魚礁</h2>
+        <p>魚礁ブロックを海底に高くつもう！ 潮を読んで、すき間に魚を住まわせろ。タコの吸盤が塔を守り、ときどきヌシがやってくる──。</p>
+        <a class="play" href="tsumi.html">あそぶ <span class="tri"></span></a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"><span class="tag aqua">まったり系</span><img src="assets/card_tako.jpg" alt="タコツボ横丁"></div>
+      <div class="body">
+        <h2>タコツボ横丁</h2>
+        <p>大阪湾の海底にタコツボをならべて、自分だけの横丁づくり。個性ゆたかなタコたちが、ぞくぞく入居中。産卵イベントも！</p>
+        <a class="play" href="tako.html">あそぶ <span class="tri"></span></a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"><span class="tag green">ものがたり</span><img src="assets/card_kuni.jpg" alt="国生みの海タイクーン"></div>
+      <div class="body">
+        <h2>国生みの海タイクーン</h2>
+        <p>調査→製造→施工、3社の力でやせた海をよみがえらせよう。淡路島のまわりに魚があふれる、再生タイクーン。</p>
+        <a class="play" href="kuni.html">あそぶ <span class="tri"></span></a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="copy">「海に学び、海を守り支える」</div>
+    <div><a href="https://www.japanreef.net/" target="_blank" rel="noopener">日本リーフグループ 公式サイトはこちら</a></div>
+    <div>(c) 日本リーフグループ（日本リーフ・マルイチ・オリエンタルテクノ） ／ このページはデモ版です</div>
+  </footer>
+</div>
+</body>
+</html>

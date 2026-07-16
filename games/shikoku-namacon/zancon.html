@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1A1E24">
+<title>残コンストラクション | 四国生コン GAMES</title>
+<style>
+html,body{margin:0;padding:0;background:#1A1E24;height:100%;overflow:hidden;-webkit-user-select:none;user-select:none;}
+body{display:flex;align-items:center;justify-content:center;font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;}
+#wrap{position:relative;}
+canvas{display:block;touch-action:none;background:#1A1E24;}
+.corner{position:absolute;top:6px;z-index:5;color:#F5F2EC;background:rgba(43,58,74,.88);border:1px solid rgba(140,155,165,.5);border-radius:14px;padding:4px 11px;font-size:13px;line-height:1.4;text-decoration:none;font-family:inherit;cursor:pointer;}
+#backBtn{left:6px;}
+#muteBtn{right:6px;font-size:14px;}
+#muteBtn.off{color:#8C9BA5;text-decoration:line-through;}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="cv" width="420" height="740"></canvas>
+<a id="backBtn" class="corner" href="index.html">← もどる</a>
+<button id="muteBtn" class="corner" type="button">♪</button>
+</div>
+<script>
+'use strict';
+/* ============================================================
+   残コンストラクション - 四国生コンクリート工業
+   コア部（DOM非依存・ヘッドレステスト対象）
+   体積は m³×100 の整数 (cents) で扱い浮動小数誤差を排除する
+   ============================================================ */
+const ZC = (function(){
+  const GROUND_Y = 640;
+  const W = 420, H = 740;
+  // 実在ブロック: 体積(m³×100), 画面px(1m≒90px目安), 実寸表記, 重量(比重2.3)
+  const BLOCKS = {
+    A:{key:'A',label:'A型', vol:102, w:160,h:80, rects:[[0,0,160,80]],  dims:'1800×900×630mm', wt:'約2.35t'},
+    B:{key:'B',label:'B型', vol:51,  w:80, h:80, rects:[[0,0,80,80]],   dims:'900×900×630mm',  wt:'約1.17t'},
+    C:{key:'C',label:'C型', vol:51,  w:160,h:40, rects:[[0,0,160,40]],  dims:'1800×450×630mm', wt:'約1.17t'},
+    D:{key:'D',label:'D型', vol:26,  w:80, h:40, rects:[[0,0,80,40]],   dims:'900×450×630mm',  wt:'約0.60t'},
+    E:{key:'E',label:'E型', vol:13,  w:40, h:40, rects:[[0,0,40,40]],   dims:'450×450×630mm',  wt:'約0.30t'},
+    F:{key:'F',label:'F型', vol:22,  w:140,h:20, rects:[[0,0,140,20]],  dims:'1550×220×630mm', wt:'約0.51t'},
+    G:{key:'G',label:'G型', vol:11,  w:60, h:20, rects:[[0,0,60,20]],   dims:'700×250×630mm',  wt:'約0.25t'},
+    S:{key:'S',label:'階段型', vol:80, w:120,h:80, rects:[[0,40,120,40],[0,0,60,40]], dims:'1300×900×630mm(2段)', wt:'約1.84t'}
+  };
+  const ORDER = ['A','B','C','D','E','F','G','S'];
+  // ステージ12: 残コンブロックの実活用事例。sil=[x, 地面からの高さ, w, h]
+  const STAGES = [
+    {name:'土留め壁',        use:'畑の土砂をせき止める壁をつくれ', budget:460, sil:[[50,0,320,160]]},
+    {name:'資材置き場の仕切り', use:'砂と砕石の山をL字で仕切れ',    budget:470, sil:[[50,0,320,80],[50,80,160,160]]},
+    {name:'スロープ基礎',     use:'重機がのぼる坂の土台をつくれ',   budget:430, sil:[[50,0,320,60],[50,60,240,60],[50,120,160,60],[50,180,80,60]]},
+    {name:'ストックヤード',   use:'コの字で骨材をストックしろ',     budget:520, sil:[[40,0,340,80],[40,80,100,160],[280,80,100,160]]},
+    {name:'造成かさ上げ',     use:'土地をかさ上げして平らにしろ',   budget:575, sil:[[30,0,360,120],[70,120,280,80]]},
+    {name:'車止めブロック列',  use:'駐車場の車止めを3本たてろ',     budget:495, sil:[[40,0,340,80],[60,80,80,120],[170,80,80,120],[280,80,80,120]]},
+    {name:'備蓄砂の囲い壁',   use:'防災用の砂をピラミッド型で囲え', budget:505, sil:[[50,0,320,80],[90,80,240,80],[130,160,160,80]]},
+    {name:'農道の路肩補修',   use:'くずれた路肩を積み直せ',        budget:440, sil:[[30,0,360,80],[110,80,200,80],[150,160,120,40]]},
+    {name:'雪置き場の囲い',   use:'雪をためるU字の囲いをつくれ',   budget:630, sil:[[30,0,360,80],[30,80,120,180],[270,80,120,180]]},
+    {name:'護岸のかさ上げ',   use:'川ぞいの護岸を階段状に強化しろ', budget:640, sil:[[30,0,360,80],[70,80,280,80],[110,160,200,80],[150,240,120,40]]},
+    {name:'仮設ヤード土台',   use:'イベント用の仮設土台を組め',     budget:675, sil:[[40,0,340,120],[60,120,100,180],[260,120,100,180]]},
+    {name:'四国の塔',        use:'記念モニュメントを建立せよ',     budget:715, sil:[[50,0,320,100],[100,100,220,120],[140,220,140,120],[170,340,80,80]]}
+  ];
+  function silRects(stage){
+    return stage.sil.map(r => ({x:r[0], y:GROUND_Y - r[1] - r[3], w:r[2], h:r[3]}));
+  }
+  /* ---- フェーズ1: 鋳込み（予算管理） ---- */
+  function newCast(budget){ return {budget:budget, used:0, counts:{}}; }
+  function castAdd(cast, t){
+    const def = BLOCKS[t];
+    if(!def) return false;
+    if(cast.used + def.vol > cast.budget) return false;
+    cast.used += def.vol;
+    cast.counts[t] = (cast.counts[t]||0) + 1;
+    return true;
+  }
+  function castRemove(cast, t){
+    if(!cast.counts[t]) return false;
+    cast.counts[t]--;
+    if(cast.counts[t] === 0) delete cast.counts[t];
+    cast.used -= BLOCKS[t].vol;
+    return true;
+  }
+  function castRemainder(cast){ return cast.budget - cast.used; }
+  function castTotal(cast){
+    let n = 0; for(const k in cast.counts) n += cast.counts[k];
+    return n;
+  }
+  /* ---- 幾何・簡易AABB物理 ---- */
+  function blockRects(b){
+    return BLOCKS[b.type].rects.map(r => ({x:b.x + r[0], y:b.y + r[1], w:r[2], h:r[3]}));
+  }
+  // 落下静止位置: x固定で真下に落としたときの最終y（バウンディング左上）
+  function restY(type, x, placed, groundY){
+    const def = BLOCKS[type];
+    let best = Infinity;
+    for(let i=0; i<def.rects.length; i++){
+      const fr = def.rects[i];
+      const fx = x + fr[0];
+      best = Math.min(best, groundY - (fr[1] + fr[3]));
+      for(let p=0; p<placed.length; p++){
+        const prs = blockRects(placed[p]);
+        for(let q=0; q<prs.length; q++){
+          const pr = prs[q];
+          if(fx < pr.x + pr.w && fx + fr[2] > pr.x){
+            best = Math.min(best, pr.y - (fr[1] + fr[3]));
+          }
+        }
+      }
+    }
+    return best;
+  }
+  // 面積加重の重心x
+  function comOf(blocksArr){
+    let a = 0, mx = 0;
+    for(let i=0; i<blocksArr.length; i++){
+      const rs = blockRects(blocksArr[i]);
+      for(let j=0; j<rs.length; j++){
+        const ar = rs[j].w * rs[j].h;
+        a += ar; mx += (rs[j].x + rs[j].w/2) * ar;
+      }
+    }
+    return a > 0 ? mx / a : 0;
+  }
+  // 支持情報: 接地区間と支持スパン
+  function supportInfo(b, all, groundY, eps){
+    eps = (eps == null) ? 0.5 : eps;
+    const contacts = [], supporters = [];
+    const frs = blockRects(b);
+    for(let i=0; i<frs.length; i++){
+      const fr = frs[i];
+      const yb = fr.y + fr.h;
+      if(Math.abs(yb - groundY) <= eps){
+        contacts.push([fr.x, fr.x + fr.w]); supporters.push('ground');
+      }
+      for(let p=0; p<all.length; p++){
+        const o = all[p];
+        if(o.id === b.id) continue;
+        const ors = blockRects(o);
+        for(let q=0; q<ors.length; q++){
+          const orr = ors[q];
+          if(Math.abs(orr.y - yb) <= eps){
+            const x0 = Math.max(fr.x, orr.x), x1 = Math.min(fr.x + fr.w, orr.x + orr.w);
+            if(x1 - x0 > 0.5){ contacts.push([x0, x1]); supporters.push(o.id); }
+          }
+        }
+      }
+    }
+    if(!contacts.length) return {span:null, contacts:[], supporters:[]};
+    let s0 = Infinity, s1 = -Infinity;
+    for(let i=0; i<contacts.length; i++){ s0 = Math.min(s0, contacts[i][0]); s1 = Math.max(s1, contacts[i][1]); }
+    return {span:[s0, s1], contacts:contacts, supporters:supporters};
+  }
+  // 全体安定判定: 各ブロックについて「自分＋上に載る全部」の重心xが支持スパン内か
+  function checkStability(all, groundY, tol){
+    tol = (tol == null) ? 1 : tol;
+    const info = {}, aboveMap = {}, byId = {};
+    for(let i=0; i<all.length; i++){ info[all[i].id] = supportInfo(all[i], all, groundY); byId[all[i].id] = all[i]; }
+    for(let i=0; i<all.length; i++){
+      const sup = info[all[i].id].supporters;
+      for(let j=0; j<sup.length; j++){
+        if(sup[j] !== 'ground'){ (aboveMap[sup[j]] = aboveMap[sup[j]] || []).push(all[i].id); }
+      }
+    }
+    const bad = [], detail = {};
+    for(let i=0; i<all.length; i++){
+      const b = all[i], inf = info[b.id];
+      if(!inf.span){ bad.push(b.id); detail[b.id] = {span:null, com:null}; continue; }
+      const seen = {}, stack = [b.id], subtree = [];
+      while(stack.length){
+        const id = stack.pop();
+        if(seen[id]) continue;
+        seen[id] = 1; subtree.push(byId[id]);
+        const ab = aboveMap[id] || [];
+        for(let j=0; j<ab.length; j++) stack.push(ab[j]);
+      }
+      const com = comOf(subtree);
+      detail[b.id] = {span:inf.span, com:com};
+      if(com < inf.span[0] - tol || com > inf.span[1] + tol) bad.push(b.id);
+    }
+    return {ok:bad.length === 0, bad:bad, detail:detail, supporters:info};
+  }
+  /* ---- 充填率 ---- */
+  function intersectArea(a, b){
+    const x0 = Math.max(a.x, b.x), x1 = Math.min(a.x + a.w, b.x + b.w);
+    const y0 = Math.max(a.y, b.y), y1 = Math.min(a.y + a.h, b.y + b.h);
+    return (x1 > x0 && y1 > y0) ? (x1 - x0) * (y1 - y0) : 0;
+  }
+  function fillRatio(blocks, sil){
+    let tot = 0;
+    for(let i=0; i<sil.length; i++) tot += sil[i].w * sil[i].h;
+    if(tot <= 0) return 0;
+    let cov = 0;
+    for(let i=0; i<blocks.length; i++){
+      const rs = blockRects(blocks[i]);
+      for(let j=0; j<rs.length; j++){
+        for(let k=0; k<sil.length; k++) cov += intersectArea(rs[j], sil[k]);
+      }
+    }
+    return Math.min(1, cov / tot);
+  }
+  /* ---- セーブ ---- */
+  const SAVE_KEY = 'snc_zc_save';
+  function defaultSave(){ return {v:1, best:{}, zero:{}, dex:{}, tut:false}; }
+  function loadSave(storage){
+    try{
+      const raw = storage.getItem(SAVE_KEY);
+      if(raw){
+        const s = JSON.parse(raw);
+        if(s && s.v === 1) return Object.assign(defaultSave(), s);
+      }
+    }catch(e){}
+    return defaultSave();
+  }
+  function saveSave(storage, s){
+    try{ storage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){}
+  }
+  function clearCount(s){ let n=0; for(const k in s.best) n++; return n; }
+  function titleFor(clears){
+    if(clears >= 12) return '棟梁';
+    if(clears >= 5) return '職人';
+    return '見習い';
+  }
+  return {W:W, H:H, GROUND_Y:GROUND_Y, BLOCKS:BLOCKS, ORDER:ORDER, STAGES:STAGES, SAVE_KEY:SAVE_KEY,
+    silRects:silRects, newCast:newCast, castAdd:castAdd, castRemove:castRemove, castRemainder:castRemainder,
+    castTotal:castTotal, blockRects:blockRects, restY:restY, comOf:comOf, supportInfo:supportInfo,
+    checkStability:checkStability, intersectArea:intersectArea, fillRatio:fillRatio,
+    defaultSave:defaultSave, loadSave:loadSave, saveSave:saveSave, clearCount:clearCount, titleFor:titleFor};
+})();
+if (typeof window === 'undefined' && typeof module !== 'undefined'){ module.exports = ZC; }
+
+/* ============================================================ ブラウザ実装 ============================================================ */
+if (typeof window !== 'undefined') (function(){
+  const W = ZC.W, H = ZC.H, GY = ZC.GROUND_Y;
+  const PAL = {navy:'#2B3A4A', gray:'#8C9BA5', orange:'#FF7A1A', cyan:'#29C7E4', white:'#F5F2EC', dark:'#1A1E24'};
+  const FONT = "'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif";
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const wrap = document.getElementById('wrap');
+  let dpr = 1;
+  function resize(){
+    const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+    const cw = Math.floor(W * s), ch = Math.floor(H * s);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.floor(W * dpr); cv.height = Math.floor(H * dpr);
+    cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+    wrap.style.width = cw + 'px'; wrap.style.height = ch + 'px';
+  }
+  window.addEventListener('resize', resize); resize();
+
+  /* ---- 画像 ---- */
+  const IM = {};
+  [['card','assets/card_zancon.jpg'],['point','assets/mascot_point.png'],['joy','assets/mascot_joy.png'],['sad','assets/mascot_sad.png']]
+  .forEach(function(a){
+    const im = new Image();
+    im.src = a[1];
+    IM[a[0]] = im;
+  });
+  function imgOk(im){ return im && im.complete && im.naturalWidth > 0; }
+
+  /* ---- WebAudio合成SFX ---- */
+  const sfx = {
+    ac:null, muted:false,
+    unlock:function(){
+      if(!this.ac){
+        try{ this.ac = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+      }
+      if(this.ac && this.ac.state === 'suspended') this.ac.resume();
+    },
+    tone:function(f0, f1, dur, type, vol, delay){
+      if(!this.ac || this.muted) return;
+      const t = this.ac.currentTime + (delay || 0);
+      const o = this.ac.createOscillator(), g = this.ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f0, t);
+      o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t + dur);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(this.ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    },
+    noise:function(dur, vol, cut, delay){
+      if(!this.ac || this.muted) return;
+      const t = this.ac.currentTime + (delay || 0);
+      const n = Math.floor(this.ac.sampleRate * dur);
+      const buf = this.ac.createBuffer(1, n, this.ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0; i<n; i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+      const src = this.ac.createBufferSource(); src.buffer = buf;
+      const f = this.ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut;
+      const g = this.ac.createGain(); g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(g); g.connect(this.ac.destination);
+      src.start(t);
+    },
+    ui:function(){ this.tone(700, 950, 0.06, 'triangle', 0.14); },
+    select:function(){ this.tone(520, 720, 0.05, 'square', 0.09); },
+    pour:function(){ this.noise(0.28, 0.22, 900); this.tone(300, 180, 0.2, 'sine', 0.1); },
+    pop:function(){ this.tone(600, 320, 0.08, 'triangle', 0.14); },
+    reject:function(){ this.tone(170, 110, 0.2, 'square', 0.2); },
+    drop:function(){ this.tone(900, 260, 0.2, 'sine', 0.1); },
+    land:function(){ this.tone(130, 52, 0.14, 'sine', 0.4); this.noise(0.09, 0.3, 700); },
+    topple:function(){ this.noise(0.75, 0.4, 320); this.tone(210, 55, 0.65, 'sawtooth', 0.22); },
+    clear:function(){ const F=[523,659,784,1047]; for(let i=0;i<4;i++) this.tone(F[i], F[i], 0.22, 'triangle', 0.18, i*0.1); },
+    zero:function(){ const F=[880,1109,1319,1760]; for(let i=0;i<4;i++) this.tone(F[i], F[i]*1.02, 0.12, 'sine', 0.16, i*0.06); },
+    fail:function(){ this.tone(330, 100, 0.55, 'sawtooth', 0.2); this.tone(220, 70, 0.6, 'triangle', 0.16, 0.12); }
+  };
+
+  /* ---- 永続化 ---- */
+  const store = window.localStorage;
+  let save = ZC.loadSave(store);
+  const muteBtn = document.getElementById('muteBtn');
+  sfx.muted = store.getItem('snc_mute') === '1';
+  function syncMute(){ muteBtn.classList.toggle('off', sfx.muted); }
+  syncMute();
+  muteBtn.addEventListener('click', function(){
+    sfx.muted = !sfx.muted;
+    try{ store.setItem('snc_mute', sfx.muted ? '1' : '0'); }catch(e){}
+    syncMute();
+    if(!sfx.muted){ sfx.unlock(); sfx.ui(); }
+  });
+
+  /* ---- 汎用描画ヘルパー ---- */
+  function rr(x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function outText(s, x, y, size, fill, stroke, lw, weight, align){
+    ctx.font = (weight || 'bold') + ' ' + size + 'px ' + FONT;
+    ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || Math.max(3, size/6); ctx.strokeText(s, x, y); }
+    ctx.fillStyle = fill; ctx.fillText(s, x, y);
+  }
+  function txt(s, x, y, size, fill, align, weight){
+    ctx.font = (weight || 'normal') + ' ' + size + 'px ' + FONT;
+    ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = fill; ctx.fillText(s, x, y);
+  }
+  function coverImg(im, x, y, w, h){
+    if(!imgOk(im)) return false;
+    const s = Math.max(w / im.naturalWidth, h / im.naturalHeight);
+    const dw = im.naturalWidth * s, dh = im.naturalHeight * s;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.drawImage(im, x + (w - dw)/2, y + (h - dh)/2, dw, dh);
+    ctx.restore();
+    return true;
+  }
+  function drawMascot(im, cx, bottom, h){
+    if(!imgOk(im)) return;
+    const w = h * im.naturalWidth / im.naturalHeight;
+    ctx.drawImage(im, cx - w/2, bottom - h, w, h);
+  }
+  function easeOut(t){ return 1 - Math.pow(1 - t, 3); }
+  function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+  function lcg(seed){ let s = (seed*9301 + 49297) % 233280; return function(){ s = (s*9301 + 49297) % 233280; return s / 233280; }; }
+
+  /* ---- パーティクル・浮きテキスト・シェイク ---- */
+  const parts = [], floats = [];
+  let shakeAmp = 0;
+  function shake(a){ shakeAmp = Math.max(shakeAmp, a); }
+  function spawnP(o){ if(parts.length < 320) parts.push(o); }
+  function spawnDust(x0, x1, y){
+    for(let i=0; i<12; i++){
+      const x = x0 + Math.random()*(x1-x0);
+      spawnP({x:x, y:y, vx:(Math.random()-0.5)*120, vy:-(30+Math.random()*70), g:220, age:0,
+        life:0.45+Math.random()*0.3, size:2.5+Math.random()*3.5, col:'rgba(140,155,165,', shape:'dot'});
+    }
+  }
+  function spawnPour(x, y){
+    for(let i=0; i<10; i++){
+      spawnP({x:x+(Math.random()-0.5)*26, y:y+(Math.random()-0.5)*10, vx:(Math.random()-0.5)*50, vy:60+Math.random()*90,
+        g:300, age:0, life:0.35+Math.random()*0.25, size:2+Math.random()*3, col:'rgba(140,155,165,', shape:'dot'});
+    }
+  }
+  function spawnSpark(x, y, colRGB){
+    for(let i=0; i<14; i++){
+      const a = Math.random()*Math.PI*2, sp = 60+Math.random()*160;
+      spawnP({x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, g:120, age:0,
+        life:0.4+Math.random()*0.35, size:1.5+Math.random()*2.5, col:'rgba('+colRGB+',', shape:'dot'});
+    }
+  }
+  function spawnConfetti(){
+    const cols = ['rgba(255,122,26,', 'rgba(41,199,228,', 'rgba(245,242,236,'];
+    for(let i=0; i<70; i++){
+      spawnP({x:Math.random()*W, y:-20-Math.random()*160, vx:(Math.random()-0.5)*70, vy:90+Math.random()*140,
+        g:60, age:0, life:1.6+Math.random()*1.2, size:3+Math.random()*4,
+        col:cols[i%3], shape:'rect', rot:Math.random()*6.3, vr:(Math.random()-0.5)*8});
+    }
+  }
+  function spawnCrumble(x, y, w, h){
+    for(let i=0; i<10; i++){
+      spawnP({x:x+Math.random()*w, y:y+Math.random()*h, vx:(Math.random()-0.5)*160, vy:-(40+Math.random()*140),
+        g:500, age:0, life:0.6+Math.random()*0.5, size:2.5+Math.random()*4, col:'rgba(140,155,165,', shape:'rect', rot:0, vr:(Math.random()-0.5)*10});
+    }
+  }
+  function spawnFloat(x, y, text, col, size){
+    floats.push({x:x, y:y, text:text, col:col, size:size||15, age:0, life:0.95});
+  }
+  function updateFx(dt){
+    for(let i=parts.length-1; i>=0; i--){
+      const p = parts[i];
+      p.age += dt;
+      if(p.age >= p.life){ parts.splice(i, 1); continue; }
+      p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      if(p.vr != null) p.rot += p.vr * dt;
+    }
+    for(let i=floats.length-1; i>=0; i--){
+      const f = floats[i];
+      f.age += dt;
+      if(f.age >= f.life){ floats.splice(i, 1); continue; }
+      f.y -= 34 * dt;
+    }
+    shakeAmp = Math.max(0, shakeAmp - dt * 26);
+  }
+  function drawFx(){
+    for(let i=0; i<parts.length; i++){
+      const p = parts[i], a = 1 - p.age / p.life;
+      ctx.fillStyle = p.col + (a * 0.9).toFixed(3) + ')';
+      if(p.shape === 'rect'){
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0);
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 0.7); ctx.restore();
+      }else{
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.6 + 0.4*a), 0, 6.3); ctx.fill();
+      }
+    }
+    for(let i=0; i<floats.length; i++){
+      const f = floats[i], a = 1 - f.age / f.life;
+      ctx.globalAlpha = Math.min(1, a * 1.6);
+      outText(f.text, f.x, f.y, f.size, f.col, PAL.dark, 4);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---- 状態 ---- */
+  const CARRY_TOP = 128, RAIL_Y = 96, CRANE_MIN = 34, CRANE_MAX = 386;
+  const S = {
+    scr:'title', t:0, enter:0, paused:false,
+    stageIdx:0, cast:null, tankAnim:1, castRejectT:0, rejectKey:null,
+    blocks:[], nextId:1, inv:{}, sel:null,
+    crane:{x:210, dir:1, speed:120, carry:null},
+    falling:null, fill:0, fillAnim:0, usedCounts:{},
+    topple:null, evalDelay:0, pendingEval:null,
+    result:null, tut:null, zukanFrom:'title',
+    hits:[]
+  };
+  function setScr(s){ S.scr = s; S.enter = 0; }
+  function invTotal(){ let n=0; for(const k in S.inv) n += S.inv[k]; return n; }
+  function stage(){ return ZC.STAGES[S.stageIdx]; }
+  function unlockedUpTo(){
+    let n = 0;
+    while(n < 12 && (n === 0 || save.best[n-1] != null)) n++;
+    return n; // 遊べるステージ数
+  }
+
+  /* ---- ゲームフロー ---- */
+  function startStage(i){
+    S.stageIdx = i;
+    S.cast = ZC.newCast(ZC.STAGES[i].budget);
+    S.tankAnim = 1;
+    if(!save.tut) S.tut = {page:0};
+    setScr('cast');
+  }
+  function startStack(){
+    S.blocks = []; S.nextId = 1;
+    S.inv = {}; for(const k in S.cast.counts) S.inv[k] = S.cast.counts[k];
+    S.usedCounts = {}; S.fill = 0; S.fillAnim = 0;
+    S.falling = null; S.topple = null; S.result = null;
+    S.evalDelay = 0; S.pendingEval = null;
+    S.crane.x = 210; S.crane.dir = 1;
+    S.crane.speed = Math.min(215, 115 + S.stageIdx * 9);
+    S.crane.carry = null;
+    S.sel = null;
+    for(let i=0; i<ZC.ORDER.length; i++){ if(S.inv[ZC.ORDER[i]] > 0){ S.sel = ZC.ORDER[i]; break; } }
+    reloadCarry();
+    setScr('stack');
+  }
+  function reloadCarry(){
+    let t = (S.sel && S.inv[S.sel] > 0) ? S.sel : null;
+    if(!t){ for(let i=0; i<ZC.ORDER.length; i++){ if(S.inv[ZC.ORDER[i]] > 0){ t = ZC.ORDER[i]; break; } } }
+    if(t){ S.inv[t]--; if(S.inv[t] === 0) delete S.inv[t]; S.crane.carry = t; S.sel = t; }
+    else S.crane.carry = null;
+  }
+  function selectChip(t){
+    if(S.falling || S.topple || S.result) return;
+    if(t === S.crane.carry){ S.sel = t; return; }
+    if(!(S.inv[t] > 0)) return;
+    if(S.crane.carry){ S.inv[S.crane.carry] = (S.inv[S.crane.carry]||0) + 1; }
+    S.inv[t]--; if(S.inv[t] === 0) delete S.inv[t];
+    S.crane.carry = t; S.sel = t;
+    sfx.select();
+  }
+  function dropBlock(){
+    if(S.scr !== 'stack' || S.falling || S.topple || S.result || S.pendingEval) return;
+    if(!S.crane.carry) return;
+    const def = ZC.BLOCKS[S.crane.carry];
+    const x = Math.round(clamp(S.crane.x - def.w/2, 2, W - def.w - 2));
+    const target = ZC.restY(S.crane.carry, x, S.blocks, GY);
+    S.falling = {type:S.crane.carry, x:x, y:Math.min(CARRY_TOP, target - 30), vy:0, target:target};
+    S.crane.carry = null;
+    sfx.drop();
+  }
+  function onLand(){
+    const f = S.falling; S.falling = null;
+    const b = {id:S.nextId++, type:f.type, x:f.x, y:f.target, landT:0};
+    S.blocks.push(b);
+    S.usedCounts[f.type] = (S.usedCounts[f.type]||0) + 1;
+    const def = ZC.BLOCKS[f.type];
+    spawnDust(b.x - 6, b.x + def.w + 6, b.y + def.h);
+    shake(4); sfx.land();
+    const nf = ZC.fillRatio(S.blocks, ZC.silRects(stage()));
+    const delta = nf - S.fill; S.fill = nf;
+    if(delta > 0.0005) spawnFloat(b.x + def.w/2, b.y - 14, '+' + (delta*100).toFixed(1) + '%', PAL.cyan, 16);
+    else spawnFloat(b.x + def.w/2, b.y - 14, 'はんい外', PAL.orange, 13);
+    const st = ZC.checkStability(S.blocks, GY, 1);
+    if(!st.ok){ startTopple(st); return; }
+    if(S.fill >= 0.9 && (S.fill - delta) < 0.9){
+      spawnFloat(210, 180, '目標達成! 「完成!」で仕上げよう', PAL.orange, 15);
+      sfx.zero();
+    }
+    if(invTotal() === 0){
+      // 在庫切れ: 自動判定
+      S.pendingEval = (S.fill >= 0.9)
+        ? {clear:true}
+        : {clear:false, reason:'残コンが足りなかった…\n鋳込みの配分を見直そう'};
+      S.evalDelay = 0.75;
+    }else{
+      reloadCarry();
+    }
+  }
+  function startTopple(st){
+    // 崩落: 不安定ブロック＋その上に載る全ブロック
+    const affected = {};
+    st.bad.forEach(function(id){ affected[id] = true; });
+    let changed = true;
+    while(changed){
+      changed = false;
+      for(let i=0; i<S.blocks.length; i++){
+        const b = S.blocks[i];
+        if(affected[b.id]) continue;
+        const sup = st.supporters[b.id] ? st.supporters[b.id].supporters : [];
+        for(let j=0; j<sup.length; j++){
+          if(sup[j] !== 'ground' && affected[sup[j]]){ affected[b.id] = true; changed = true; break; }
+        }
+      }
+    }
+    for(let i=0; i<S.blocks.length; i++){
+      const b = S.blocks[i];
+      if(!affected[b.id]) continue;
+      const det = st.detail[b.id];
+      const dir = (det && det.span && det.com != null && det.com < (det.span[0]+det.span[1])/2) ? -1 : 1;
+      b.tumble = {rot:0, vr:dir * (2.2 + Math.random()*1.5), vy:-40 - Math.random()*60, dy:0, vx:dir*(20+Math.random()*40), dx:0};
+      const def = ZC.BLOCKS[b.type];
+      spawnCrumble(b.x, b.y, def.w, def.h);
+    }
+    S.topple = {t:0};
+    shake(11); sfx.topple();
+  }
+  function evaluate(p){
+    if(p.clear){
+      const zero = (ZC.castRemainder(S.cast) === 0) && invTotal() === 0 && !S.crane.carry;
+      const score = Math.round(S.fill * 1000) + (zero ? 500 : 0);
+      const prev = save.best[S.stageIdx];
+      const newBest = (prev == null || score > prev);
+      if(newBest) save.best[S.stageIdx] = score;
+      if(zero) save.zero[S.stageIdx] = true;
+      for(const k in S.usedCounts) save.dex[k] = (save.dex[k]||0) + S.usedCounts[k];
+      ZC.saveSave(store, save);
+      S.result = {clear:true, score:score, zero:zero, fill:S.fill, newBest:newBest, t:0};
+      spawnConfetti(); sfx.clear();
+      if(zero) sfx.zero();
+    }else{
+      S.result = {clear:false, reason:p.reason || '', t:0};
+      sfx.fail();
+    }
+  }
+  function finishPress(){
+    if(S.fill >= 0.9 && !S.falling && !S.topple && !S.result && !S.pendingEval){
+      evaluate({clear:true});
+    }
+  }
+  function castTap(t){
+    if(S.tut) return;
+    if(ZC.castAdd(S.cast, t)){
+      sfx.pour();
+      spawnPour(46, 90 + 260 * (1 - ZC.castRemainder(S.cast) / S.cast.budget));
+      spawnFloat(46, 200, '-' + (ZC.BLOCKS[t].vol/100).toFixed(2), PAL.white, 13);
+      if(ZC.castRemainder(S.cast) === 0){
+        sfx.zero(); shake(3);
+        spawnSpark(46, 320, '41,199,228');
+        spawnFloat(210, 440, 'ゼロ廃棄チャンス!', PAL.cyan, 18);
+      }
+    }else{
+      sfx.reject(); shake(3);
+      S.castRejectT = 0.4; S.rejectKey = t;
+      spawnFloat(46, 180, '残コン不足!', PAL.orange, 14);
+    }
+  }
+  function castChipTap(t){
+    if(S.tut) return;
+    if(ZC.castRemove(S.cast, t)){
+      sfx.pop();
+      spawnFloat(46, 180, '+' + (ZC.BLOCKS[t].vol/100).toFixed(2) + 'm³', PAL.cyan, 13);
+    }
+  }
+  function advanceTut(){
+    S.tut.page++;
+    sfx.ui();
+    if(S.tut.page >= 3){
+      S.tut = null;
+      save.tut = true;
+      ZC.saveSave(store, save);
+    }
+  }
+
+  /* ---- 更新 ---- */
+  function update(dt){
+    S.t += dt; S.enter += dt;
+    updateFx(dt);
+    if(S.castRejectT > 0) S.castRejectT -= dt;
+    if(S.result){ S.result.t += dt; return; }
+    if(S.scr === 'stack'){
+      if(S.topple){
+        S.topple.t += dt;
+        for(let i=0; i<S.blocks.length; i++){
+          const b = S.blocks[i];
+          if(!b.tumble) continue;
+          b.tumble.vy += 1500 * dt;
+          b.tumble.dy += b.tumble.vy * dt;
+          b.tumble.dx += b.tumble.vx * dt;
+          b.tumble.rot += b.tumble.vr * dt;
+        }
+        if(S.topple.t > 1.25){
+          S.topple = null;
+          evaluate({clear:false, reason:'バランスをくずして崩落!\n重心マークをよく見よう'});
+        }
+        return;
+      }
+      if(S.pendingEval){
+        S.evalDelay -= dt;
+        if(S.evalDelay <= 0){ const p = S.pendingEval; S.pendingEval = null; evaluate(p); }
+        return;
+      }
+      const c = S.crane;
+      if(!S.falling){
+        c.x += c.dir * c.speed * dt;
+        if(c.x > CRANE_MAX){ c.x = CRANE_MAX; c.dir = -1; }
+        if(c.x < CRANE_MIN){ c.x = CRANE_MIN; c.dir = 1; }
+      }
+      if(S.falling){
+        const f = S.falling;
+        f.vy += 2400 * dt;
+        f.y += f.vy * dt;
+        if(f.y >= f.target){ f.y = f.target; onLand(); }
+      }
+      for(let i=0; i<S.blocks.length; i++){
+        if(S.blocks[i].landT != null && S.blocks[i].landT < 1) S.blocks[i].landT += dt;
+      }
+      S.fillAnim += (S.fill - S.fillAnim) * Math.min(1, dt * 8);
+    }
+    if(S.scr === 'cast'){
+      const target = ZC.castRemainder(S.cast) / S.cast.budget;
+      S.tankAnim += (target - S.tankAnim) * Math.min(1, dt * 8);
+    }
+  }
+
+  /* ---- UIボタン ---- */
+  function uiButton(x, y, w, h, label, opts, cb){
+    opts = opts || {};
+    let sc = 1;
+    if(opts.pulse && !opts.disabled) sc = 1 + 0.035 * Math.sin(S.t * 5);
+    ctx.save();
+    ctx.translate(x + w/2, y + h/2); ctx.scale(sc, sc); ctx.translate(-(x + w/2), -(y + h/2));
+    if(opts.kind === 'primary'){
+      ctx.fillStyle = opts.disabled ? 'rgba(140,155,165,0.35)' : PAL.orange;
+      rr(x, y, w, h, h/2 - 4); ctx.fill();
+      if(!opts.disabled){
+        ctx.fillStyle = 'rgba(245,242,236,0.22)';
+        rr(x + 3, y + 3, w - 6, h/2 - 3, h/4); ctx.fill();
+      }
+      outText(label, x + w/2, y + h/2 + 1, opts.fs || 19, PAL.white, 'rgba(26,30,36,0.55)', 4);
+    }else{
+      ctx.fillStyle = 'rgba(43,58,74,0.92)';
+      rr(x, y, w, h, 10); ctx.fill();
+      ctx.strokeStyle = opts.hot ? PAL.cyan : 'rgba(140,155,165,0.7)';
+      ctx.lineWidth = 1.5; rr(x, y, w, h, 10); ctx.stroke();
+      txt(label, x + w/2, y + h/2 + 1, opts.fs || 14, opts.hot ? PAL.cyan : PAL.white, 'center', 'bold');
+    }
+    ctx.restore();
+    if(!opts.disabled) S.hits.push({x:x, y:y, w:w, h:h, cb:cb});
+  }
+
+  /* ---- ブロック描画 ---- */
+  function drawConcrete(x, y, w, h, seed, alpha){
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.fillStyle = PAL.gray;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(245,242,236,0.42)';
+    ctx.fillRect(x + 1, y + 1, w - 2, Math.min(3, h/6));
+    ctx.fillStyle = 'rgba(26,30,36,0.26)';
+    ctx.fillRect(x + 1, y + h - Math.min(4, h/5), w - 2, Math.min(3, h/6));
+    const rnd = lcg(seed || 1);
+    const n = Math.max(3, Math.floor(w * h / 900));
+    for(let i=0; i<n; i++){
+      ctx.fillStyle = (i % 2) ? 'rgba(43,58,74,0.3)' : 'rgba(245,242,236,0.3)';
+      ctx.fillRect(x + 2 + rnd() * (w - 5), y + 2 + rnd() * (h - 5), 1.6, 1.6);
+    }
+    ctx.strokeStyle = 'rgba(26,30,36,0.85)'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+    ctx.globalAlpha = 1;
+  }
+  function drawBlockShape(type, x, y, scale, seed, alpha, letter){
+    const def = ZC.BLOCKS[type];
+    const rs = def.rects;
+    for(let i=0; i<rs.length; i++){
+      drawConcrete(x + rs[i][0]*scale, y + rs[i][1]*scale, rs[i][2]*scale, rs[i][3]*scale, (seed||1)*7 + i, alpha);
+    }
+    if(letter){
+      const fs = Math.min(24, def.h * scale * 0.5);
+      ctx.globalAlpha = (alpha == null ? 1 : alpha) * 0.7;
+      const ly = (type === 'S') ? y + def.h*scale*0.68 : y + def.h*scale/2;
+      const lx = (type === 'S') ? x + def.w*scale*0.55 : x + def.w*scale/2;
+      txt(type === 'S' ? '階' : type, lx, ly + 1, fs, PAL.navy, 'center', 'bold');
+      ctx.globalAlpha = 1;
+    }
+  }
+  function drawBlock(b){
+    const def = ZC.BLOCKS[b.type];
+    ctx.save();
+    if(b.tumble){
+      const cx = b.x + def.w/2, cy = b.y + def.h/2;
+      ctx.translate(cx + b.tumble.dx, cy + b.tumble.dy);
+      ctx.rotate(b.tumble.rot);
+      ctx.translate(-cx, -cy);
+    }else if(b.landT != null && b.landT < 0.2){
+      const p = b.landT / 0.2;
+      const sy = 0.86 + 0.14 * easeOut(p), sx = 1.08 - 0.08 * easeOut(p);
+      ctx.translate(b.x + def.w/2, b.y + def.h);
+      ctx.scale(sx, sy);
+      ctx.translate(-(b.x + def.w/2), -(b.y + def.h));
+    }
+    drawBlockShape(b.type, b.x, b.y, 1, b.id, 1, true);
+    ctx.restore();
+  }
+  function drawGhost(type, x, y, ok){
+    const def = ZC.BLOCKS[type];
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = ok ? PAL.cyan : PAL.orange;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.9;
+    for(let i=0; i<def.rects.length; i++){
+      const r = def.rects[i];
+      ctx.strokeRect(x + r[0], y + r[1], r[2], r[3]);
+    }
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = ok ? PAL.cyan : PAL.orange;
+    for(let i=0; i<def.rects.length; i++){
+      const r = def.rects[i];
+      ctx.fillRect(x + r[0], y + r[1], r[2], r[3]);
+    }
+    ctx.restore();
+  }
+
+  /* ---- 背景 ---- */
+  function drawBg(){
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, PAL.navy); g.addColorStop(1, PAL.dark);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(41,199,228,0.05)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let x=30; x<W; x+=30){ ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for(let y=30; y<H; y+=30){ ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+  }
+  function drawGround(){
+    ctx.fillStyle = PAL.dark;
+    ctx.fillRect(0, GY, W, H - GY);
+    for(let x=0; x<W; x+=24){
+      ctx.fillStyle = (x/24) % 2 ? PAL.orange : PAL.navy;
+      ctx.fillRect(x, GY, 24, 7);
+    }
+    ctx.fillStyle = 'rgba(140,155,165,0.25)';
+    ctx.fillRect(0, GY + 7, W, 2);
+  }
+
+  /* ---- タイトル ---- */
+  function drawTitle(){
+    if(!coverImg(IM.card, 0, 0, W, H)) drawBg();
+    const g = ctx.createLinearGradient(0, 220, 0, H);
+    g.addColorStop(0, 'rgba(26,30,36,0.12)');
+    g.addColorStop(0.45, 'rgba(26,30,36,0.55)');
+    g.addColorStop(1, 'rgba(26,30,36,0.92)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const ey = easeOut(Math.min(1, S.enter * 1.4)) * 0 + (1 - easeOut(Math.min(1, S.enter * 1.4))) * -26;
+    ctx.save(); ctx.translate(0, ey);
+    txt('SHIKOKU NAMACON WORKS PRESENTS', 210, 268, 11, PAL.cyan, 'center', 'bold');
+    outText('残コン', 210, 322, 62, PAL.orange, PAL.dark, 12);
+    outText('ストラクション', 210, 380, 42, PAL.white, PAL.dark, 10);
+    txt('ZAN-CONSTRUCTION', 210, 416, 12, 'rgba(245,242,236,0.75)', 'center', 'bold');
+    txt('四国生コンクリート工業 公式ゲーム', 210, 440, 14, PAL.white, 'center', 'bold');
+    const clears = ZC.clearCount(save);
+    if(clears > 0) txt('称号: ' + ZC.titleFor(clears) + '　クリア ' + clears + '/12', 210, 464, 13, PAL.cyan, 'center', 'bold');
+    ctx.restore();
+    ctx.fillStyle = 'rgba(43,58,74,0.88)';
+    rr(40, 520, 340, 56, 12); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,155,165,0.5)'; ctx.lineWidth = 1; rr(40, 520, 340, 56, 12); ctx.stroke();
+    txt('※「残コン」＝工事で余った生コンのこと。', 210, 538, 12.5, PAL.white);
+    txt('捨てずにブロックへ生まれ変わらせよう。', 210, 558, 12.5, PAL.white);
+    uiButton(100, 604, 220, 60, 'スタート!', {kind:'primary', pulse:true, fs:24}, function(){ sfx.ui(); setScr('select'); });
+    uiButton(140, 684, 140, 36, 'ブロック図鑑', {}, function(){ sfx.ui(); S.zukanFrom = 'title'; setScr('zukan'); });
+  }
+
+  /* ---- ステージ選択 ---- */
+  function drawSelect(){
+    drawBg();
+    outText('ステージをえらぶ', 210, 40, 22, PAL.white, PAL.dark, 5);
+    const clears = ZC.clearCount(save);
+    txt('称号: ' + ZC.titleFor(clears) + '　クリア ' + clears + '/12', 210, 68, 13, PAL.cyan, 'center', 'bold');
+    const unlocked = unlockedUpTo();
+    for(let i=0; i<12; i++){
+      const col = i % 3, row = Math.floor(i / 3);
+      const x = 18 + col * 132, y = 92 + row * 112, w = 120, h = 102;
+      const open = i < unlocked;
+      const dy = (1 - easeOut(Math.min(1, S.enter * 2.2 - i * 0.04))) * 24;
+      ctx.save(); ctx.translate(0, Math.max(0, dy));
+      ctx.fillStyle = open ? 'rgba(43,58,74,0.95)' : 'rgba(43,58,74,0.45)';
+      rr(x, y, w, h, 10); ctx.fill();
+      ctx.strokeStyle = open ? 'rgba(140,155,165,0.7)' : 'rgba(140,155,165,0.25)';
+      ctx.lineWidth = 1.5; rr(x, y, w, h, 10); ctx.stroke();
+      txt('S' + (i + 1), x + 18, y + 16, 14, open ? PAL.orange : PAL.gray, 'center', 'bold');
+      if(open){
+        let fs = 13;
+        ctx.font = 'bold ' + fs + 'px ' + FONT;
+        while(ctx.measureText(ZC.STAGES[i].name).width > w - 12 && fs > 9){ fs--; ctx.font = 'bold ' + fs + 'px ' + FONT; }
+        txt(ZC.STAGES[i].name, x + w/2, y + 44, fs, PAL.white, 'center', 'bold');
+        txt((ZC.STAGES[i].budget/100).toFixed(2) + ' m³', x + w/2, y + 64, 11, PAL.gray, 'center', 'bold');
+        if(save.best[i] != null){
+          txt('ベスト ' + save.best[i], x + w/2, y + 86, 11.5, PAL.cyan, 'center', 'bold');
+          if(save.zero[i]){
+            ctx.save(); ctx.translate(x + w - 20, y + 18); ctx.rotate(-0.28);
+            ctx.strokeStyle = PAL.cyan; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, 6.3); ctx.stroke();
+            txt('0廃棄', 0, 1, 8.5, PAL.cyan, 'center', 'bold');
+            ctx.restore();
+          }
+        }else{
+          txt('未クリア', x + w/2, y + 86, 11, 'rgba(140,155,165,0.8)');
+        }
+        (function(idx){
+          S.hits.push({x:x, y:y, w:w, h:h, cb:function(){ sfx.ui(); startStage(idx); }});
+        })(i);
+      }else{
+        ctx.strokeStyle = PAL.gray; ctx.lineWidth = 2;
+        ctx.strokeRect(x + w/2 - 8, y + 48, 16, 13);
+        ctx.beginPath(); ctx.arc(x + w/2, y + 48, 6, Math.PI, 0); ctx.stroke();
+        txt('クリアで解放', x + w/2, y + 80, 10, 'rgba(140,155,165,0.7)');
+      }
+      ctx.restore();
+    }
+    uiButton(46, 652, 156, 42, 'ブロック図鑑', {}, function(){ sfx.ui(); S.zukanFrom = 'select'; setScr('zukan'); });
+    uiButton(218, 652, 156, 42, 'タイトルへ', {}, function(){ sfx.ui(); setScr('title'); });
+  }
+
+  /* ---- 図鑑 ---- */
+  function drawZukan(){
+    drawBg();
+    outText('ブロック図鑑', 210, 40, 22, PAL.white, PAL.dark, 5);
+    let got = 0;
+    for(let i=0; i<ZC.ORDER.length; i++) if(save.dex[ZC.ORDER[i]] > 0) got++;
+    txt('解禁 ' + got + '/8　クリアで使ったブロックが登録される', 210, 66, 12, PAL.cyan, 'center', 'bold');
+    for(let i=0; i<ZC.ORDER.length; i++){
+      const t = ZC.ORDER[i], def = ZC.BLOCKS[t];
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = 16 + col * 196, y = 84 + row * 136, w = 188, h = 128;
+      const open = save.dex[t] > 0;
+      ctx.fillStyle = open ? 'rgba(43,58,74,0.95)' : 'rgba(43,58,74,0.45)';
+      rr(x, y, w, h, 10); ctx.fill();
+      ctx.strokeStyle = open ? 'rgba(41,199,228,0.55)' : 'rgba(140,155,165,0.25)';
+      ctx.lineWidth = 1.5; rr(x, y, w, h, 10); ctx.stroke();
+      if(open){
+        const sc = Math.min(76 / def.w, 44 / def.h);
+        drawBlockShape(t, x + 14 + (76 - def.w*sc)/2, y + 14 + (44 - def.h*sc)/2, sc, i + 3, 1, false);
+        txt(def.label, x + 130, y + 24, 16, PAL.white, 'center', 'bold');
+        txt((def.vol/100).toFixed(2) + ' m³', x + 130, y + 46, 13, PAL.orange, 'center', 'bold');
+        txt(def.dims, x + w/2, y + 74, 10.5, PAL.gray);
+        txt('重さ ' + def.wt + '（比重2.3）', x + w/2, y + 92, 10.5, PAL.gray);
+        txt('つかった数 ' + save.dex[t], x + w/2, y + 112, 11, PAL.cyan, 'center', 'bold');
+      }else{
+        txt('?', x + w/2, y + 52, 34, 'rgba(140,155,165,0.55)', 'center', 'bold');
+        txt('ステージで使うと解禁', x + w/2, y + 96, 11, 'rgba(140,155,165,0.7)');
+      }
+    }
+    uiButton(130, 664, 160, 42, 'もどる', {}, function(){ sfx.ui(); setScr(S.zukanFrom); });
+  }
+
+  /* ---- フェーズ1: 鋳込み ---- */
+  function drawCast(){
+    drawBg();
+    const st = stage();
+    outText('S' + (S.stageIdx + 1) + ' ' + st.name, 210, 22, 17, PAL.white, PAL.dark, 4);
+    txt(st.use, 210, 44, 12, PAL.cyan, 'center', 'bold');
+    uiButton(374, 36, 40, 22, '中断', {fs:11}, function(){ sfx.ui(); setScr('select'); });
+    // タンク（今日の残コン）
+    const rem = ZC.castRemainder(S.cast);
+    ctx.fillStyle = 'rgba(43,58,74,0.95)'; rr(12, 66, 68, 300, 10); ctx.fill();
+    ctx.strokeStyle = S.castRejectT > 0 ? PAL.orange : 'rgba(140,155,165,0.7)';
+    ctx.lineWidth = S.castRejectT > 0 ? 3 : 1.5; rr(12, 66, 68, 300, 10); ctx.stroke();
+    txt('今日の', 46, 82, 10.5, PAL.gray, 'center', 'bold');
+    txt('残コン', 46, 96, 10.5, PAL.gray, 'center', 'bold');
+    const gx = 22, gyy = 108, gw = 48, gh = 200;
+    ctx.fillStyle = 'rgba(26,30,36,0.8)'; rr(gx, gyy, gw, gh, 6); ctx.fill();
+    const lh = gh * clamp(S.tankAnim, 0, 1);
+    if(lh > 1){
+      ctx.save(); rr(gx, gyy, gw, gh, 6); ctx.clip();
+      ctx.fillStyle = PAL.gray;
+      ctx.fillRect(gx, gyy + gh - lh, gw, lh);
+      ctx.fillStyle = 'rgba(245,242,236,0.5)';
+      for(let x=0; x<gw; x+=4){
+        ctx.fillRect(gx + x, gyy + gh - lh + Math.sin(S.t*3 + x*0.5) * 1.5, 3, 2);
+      }
+      ctx.restore();
+    }
+    txt('のこり', 46, 324, 10.5, PAL.gray, 'center', 'bold');
+    outText((rem/100).toFixed(2), 46, 342, 17, rem === 0 ? PAL.cyan : PAL.white, PAL.dark, 3);
+    txt('/' + (S.cast.budget/100).toFixed(2) + 'm³', 46, 358, 10, PAL.gray);
+    if(rem === 0 && ZC.castTotal(S.cast) > 0){
+      const p = 1 + 0.06 * Math.sin(S.t * 6);
+      ctx.save(); ctx.translate(46, 384); ctx.scale(p, p);
+      outText('ゼロ廃棄!', 0, 0, 13, PAL.cyan, PAL.dark, 3);
+      ctx.restore();
+    }
+    // ブロック型枠パレット
+    txt('型枠をタップして鋳込む', 254, 66, 12, PAL.white, 'center', 'bold');
+    for(let i=0; i<ZC.ORDER.length; i++){
+      const t = ZC.ORDER[i], def = ZC.BLOCKS[t];
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = 92 + col * 162, y = 78 + row * 96, w = 156, h = 88;
+      const can = def.vol <= rem;
+      const rejecting = S.castRejectT > 0 && S.rejectKey === t;
+      ctx.save();
+      if(rejecting) ctx.translate(Math.sin(S.t * 60) * 3, 0);
+      ctx.fillStyle = 'rgba(43,58,74,0.95)'; rr(x, y, w, h, 10); ctx.fill();
+      ctx.strokeStyle = rejecting ? PAL.orange : 'rgba(140,155,165,0.6)';
+      ctx.lineWidth = rejecting ? 2.5 : 1.5; rr(x, y, w, h, 10); ctx.stroke();
+      const sc = Math.min(66 / def.w, 34 / def.h);
+      drawBlockShape(t, x + 10 + (66 - def.w*sc)/2, y + 12 + (34 - def.h*sc)/2, sc, i + 11, can ? 1 : 0.35, false);
+      txt(def.label, x + 116, y + 20, 14.5, can ? PAL.white : 'rgba(245,242,236,0.4)', 'center', 'bold');
+      txt((def.vol/100).toFixed(2) + 'm³', x + 116, y + 40, 12, can ? PAL.cyan : 'rgba(41,199,228,0.4)', 'center', 'bold');
+      txt(def.dims.replace('mm', ''), x + w/2, y + 62, 9, can ? PAL.gray : 'rgba(140,155,165,0.4)');
+      txt('重さ' + def.wt, x + w/2, y + 76, 9, can ? PAL.gray : 'rgba(140,155,165,0.4)');
+      const cnt = S.cast.counts[t] || 0;
+      if(cnt > 0){
+        ctx.fillStyle = PAL.orange;
+        ctx.beginPath(); ctx.arc(x + w - 16, y + 15, 12, 0, 6.3); ctx.fill();
+        txt('×' + cnt, x + w - 16, y + 16, 11, PAL.white, 'center', 'bold');
+      }
+      ctx.restore();
+      (function(tt){ S.hits.push({x:x, y:y, w:w, h:h, cb:function(){ castTap(tt); }}); })(t);
+    }
+    // 在庫トレイ
+    ctx.fillStyle = 'rgba(26,30,36,0.7)'; rr(12, 470, 396, 118, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,155,165,0.4)'; ctx.lineWidth = 1; rr(12, 470, 396, 118, 10); ctx.stroke();
+    const total = ZC.castTotal(S.cast);
+    txt('つくったブロック在庫 ' + total + '個（タップで型に戻す）', 210, 486, 11.5, PAL.gray, 'center', 'bold');
+    let cx = 22;
+    for(let i=0; i<ZC.ORDER.length; i++){
+      const t = ZC.ORDER[i], cnt = S.cast.counts[t] || 0;
+      if(cnt === 0) continue;
+      const x = cx, y = 500, w = 44, h = 58;
+      ctx.fillStyle = 'rgba(43,58,74,0.95)'; rr(x, y, w, h, 8); ctx.fill();
+      ctx.strokeStyle = 'rgba(140,155,165,0.6)'; ctx.lineWidth = 1.2; rr(x, y, w, h, 8); ctx.stroke();
+      txt(t === 'S' ? '階' : t, x + w/2, y + 20, 17, PAL.white, 'center', 'bold');
+      txt('×' + cnt, x + w/2, y + 42, 12, PAL.cyan, 'center', 'bold');
+      (function(tt){ S.hits.push({x:x, y:y, w:w, h:h, cb:function(){ castChipTap(tt); }}); })(t);
+      cx += 48;
+    }
+    if(total === 0) txt('まだ在庫がない。上の型枠をタップ!', 210, 532, 12.5, 'rgba(245,242,236,0.6)');
+    txt('残った生コンはムダになる。使い切れば「ゼロ廃棄」ボーナス!', 210, 574, 10.5, PAL.gray);
+    uiButton(90, 620, 240, 56, 'つみあげ開始', {kind:'primary', pulse:total > 0, disabled:total === 0, fs:20}, function(){ sfx.ui(); startStack(); });
+    txt('残コン＝工事で余った生コン。捨てずにブロックにする。', 210, 706, 10.5, 'rgba(140,155,165,0.85)');
+    if(S.tut) drawTut();
+  }
+
+  /* ---- フェーズ2: 積み上げ ---- */
+  function drawStack(){
+    drawBg();
+    const st = stage();
+    const sil = ZC.silRects(st);
+    // シルエット（依頼図面）
+    ctx.save();
+    ctx.fillStyle = 'rgba(41,199,228,0.06)';
+    for(let i=0; i<sil.length; i++) ctx.fillRect(sil[i].x, sil[i].y, sil[i].w, sil[i].h);
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -S.t * 22;
+    ctx.strokeStyle = 'rgba(41,199,228,0.75)'; ctx.lineWidth = 1.5;
+    for(let i=0; i<sil.length; i++) ctx.strokeRect(sil[i].x, sil[i].y, sil[i].w, sil[i].h);
+    ctx.restore();
+    drawGround();
+    // 設置済みブロック
+    for(let i=0; i<S.blocks.length; i++) drawBlock(S.blocks[i]);
+    // ゴースト＋重心インジケータ
+    const c = S.crane;
+    if(c.carry && !S.falling && !S.topple && !S.result && !S.pendingEval){
+      const def = ZC.BLOCKS[c.carry];
+      const gx = Math.round(clamp(c.x - def.w/2, 2, W - def.w - 2));
+      const gy = ZC.restY(c.carry, gx, S.blocks, GY);
+      const tmp = {id:-1, type:c.carry, x:gx, y:gy};
+      const pred = ZC.checkStability(S.blocks.concat([tmp]), GY, 1);
+      drawGhost(c.carry, gx, gy, pred.ok);
+      const det = pred.detail[-1];
+      if(det && det.span){
+        const sy = gy + def.h + 5;
+        ctx.strokeStyle = pred.ok ? PAL.cyan : PAL.orange; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(det.span[0], sy); ctx.lineTo(det.span[1], sy); ctx.stroke();
+        ctx.fillStyle = pred.ok ? PAL.cyan : PAL.orange;
+        ctx.beginPath();
+        ctx.moveTo(det.com, sy - 8); ctx.lineTo(det.com - 5, sy - 1); ctx.lineTo(det.com + 5, sy - 1);
+        ctx.closePath(); ctx.fill();
+        if(!pred.ok){
+          const p = 1 + 0.15 * Math.sin(S.t * 8);
+          ctx.save(); ctx.translate(gx + def.w/2, gy - 16); ctx.scale(p, p);
+          outText('転倒注意!', 0, 0, 13, PAL.orange, PAL.dark, 3);
+          ctx.restore();
+        }
+      }
+    }
+    // 落下中ブロック
+    if(S.falling){
+      drawBlockShape(S.falling.type, S.falling.x, S.falling.y, 1, 99, 1, true);
+    }
+    // クレーン
+    ctx.fillStyle = PAL.navy;
+    ctx.fillRect(0, RAIL_Y, W, 9);
+    ctx.fillStyle = 'rgba(140,155,165,0.5)';
+    for(let x=8; x<W; x+=26) ctx.fillRect(x, RAIL_Y + 3, 4, 3);
+    ctx.fillStyle = PAL.orange;
+    rr(c.x - 20, RAIL_Y + 8, 40, 16, 5); ctx.fill();
+    ctx.fillStyle = PAL.dark;
+    ctx.beginPath(); ctx.arc(c.x - 11, RAIL_Y + 25, 4, 0, 6.3); ctx.arc(c.x + 11, RAIL_Y + 25, 4, 0, 6.3); ctx.fill();
+    if(c.carry && !S.falling){
+      const def = ZC.BLOCKS[c.carry];
+      const sway = Math.sin(S.t * 1.8) * 3;
+      const bx = clamp(c.x - def.w/2, 2, W - def.w - 2) + sway;
+      ctx.strokeStyle = 'rgba(245,242,236,0.75)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(c.x, RAIL_Y + 24);
+      ctx.lineTo(bx + def.w * 0.25, CARRY_TOP);
+      ctx.moveTo(c.x, RAIL_Y + 24);
+      ctx.lineTo(bx + def.w * 0.75, CARRY_TOP);
+      ctx.stroke();
+      drawBlockShape(c.carry, bx, CARRY_TOP, 1, 55, 1, true);
+    }else if(!S.falling){
+      ctx.strokeStyle = 'rgba(245,242,236,0.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(c.x, RAIL_Y + 24); ctx.lineTo(c.x, RAIL_Y + 44); ctx.stroke();
+    }
+    // HUD
+    outText('S' + (S.stageIdx + 1) + ' ' + st.name, 210, 16, 13.5, PAL.white, PAL.dark, 3.5);
+    ctx.fillStyle = 'rgba(26,30,36,0.8)'; rr(110, 28, 200, 15, 7); ctx.fill();
+    const fw = 196 * clamp(S.fillAnim, 0, 1);
+    if(fw > 1){
+      ctx.fillStyle = S.fillAnim >= 0.9 ? PAL.orange : PAL.cyan;
+      rr(112, 30, fw, 11, 5); ctx.fill();
+    }
+    ctx.strokeStyle = PAL.white; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(110 + 200*0.9, 26); ctx.lineTo(110 + 200*0.9, 45); ctx.stroke();
+    outText((S.fillAnim*100).toFixed(0) + '%', 348, 36, 15, S.fillAnim >= 0.9 ? PAL.orange : PAL.white, PAL.dark, 3.5);
+    txt('充填率 目標90%', 158, 54, 10, PAL.gray, 'center', 'bold');
+    const stockN = invTotal() + (c.carry ? 1 : 0);
+    txt('在庫 ' + stockN + '個', 52, 54, 11, PAL.white, 'center', 'bold');
+    if(ZC.castRemainder(S.cast) === 0) txt('ゼロ廃棄チャレンジ中!', 300, 54, 10, PAL.cyan, 'center', 'bold');
+    if(!S.result) uiButton(374, 62, 40, 22, '中断', {fs:11}, function(){ sfx.ui(); setScr('select'); });
+    if(S.fill >= 0.9 && !S.falling && !S.topple && !S.result && !S.pendingEval){
+      uiButton(160, 62, 100, 34, '完成!', {kind:'primary', pulse:true, fs:17}, finishPress);
+    }
+    // 在庫チップトレイ
+    ctx.fillStyle = 'rgba(43,58,74,0.95)'; rr(6, 658, 408, 76, 12); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,155,165,0.5)'; ctx.lineWidth = 1; rr(6, 658, 408, 76, 12); ctx.stroke();
+    let chx = 14;
+    for(let i=0; i<ZC.ORDER.length; i++){
+      const t = ZC.ORDER[i];
+      const cnt = S.inv[t] || 0;
+      if(cnt === 0 && c.carry !== t) continue;
+      const x = chx, y = 666, w = 44, h = 60;
+      const seld = (S.sel === t);
+      ctx.fillStyle = seld ? 'rgba(41,199,228,0.18)' : 'rgba(26,30,36,0.7)';
+      rr(x, y, w, h, 8); ctx.fill();
+      ctx.strokeStyle = seld ? PAL.cyan : 'rgba(140,155,165,0.5)';
+      ctx.lineWidth = seld ? 2 : 1.2; rr(x, y, w, h, 8); ctx.stroke();
+      txt(t === 'S' ? '階' : t, x + w/2, y + 20, 17, PAL.white, 'center', 'bold');
+      txt('×' + cnt, x + w/2, y + 44, 12, cnt > 0 ? PAL.cyan : 'rgba(140,155,165,0.6)', 'center', 'bold');
+      (function(tt){ S.hits.push({x:x, y:y, w:w, h:h, cb:function(){ selectChip(tt); }}); })(t);
+      chx += 50;
+    }
+    if(chx === 14) txt('在庫なし', 210, 696, 13, PAL.gray);
+    txt('画面タップで投下', 372, 726, 9.5, 'rgba(140,155,165,0.8)');
+    if(S.result) drawResult();
+  }
+
+  /* ---- リザルト ---- */
+  function drawResult(){
+    const r = S.result;
+    const a = Math.min(1, r.t * 2.5);
+    ctx.fillStyle = 'rgba(26,30,36,' + (a * 0.74).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+    const py = 176 + (1 - easeOut(Math.min(1, r.t * 2))) * 40;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(0, py - 176);
+    ctx.fillStyle = 'rgba(43,58,74,0.97)'; rr(40, 176, 340, 380, 18); ctx.fill();
+    ctx.strokeStyle = r.clear ? PAL.orange : 'rgba(140,155,165,0.7)';
+    ctx.lineWidth = 2; rr(40, 176, 340, 380, 18); ctx.stroke();
+    drawMascot(r.clear ? IM.joy : IM.sad, 210, 208, 150);
+    if(r.clear){
+      outText('クリア!', 210, 248, 38, PAL.orange, PAL.dark, 9);
+      txt('充填率 ' + (r.fill*100).toFixed(1) + '%', 210, 296, 17, PAL.white, 'center', 'bold');
+      const shown = Math.min(r.score, Math.floor(r.t * 900));
+      outText('スコア ' + shown, 210, 336, 26, PAL.white, PAL.dark, 6);
+      if(r.newBest && shown >= r.score){
+        const p = 1 + 0.08 * Math.sin(S.t * 6);
+        ctx.save(); ctx.translate(210, 368); ctx.scale(p, p);
+        txt('NEW BEST!', 0, 0, 14, PAL.cyan, 'center', 'bold');
+        ctx.restore();
+      }
+      if(r.zero && r.t > 0.8){
+        const zp = easeOut(Math.min(1, (r.t - 0.8) * 3));
+        ctx.save(); ctx.translate(302, 300); ctx.rotate(-0.3); ctx.scale(zp, zp);
+        ctx.strokeStyle = PAL.cyan; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, 34, 0, 6.3); ctx.stroke();
+        outText('ゼロ廃棄', 0, -7, 14, PAL.cyan, PAL.dark, 3);
+        outText('+500', 0, 12, 13, PAL.cyan, PAL.dark, 3);
+        ctx.restore();
+      }
+      txt(r.zero ? '残コンを1滴もムダにしなかった!' : '残コンをブロックに再生できた!', 210, 404, 13, PAL.white);
+      const clears = ZC.clearCount(save);
+      txt('称号: ' + ZC.titleFor(clears) + '　クリア ' + clears + '/12', 210, 428, 12, PAL.cyan, 'center', 'bold');
+      uiButton(64, 456, 140, 46, 'もういちど', {}, function(){ sfx.ui(); startStage(S.stageIdx); });
+      if(S.stageIdx < 11){
+        uiButton(216, 456, 140, 46, 'つぎへ', {kind:'primary', pulse:true, fs:17}, function(){ sfx.ui(); startStage(S.stageIdx + 1); });
+      }else{
+        uiButton(216, 456, 140, 46, '全制覇!', {kind:'primary', fs:15}, function(){ sfx.ui(); setScr('select'); });
+      }
+      uiButton(130, 510, 160, 36, 'ステージ選択', {}, function(){ sfx.ui(); setScr('select'); });
+    }else{
+      outText('しっぱい…', 210, 248, 34, PAL.gray, PAL.dark, 8);
+      const lines = (r.reason || '').split('\n');
+      for(let i=0; i<lines.length; i++) txt(lines[i], 210, 300 + i * 24, 14.5, PAL.white, 'center', 'bold');
+      txt('充填率 ' + (S.fill*100).toFixed(1) + '% / 目標90%', 210, 372, 13, PAL.gray, 'center', 'bold');
+      uiButton(64, 456, 140, 46, 'もういちど', {kind:'primary', pulse:true, fs:16}, function(){ sfx.ui(); startStage(S.stageIdx); });
+      uiButton(216, 456, 140, 46, 'ステージ選択', {}, function(){ sfx.ui(); setScr('select'); });
+    }
+    ctx.restore();
+  }
+
+  /* ---- チュートリアル ---- */
+  const TUT_PAGES = [
+    ['「残コン」って知ってるか?', '工事で余った生コンのことだ。', '捨てずにブロックへ再生するぞ!'],
+    ['フェーズ1は「鋳込み」。', '残コンを型に流してブロックを自作!', '予算オーバーの型には流せないぞ。'],
+    ['フェーズ2は「積み上げ」。', 'クレーンをタップで投下!', '点線に90%つめたらクリアだ。']
+  ];
+  function drawTut(){
+    ctx.fillStyle = 'rgba(26,30,36,0.68)';
+    ctx.fillRect(0, 0, W, H);
+    const lines = TUT_PAGES[S.tut.page];
+    const by = 150 + (1 - easeOut(Math.min(1, S.enter * 2 + 0.4))) * 0;
+    ctx.fillStyle = PAL.white; rr(50, by, 320, 168, 16); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(120, by + 168); ctx.lineTo(96, by + 214); ctx.lineTo(158, by + 168);
+    ctx.closePath(); ctx.fill();
+    for(let i=0; i<lines.length; i++) txt(lines[i], 210, by + 42 + i * 32, 15.5, PAL.dark, 'center', 'bold');
+    for(let i=0; i<3; i++){
+      ctx.fillStyle = i === S.tut.page ? PAL.orange : 'rgba(43,58,74,0.3)';
+      ctx.beginPath(); ctx.arc(186 + i * 24, by + 140, 5, 0, 6.3); ctx.fill();
+    }
+    drawMascot(IM.point, 110, 640, 260);
+    const p = 1 + 0.05 * Math.sin(S.t * 5);
+    ctx.save(); ctx.translate(290, 560); ctx.scale(p, p);
+    outText('タップですすむ', 0, 0, 15, PAL.orange, PAL.dark, 4);
+    ctx.restore();
+  }
+
+  /* ---- メイン描画 ---- */
+  function render(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    S.hits = [];
+    ctx.save();
+    if(shakeAmp > 0.2){
+      ctx.translate((Math.random() - 0.5) * shakeAmp, (Math.random() - 0.5) * shakeAmp);
+    }
+    if(S.scr === 'title') drawTitle();
+    else if(S.scr === 'select') drawSelect();
+    else if(S.scr === 'zukan') drawZukan();
+    else if(S.scr === 'cast') drawCast();
+    else if(S.scr === 'stack') drawStack();
+    drawFx();
+    ctx.restore();
+    if(S.paused){
+      ctx.fillStyle = 'rgba(26,30,36,0.8)'; ctx.fillRect(0, 0, W, H);
+      outText('一時停止中', 210, 360, 22, PAL.white, PAL.dark, 5);
+    }
+  }
+
+  /* ---- 入力 ---- */
+  function canvasPos(e){
+    const r = cv.getBoundingClientRect();
+    return {x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H};
+  }
+  cv.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    sfx.unlock();
+    if(S.paused) return;
+    const p = canvasPos(e);
+    if(S.tut && S.scr === 'cast'){ advanceTut(); return; }
+    for(let i=S.hits.length - 1; i>=0; i--){
+      const h = S.hits[i];
+      if(p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h){ h.cb(); return; }
+    }
+    if(S.scr === 'stack' && !S.result && p.y < 650) dropBlock();
+  }, {passive:false});
+  document.addEventListener('keydown', function(e){
+    if(e.key === ' ' || e.key === 'Enter'){
+      sfx.unlock();
+      if(S.tut && S.scr === 'cast'){ advanceTut(); return; }
+      if(S.scr === 'stack' && !S.result) dropBlock();
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){
+      S.paused = true;
+      ZC.saveSave(store, save);
+    }else{
+      S.paused = false;
+    }
+  });
+
+  /* ---- メインループ ---- */
+  let lastT = 0;
+  function loop(now){
+    requestAnimationFrame(loop);
+    if(S.paused){ lastT = now; render(); return; }
+    const dt = Math.min(0.05, (now - lastT) / 1000 || 0);
+    lastT = now;
+    update(dt);
+    render();
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>生コン工場タイクーン | 四国生コンクリート工業</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#1A1E24;overflow:hidden;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+    font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;}
+  body{display:flex;align-items:center;justify-content:center;}
+  #wrap{position:relative;}
+  #cv{display:block;background:#2B3A4A;touch-action:none;}
+  .uibtn{position:absolute;top:8px;z-index:5;border:none;cursor:pointer;
+    font-family:inherit;font-weight:700;font-size:13px;line-height:1;
+    color:#F5F2EC;background:rgba(26,30,36,.82);border-radius:16px;
+    padding:8px 12px;text-decoration:none;display:inline-block;
+    box-shadow:0 2px 6px rgba(0,0,0,.35);}
+  .uibtn:active{transform:scale(.94);}
+  #backBtn{left:8px;}
+  #muteBtn{right:8px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="420" height="740"></canvas>
+  <a id="backBtn" class="uibtn" href="index.html">&larr; もどる</a>
+  <button id="muteBtn" class="uibtn" type="button">音ON</button>
+</div>
+<script>
+/*__PLANT_CORE_START__*/
+'use strict';
+/* ================================================================
+   PlantCore — 生コン工場タイクーン ゲームコア（DOM非依存）
+   注文生成・90分ルール・時間窓判定・スランプ検査・経済・セーブ
+   ================================================================ */
+var PlantCore = (function(){
+  'use strict';
+
+  var CFG = {
+    DAY_MIN: 540,          // 1営業日 = 8:00-17:00 = 540 ゲーム分
+    DAY_START_CLOCK: 480,  // 8:00 (分)
+    MIN_PER_SEC: 4,        // 実1秒 = ゲーム4分 (1日 = 実135秒)
+    LIMIT_MIN: 90,         // JIS A 5308 90分ルール
+    LOAD_SEC: 1.2,         // 積み込み実秒
+    UNLOAD_SEC: 2.0,       // 荷卸し実秒
+    INSPECT_RATE: 0.25,    // 抜き打ちスランプ検査率
+    TRUCK_CAP: 4.0,        // 標準ミキサー車 積載m3
+    BMX_CAP: 2.0,          // BMX特殊車 積載m3
+    MAX_TRUCKS: 3,         // 標準車の最大数
+    START_TRUST: 50,
+    JIS_BONUS: 8000,       // 信頼度100到達ボーナス
+    SAVE_KEY: 'snc_pl_save'
+  };
+
+  // 現場（travel = 片道ゲーム分）
+  var SITES = [
+    {id:'ekimae',   name:'徳島駅前 再開発',     travel:14, narrow:false},
+    {id:'aizumi',   name:'藍住IC ランプ工事',   travel:20, narrow:false},
+    {id:'yoshino',  name:'吉野川 堤防補強',     travel:22, narrow:false},
+    {id:'naruto',   name:'鳴門大橋 補修工区',   travel:30, narrow:false},
+    {id:'komatsu',  name:'小松島 造船ドック',   travel:24, narrow:false},
+    {id:'anan',     name:'阿南港 岸壁工事',     travel:26, narrow:false},
+    {id:'roji',     name:'新町 路地裏の現場',   travel:12, narrow:true},
+    {id:'bizan',    name:'眉山 参道の石段脇',   travel:18, narrow:true}
+  ];
+
+  function siteById(id){
+    for (var i=0;i<SITES.length;i++) if (SITES[i].id===id) return SITES[i];
+    return null;
+  }
+
+  // 決定的乱数（テスト用にも使う）
+  function mulberry32(seed){
+    var a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+
+  // 練り混ぜ時間（実秒）。mixLevel 1-3
+  function mixTime(vol, mixLevel){
+    var base = 2 + vol * 0.8;
+    var f = [1, 0.74, 0.58][clamp(mixLevel,1,3)-1];
+    return base * f;
+  }
+
+  // 報酬計算
+  function calcPay(vol, travel, narrow){
+    var p = vol * 1800 + travel * 90;
+    if (narrow) p *= 1.6;
+    return Math.round(p / 100) * 100;
+  }
+
+  // 鮮度（残り時間率） elapsed=積載からの経過ゲーム分
+  function freshness(elapsedMin){
+    return clamp(1 - elapsedMin / CFG.LIMIT_MIN, 0, 1);
+  }
+  function isExpired(elapsedMin){
+    return elapsedMin > CFG.LIMIT_MIN;
+  }
+
+  // 時間窓判定
+  function judgeWindow(arriveMin, open, close){
+    if (arriveMin < open) return 'early';
+    if (arriveMin <= close) return 'ok';
+    return 'late';
+  }
+
+  // スランプ検査 合格確率（fresh=残り時間率）
+  // 残り35%以上=確実合格 / 残り5%以下=確実不合格 / 間は線形（20%未満は不合格リスク大）
+  function inspectPassProb(fresh){
+    if (fresh >= 0.35) return 1;
+    if (fresh <= 0.05) return 0;
+    return (fresh - 0.05) / 0.30;
+  }
+  function judgeInspection(fresh, roll){
+    return roll < inspectPassProb(fresh);
+  }
+
+  // 納入の収支・信頼度
+  function settleDelivery(o){ // {pay, result:'ok'|'late'|'early', narrow}
+    var r = o.result === 'late' ? 'late' : 'ok';
+    if (r === 'ok'){
+      return { income: o.pay, trust: o.narrow ? 6 : 4, label: '時間内納入' };
+    }
+    return { income: Math.round(o.pay * 0.5), trust: -8, label: '遅延納入' };
+  }
+
+  var INSPECT_TRUST = { pass: 3, fail: -10 };
+
+  // 90分超過 → 廃棄
+  function discard(vol){
+    return {
+      cost: Math.round(vol * 600),
+      trust: -12,
+      reason: '90分超過：JIS A 5308 により荷卸し不可。全量廃棄'
+    };
+  }
+
+  // 注文生成（1営業日ぶん）
+  function genOrders(day, hasBMX, rnd){
+    rnd = rnd || Math.random;
+    var count = clamp(7 + day, 7, 14);
+    var narrowAllowed = day >= 2;
+    var loadMin = CFG.LOAD_SEC * CFG.MIN_PER_SEC;
+    var orders = [];
+    for (var i=0; i<count; i++){
+      var narrow = narrowAllowed && rnd() < 0.22;
+      var pool = [];
+      for (var s=0; s<SITES.length; s++) if (SITES[s].narrow === narrow) pool.push(SITES[s]);
+      var site = pool[Math.floor(rnd() * pool.length)];
+      var vol = narrow ? (1 + Math.round(rnd()*2) * 0.5)      // 1.0-2.0
+                       : (1.5 + Math.round(rnd()*5) * 0.5);   // 1.5-4.0
+      vol = Math.round(vol * 10) / 10;
+      var mixMin = mixTime(vol, 1) * CFG.MIN_PER_SEC; // 最悪(Lv1)で成立性を担保
+      var lead = mixMin + loadMin + site.travel;
+      var spawnAt = Math.floor(CFG.DAY_MIN * (i / count) * 0.92 + rnd()*24);
+      spawnAt = clamp(spawnAt, 0, CFG.DAY_MIN - 140);
+      var open  = Math.round(spawnAt + lead + 8 + rnd()*40);
+      var close = Math.round(open + 45 + rnd()*40);
+      var cap = CFG.DAY_MIN + 50;
+      if (close > cap){
+        var shift = close - cap;
+        open -= shift; close -= shift;
+        if (open < spawnAt + lead) open = Math.ceil(spawnAt + lead);
+      }
+      if (close < open + 30) close = open + 30;
+      orders.push({
+        id: 'd' + day + '_' + i,
+        siteId: site.id,
+        siteName: site.name,
+        travel: site.travel,
+        narrow: site.narrow,
+        vol: vol,
+        spawnAt: spawnAt,
+        windowOpen: open,
+        windowClose: close,
+        pay: calcPay(vol, site.travel, site.narrow),
+        expireAt: Math.max(spawnAt + 40, close - site.travel - 5)
+      });
+    }
+    orders.sort(function(a,b){ return a.spawnAt - b.spawnAt; });
+    return orders;
+  }
+
+  // ---- 拡張（設備投資） ----
+  var UPGRADES = [
+    {id:'truck2', name:'ミキサー車 2号車', desc:'同時配達 +1',                cost:15000, req:null},
+    {id:'truck3', name:'ミキサー車 3号車', desc:'同時配達 +1（最大3台）',      cost:34000, req:'truck2'},
+    {id:'mix2',   name:'高速ミキサ改修 I',  desc:'練り混ぜを高速化',            cost:12000, req:null},
+    {id:'mix3',   name:'高速ミキサ改修 II', desc:'練り混ぜをさらに高速化',       cost:26000, req:'mix2'},
+    {id:'bmx',    name:'BMX特殊車',        desc:'狭小現場の高額注文を解禁',     cost:30000, req:null}
+  ];
+  function upgradeById(id){
+    for (var i=0;i<UPGRADES.length;i++) if (UPGRADES[i].id===id) return UPGRADES[i];
+    return null;
+  }
+  function owned(p, id){
+    if (id==='truck2') return p.trucks >= 2;
+    if (id==='truck3') return p.trucks >= 3;
+    if (id==='mix2')   return p.mixLevel >= 2;
+    if (id==='mix3')   return p.mixLevel >= 3;
+    if (id==='bmx')    return !!p.hasBMX;
+    return false;
+  }
+  function canBuy(p, id){
+    var u = upgradeById(id);
+    if (!u) return false;
+    if (owned(p, id)) return false;
+    if (u.req && !owned(p, u.req)) return false;
+    return p.money >= u.cost;
+  }
+  function applyBuy(p, id){
+    if (!canBuy(p, id)) return false;
+    var u = upgradeById(id);
+    p.money -= u.cost;
+    if (id==='truck2') p.trucks = 2;
+    else if (id==='truck3') p.trucks = 3;
+    else if (id==='mix2') p.mixLevel = 2;
+    else if (id==='mix3') p.mixLevel = 3;
+    else if (id==='bmx') p.hasBMX = true;
+    return true;
+  }
+  function factoryLevel(p){
+    return 1 + (p.trucks - 1) + (p.mixLevel - 1) + (p.hasBMX ? 1 : 0);
+  }
+
+  // ---- セーブ ----
+  function newProgress(){
+    return { v:1, day:1, money:0, trucks:1, mixLevel:1, hasBMX:false,
+             trust:CFG.START_TRUST, delivered:0, bestRevenue:0 };
+  }
+  function serialize(p){
+    return JSON.stringify({
+      v:1, day:p.day, money:p.money, trucks:p.trucks, mixLevel:p.mixLevel,
+      hasBMX:!!p.hasBMX, trust:p.trust, delivered:p.delivered, bestRevenue:p.bestRevenue
+    });
+  }
+  function deserialize(str){
+    var o;
+    try { o = JSON.parse(str); } catch(e){ return null; }
+    if (!o || typeof o !== 'object' || o.v !== 1) return null;
+    if (typeof o.day !== 'number' || typeof o.money !== 'number') return null;
+    var p = newProgress();
+    p.day        = clamp(Math.floor(o.day), 1, 999);
+    p.money      = clamp(Math.floor(o.money), 0, 99999999);
+    p.trucks     = clamp(Math.floor(o.trucks||1), 1, CFG.MAX_TRUCKS);
+    p.mixLevel   = clamp(Math.floor(o.mixLevel||1), 1, 3);
+    p.hasBMX     = !!o.hasBMX;
+    p.trust      = clamp(Math.floor(typeof o.trust==='number'?o.trust:CFG.START_TRUST), 0, 100);
+    p.delivered  = clamp(Math.floor(o.delivered||0), 0, 9999999);
+    p.bestRevenue= clamp(Math.floor(o.bestRevenue||0), 0, 99999999);
+    return p;
+  }
+  function save(storage, p){
+    storage.setItem(CFG.SAVE_KEY, serialize(p));
+  }
+  function load(storage){
+    var s = storage.getItem(CFG.SAVE_KEY);
+    return s ? deserialize(s) : null;
+  }
+
+  return {
+    CFG:CFG, SITES:SITES, siteById:siteById, mulberry32:mulberry32,
+    mixTime:mixTime, calcPay:calcPay, freshness:freshness, isExpired:isExpired,
+    judgeWindow:judgeWindow, inspectPassProb:inspectPassProb, judgeInspection:judgeInspection,
+    settleDelivery:settleDelivery, INSPECT_TRUST:INSPECT_TRUST, discard:discard,
+    genOrders:genOrders, UPGRADES:UPGRADES, upgradeById:upgradeById, owned:owned,
+    canBuy:canBuy, applyBuy:applyBuy, factoryLevel:factoryLevel,
+    newProgress:newProgress, serialize:serialize, deserialize:deserialize,
+    save:save, load:load, clamp:clamp
+  };
+})();
+if (typeof window === 'undefined' && typeof module !== 'undefined'){
+  module.exports = PlantCore;
+}
+/*__PLANT_CORE_END__*/
+
+/* ================================================================
+   ゲームシェル（ブラウザのみ）
+   ================================================================ */
+if (typeof window !== 'undefined') (function(){
+  'use strict';
+  var C = PlantCore, CFG = C.CFG;
+
+  var NAVY='#2B3A4A', GRAY='#8C9BA5', ORANGE='#FF7A1A', CYAN='#29C7E4', WHITE='#F5F2EC', INK='#1A1E24';
+  var W=420, H=740;
+  var MUTE_KEY='snc_mute', TUT_KEY='snc_pl_tut';
+
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var wrap=document.getElementById('wrap'), muteBtn=document.getElementById('muteBtn');
+
+  // ---------- フィット ----------
+  var viewScale=1;
+  function resize(){
+    var vw=window.innerWidth, vh=window.innerHeight;
+    var s=Math.min(vw/W, vh/H);
+    var cw=Math.max(1,Math.floor(W*s)), ch=Math.max(1,Math.floor(H*s));
+    var dpr=Math.min(window.devicePixelRatio||1, 2);
+    cv.style.width=cw+'px'; cv.style.height=ch+'px';
+    wrap.style.width=cw+'px'; wrap.style.height=ch+'px';
+    cv.width=Math.floor(cw*dpr); cv.height=Math.floor(ch*dpr);
+    viewScale=cw*dpr/W;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- アセット ----------
+  function loadImg(src){
+    var im=new Image(); im.src=src;
+    var o={img:im, ok:false};
+    im.onload=function(){ o.ok=true; };
+    return o;
+  }
+  var IMG={
+    title: loadImg('assets/card_plant.jpg'),
+    point: loadImg('assets/mascot_point.png'),
+    joy:   loadImg('assets/mascot_joy.png'),
+    sad:   loadImg('assets/mascot_sad.png')
+  };
+
+  // ---------- サウンド ----------
+  var AC=null, muted = localStorage.getItem(MUTE_KEY)==='1';
+  function updMuteBtn(){ muteBtn.textContent = muted ? '音OFF' : '音ON'; }
+  updMuteBtn();
+  muteBtn.addEventListener('click', function(){
+    muted=!muted; localStorage.setItem(MUTE_KEY, muted?'1':'0'); updMuteBtn();
+    if(!muted) sfx.tap();
+  });
+  function ac(){
+    if(!AC){
+      try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; }
+    }
+    if(AC && AC.state==='suspended') AC.resume();
+    return AC;
+  }
+  function tone(freq,dur,type,vol,delay,slide){
+    if(muted) return; var a=ac(); if(!a) return;
+    var t0=a.currentTime+(delay||0);
+    var o=a.createOscillator(), g=a.createGain();
+    o.type=type||'square'; o.frequency.setValueAtTime(freq,t0);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide), t0+dur);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol||0.15, t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0+dur+0.02);
+  }
+  function noise(dur,vol,delay,freq){
+    if(muted) return; var a=ac(); if(!a) return;
+    var t0=a.currentTime+(delay||0);
+    var len=Math.max(1,Math.floor(a.sampleRate*dur));
+    var buf=a.createBuffer(1,len,a.sampleRate), d=buf.getChannelData(0);
+    for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    var src=a.createBufferSource(); src.buffer=buf;
+    var f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq||900;
+    var g=a.createGain(); g.gain.value=vol||0.2;
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(t0);
+  }
+  var sfx={
+    tap:function(){ tone(660,0.05,'square',0.10); },
+    accept:function(){ tone(520,0.07,'square',0.12); tone(780,0.09,'square',0.12,0.07); },
+    mixdone:function(){ tone(880,0.10,'triangle',0.16); tone(1320,0.12,'triangle',0.14,0.09); },
+    depart:function(){ tone(90,0.35,'sawtooth',0.16,0,60); noise(0.25,0.10,0,500); },
+    pour:function(){ noise(0.5,0.22,0,700); },
+    coin:function(){ tone(1040,0.06,'square',0.14); tone(1560,0.10,'square',0.12,0.06); },
+    stamp:function(){ noise(0.08,0.3,0,300); tone(180,0.09,'square',0.2); },
+    pass:function(){ tone(880,0.09,'triangle',0.16); tone(1174,0.09,'triangle',0.16,0.09); tone(1568,0.16,'triangle',0.16,0.18); },
+    fail:function(){ tone(200,0.28,'sawtooth',0.20); tone(151,0.30,'sawtooth',0.18,0.03); },
+    discard:function(){ noise(0.4,0.3,0,350); tone(110,0.5,'sawtooth',0.18,0,-40); },
+    buy:function(){ tone(700,0.06,'square',0.14); tone(1050,0.07,'square',0.13,0.06); tone(1400,0.11,'square',0.12,0.12); },
+    fanfare:function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,0.16,'triangle',0.17,i*0.11); }); },
+    over:function(){ [392,330,262,196].forEach(function(f,i){ tone(f,0.22,'triangle',0.16,i*0.15); }); }
+  };
+
+  // ---------- マップ定義（描画用パス） ----------
+  var PLANT={x:210,y:292};
+  var SITE_POS={
+    ekimae: {x:150,y:146, path:[[210,292],[210,214],[150,214],[150,146]]},
+    aizumi: {x:70, y:122, path:[[210,292],[160,292],[160,180],[70,180],[70,122]]},
+    yoshino:{x:302,y:120, path:[[210,292],[262,292],[262,178],[302,178],[302,120]]},
+    naruto: {x:368,y:88,  path:[[210,292],[262,292],[262,140],[368,140],[368,88]]},
+    komatsu:{x:140,y:430, path:[[210,292],[210,372],[140,372],[140,430]]},
+    anan:   {x:352,y:424, path:[[210,292],[286,292],[286,380],[352,380],[352,424]]},
+    roji:   {x:318,y:262, path:[[210,292],[268,292],[268,262],[318,262]]},
+    bizan:  {x:58, y:246, path:[[210,292],[160,292],[160,246],[58,246]]}
+  };
+  (function(){ // パス長・累積を前計算
+    for (var id in SITE_POS){
+      var p=SITE_POS[id], cum=[0], L=0;
+      for (var i=1;i<p.path.length;i++){
+        L+=Math.hypot(p.path[i][0]-p.path[i-1][0], p.path[i][1]-p.path[i-1][1]);
+        cum.push(L);
+      }
+      p.len=L; p.cum=cum;
+    }
+  })();
+  function pathPoint(id, frac){
+    var p=SITE_POS[id], d=C.clamp(frac,0,1)*p.len;
+    for (var i=1;i<p.path.length;i++){
+      if (d<=p.cum[i] || i===p.path.length-1){
+        var seg=p.cum[i]-p.cum[i-1]||1, t=(d-p.cum[i-1])/seg;
+        return { x:p.path[i-1][0]+(p.path[i][0]-p.path[i-1][0])*t,
+                 y:p.path[i-1][1]+(p.path[i][1]-p.path[i-1][1])*t };
+      }
+    }
+    return {x:PLANT.x,y:PLANT.y};
+  }
+  var SITE_NO={}; C.SITES.forEach(function(s,i){ SITE_NO[s.id]=i+1; });
+
+  // ---------- 状態 ----------
+  var scene='title'; // title | play | result | shop | shutdown
+  var overlay=null;  // {type:'tutorial'|'pause'|'jis', ...}
+  var progress = C.load(localStorage) || null;
+  var run=null;      // 当日のランタイム
+  var time=0;        // 総経過（演出用）
+  var fadeT=1;
+
+  var particles=[], floaters=[], toasts=[];
+  var shakeT=0, shakeAmp=0;
+  function shake(amp,dur){ shakeAmp=Math.max(shakeAmp,amp); shakeT=Math.max(shakeT,dur); }
+  function spawnParts(x,y,n,colors,spd,life,grav){
+    for(var i=0;i<n;i++){
+      var a=Math.random()*Math.PI*2, v=spd*(0.4+Math.random()*0.8);
+      particles.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-spd*0.35,
+        life:life*(0.6+Math.random()*0.7), t:0, g:grav||160,
+        c:colors[Math.floor(Math.random()*colors.length)], r:1.5+Math.random()*2.5});
+    }
+  }
+  function floatText(x,y,txt,color,size){
+    floaters.push({x:x,y:y,txt:txt,c:color,t:0,dur:1.2,size:size||14});
+  }
+  function toast(txt,color){
+    toasts.push({txt:txt,c:color||WHITE,t:0,dur:2.4});
+  }
+  function fmtYen(n){
+    var s=String(Math.abs(Math.round(n))), out='';
+    while(s.length>3){ out=','+s.slice(-3)+out; s=s.slice(0,-3); }
+    return (n<0?'-':'')+'¥'+s+out;
+  }
+  function fmtClock(gameMin){
+    var m=CFG.DAY_START_CLOCK+Math.floor(gameMin);
+    var h=Math.floor(m/60), mm=m%60;
+    return h+':' +(mm<10?'0':'')+mm;
+  }
+
+  // ---------- 1日のセットアップ ----------
+  function startDay(){
+    if(!progress) progress=C.newProgress();
+    var rng=C.mulberry32((progress.day*7919 + Date.now()) >>> 0);
+    var trucks=[];
+    for(var i=0;i<progress.trucks;i++) trucks.push(mkTruck('std', i));
+    if(progress.hasBMX) trucks.push(mkTruck('bmx', trucks.length));
+    run={
+      clock:0, rng:rng,
+      orders:C.genOrders(progress.day, progress.hasBMX, rng),
+      spawnIdx:0, avail:[], jobs:[],
+      trucks:trucks, mix:null,
+      stats:{delivered:0, revenue:0, penalty:0, inspPass:0, inspFail:0, discards:0, late:0},
+      dayJis:false, paused:false, ended:false
+    };
+    scene='play'; fadeT=0;
+    if (localStorage.getItem(TUT_KEY)!=='1'){
+      overlay={type:'tutorial', page:0};
+    }
+  }
+  function mkTruck(type, idx){
+    return { type:type, idx:idx, state:'idle', order:null, prog:0, t:0,
+             loadStartMin:0, fresh:1, result:null, inspect:null, discarded:false,
+             x:PLANT.x-30+idx*30, y:PLANT.y+52 };
+  }
+  function truckCap(tr){ return tr.type==='bmx'?CFG.BMX_CAP:CFG.TRUCK_CAP; }
+  function eligible(tr, order){
+    if (tr.state!=='idle') return false;
+    if (order.narrow) return tr.type==='bmx';
+    return tr.type==='std' || (tr.type==='bmx' && order.vol<=CFG.BMX_CAP);
+  }
+  function addTrust(d){
+    progress.trust=C.clamp(progress.trust+d,0,100);
+    if (d!==0) floatText(370,90,(d>0?'+':'')+d,d>0?CYAN:ORANGE,12);
+    if (progress.trust>=100 && !run.dayJis){
+      run.dayJis=true;
+      progress.money+=CFG.JIS_BONUS;
+      overlay={type:'jis', t:0};
+      spawnParts(210,300,60,[ORANGE,CYAN,WHITE,GRAY],220,1.4);
+      sfx.fanfare(); shake(5,0.5);
+    }
+    if (progress.trust<=0 && scene==='play'){
+      endShutdown();
+    }
+  }
+  function saveNow(){ if(progress) C.save(localStorage, progress); }
+
+  // ---------- シミュレーション ----------
+  function simUpdate(dt){
+    var r=run;
+    if (r.ended) return;
+    var gdt=dt*CFG.MIN_PER_SEC;
+    var stillOpen = r.clock < CFG.DAY_MIN;
+    r.clock += gdt;
+
+    // 注文の出現
+    while (stillOpen && r.spawnIdx<r.orders.length && r.orders[r.spawnIdx].spawnAt<=r.clock){
+      r.avail.push({o:r.orders[r.spawnIdx], born:time});
+      r.spawnIdx++;
+    }
+    // 注文の期限切れ
+    for (var i=r.avail.length-1;i>=0;i--){
+      if (r.clock > r.avail[i].o.expireAt || r.clock>=CFG.DAY_MIN){
+        r.avail.splice(i,1);
+      }
+    }
+    // 受注済みジョブの納入不能チェック
+    for (i=r.jobs.length-1;i>=0;i--){
+      var jb=r.jobs[i];
+      if (r.clock > jb.windowClose - jb.travel){
+        r.jobs.splice(i,1);
+        addTrust(-6);
+        toast('納入不能キャンセル：'+jb.siteName, ORANGE);
+        sfx.fail(); shake(3,0.25);
+      }
+    }
+    // プラント：ミキシング割り当て
+    if (!r.mix && r.jobs.length){
+      for (i=0;i<r.jobs.length;i++){
+        var tr=null;
+        for (var k=0;k<r.trucks.length;k++){
+          if (eligible(r.trucks[k], r.jobs[i])){ tr=r.trucks[k]; break; }
+        }
+        if (tr){
+          var job=r.jobs.splice(i,1)[0];
+          r.mix={job:job, truck:tr, t:0, dur:C.mixTime(job.vol, progress.mixLevel)};
+          tr.state='mixing'; tr.order=job;
+          break;
+        }
+      }
+    }
+    if (r.mix){
+      r.mix.t+=dt;
+      if (r.mix.t>=r.mix.dur){
+        var mtr=r.mix.truck;
+        mtr.state='loading'; mtr.t=0;
+        mtr.loadStartMin=r.clock; // 積載瞬間＝90分カウント開始
+        sfx.mixdone();
+        spawnParts(PLANT.x,PLANT.y-30,10,[GRAY,WHITE],90,0.7);
+        r.mix=null;
+      }
+    }
+    // トラック更新
+    for (k=0;k<r.trucks.length;k++) updTruck(r.trucks[k], dt);
+
+    // 1日終了判定
+    if (r.clock>=CFG.DAY_MIN && !r.avail.length && !r.jobs.length && !r.mix){
+      var allIdle=true;
+      for (k=0;k<r.trucks.length;k++) if (r.trucks[k].state!=='idle') allIdle=false;
+      if (allIdle){ endDay(); }
+    }
+  }
+  function updTruck(tr, dt){
+    var r=run, o=tr.order;
+    if (o && (tr.state==='loading'||tr.state==='out'||tr.state==='waiting')){
+      var elapsed=r.clock - tr.loadStartMin;
+      tr.fresh=C.freshness(elapsed);
+      if (C.isExpired(elapsed)){
+        // 90分超過 → 廃棄
+        var d=C.discard(o.vol);
+        progress.money=Math.max(0, progress.money-d.cost);
+        r.stats.discards++; r.stats.penalty+=d.cost;
+        addTrust(d.trust);
+        toast(d.reason, ORANGE);
+        var pt=tr.state==='out'?pathPoint(o.siteId,tr.prog):{x:tr.x,y:tr.y};
+        floatText(pt.x,pt.y-24,'-'+fmtYen(d.cost).slice(1),ORANGE,13);
+        spawnParts(pt.x,pt.y,22,[GRAY,'#5b6a77',INK],140,1.0);
+        sfx.discard(); shake(6,0.4);
+        tr.discarded=true; tr.result=null;
+        tr.returnSite=o.siteId;
+        SITE_POS[o.siteId].travelRef=o.travel;
+        if (tr.state!=='out') tr.prog=tr.state==='loading'?0:1;
+        tr.order=null;
+        tr.state='returning';
+        return;
+      }
+    }
+    switch(tr.state){
+      case 'idle':
+        tr.x=PLANT.x-34+tr.idx*26; tr.y=PLANT.y+54;
+        break;
+      case 'mixing':
+        tr.x=PLANT.x; tr.y=PLANT.y+38;
+        break;
+      case 'loading':
+        tr.t+=dt; tr.x=PLANT.x; tr.y=PLANT.y+38;
+        if (tr.t>=CFG.LOAD_SEC){
+          tr.state='out'; tr.prog=0; tr.t=0;
+          sfx.depart();
+          spawnParts(PLANT.x,PLANT.y+46,8,[GRAY],80,0.5);
+        }
+        break;
+      case 'out': {
+        tr.prog += dt*CFG.MIN_PER_SEC / o.travel;
+        var p=pathPoint(o.siteId, tr.prog);
+        tr.x=p.x; tr.y=p.y;
+        if (tr.prog>=1){
+          var jw=C.judgeWindow(r.clock, o.windowOpen, o.windowClose);
+          if (jw==='early'){ tr.state='waiting'; }
+          else { beginUnload(tr, jw); }
+        }
+        break;
+      }
+      case 'waiting': {
+        var sp=SITE_POS[o.siteId]; tr.x=sp.x; tr.y=sp.y;
+        if (r.clock>=o.windowOpen){ beginUnload(tr,'ok'); }
+        break;
+      }
+      case 'unloading':
+        tr.t+=dt;
+        if (tr.t>=CFG.UNLOAD_SEC){ finishUnload(tr); }
+        break;
+      case 'inspect':
+        tr.t+=dt;
+        if (tr.inspect && !tr.inspect.done && tr.t>=0.9){
+          tr.inspect.done=true;
+          if (tr.inspect.pass){ sfx.pass(); }
+          else { sfx.fail(); shake(5,0.35); }
+        }
+        if (tr.t>=1.8){ settle(tr); }
+        break;
+      case 'returning': {
+        var back=tr.returnSite;
+        tr.prog -= dt*CFG.MIN_PER_SEC / (back?SITE_POS[back].travelRef:14);
+        if (back){
+          var q=pathPoint(back, Math.max(tr.prog,0));
+          tr.x=q.x; tr.y=q.y;
+        }
+        if (tr.prog<=0){
+          tr.state='idle'; tr.order=null; tr.discarded=false; tr.returnSite=null; tr.fresh=1;
+        }
+        break;
+      }
+    }
+  }
+  function beginUnload(tr, jw){
+    tr.state='unloading'; tr.t=0;
+    tr.result=jw;
+    tr.freshAtUnload=tr.fresh;
+    sfx.pour();
+    var sp=SITE_POS[tr.order.siteId];
+    spawnParts(sp.x,sp.y+8,10,[GRAY,'#6e7c88'],70,0.6);
+  }
+  function finishUnload(tr){
+    var r=run;
+    // 抜き打ちスランプ検査?
+    if (r.rng() < CFG.INSPECT_RATE){
+      tr.state='inspect'; tr.t=0;
+      tr.inspect={ pass:C.judgeInspection(tr.freshAtUnload, r.rng()), done:false };
+      sfx.stamp(); shake(2,0.15);
+    } else {
+      tr.inspect=null;
+      settle(tr);
+    }
+  }
+  function settle(tr){
+    var r=run, o=tr.order;
+    var sp=SITE_POS[o.siteId];
+    var res=C.settleDelivery({pay:o.pay, result:tr.result, narrow:o.narrow});
+    var income=res.income, trust=res.trust, ok=true;
+    if (tr.result==='late') r.stats.late++;
+    if (tr.inspect){
+      if (tr.inspect.pass){
+        trust+=C.INSPECT_TRUST.pass;
+        r.stats.inspPass++;
+        floatText(sp.x,sp.y-40,'検査 合格',CYAN,13);
+      } else {
+        income=0; trust=C.INSPECT_TRUST.fail;
+        r.stats.inspFail++; ok=false;
+        toast('スランプ検査 不合格…荷受け拒否', ORANGE);
+        floatText(sp.x,sp.y-40,'不合格',ORANGE,14);
+      }
+    }
+    if (ok){
+      progress.money+=income;
+      progress.delivered++;
+      r.stats.delivered++; r.stats.revenue+=income;
+      floatText(sp.x,sp.y-26,'+'+fmtYen(income).slice(1),ORANGE,14);
+      floatText(sp.x,sp.y-52,res.label,tr.result==='late'?ORANGE:WHITE,10);
+      spawnParts(sp.x,sp.y,18,[ORANGE,CYAN,WHITE],150,0.9);
+      sfx.coin();
+      if (tr.result==='late'){ shake(2,0.2); }
+    }
+    addTrust(trust);
+    tr.returnSite=o.siteId;
+    SITE_POS[o.siteId].travelRef=o.travel;
+    tr.state='returning';
+    tr.order=null;
+  }
+  function endDay(){
+    run.ended=true;
+    if (run.stats.revenue>progress.bestRevenue) progress.bestRevenue=run.stats.revenue;
+    saveNow();
+    scene='result'; fadeT=0;
+    sfx.fanfare();
+    spawnParts(210,300,50,[ORANGE,CYAN,WHITE],200,1.5);
+  }
+  function endShutdown(){
+    run.ended=true;
+    scene='shutdown'; fadeT=0;
+    sfx.over(); shake(8,0.6);
+  }
+  function nextDay(){
+    progress.day++;
+    saveNow();
+    startDay();
+  }
+  function retryDay(){
+    progress.trust=40;
+    saveNow();
+    startDay();
+  }
+
+  // ---------- 入力 ----------
+  var hits=[]; // {x,y,w,h,fn} 描画時に登録
+  function hit(x,y,w,h,fn){ hits.push({x:x,y:y,w:w,h:h,fn:fn}); }
+  cv.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    ac(); // オーディオ解錠
+    var rect=cv.getBoundingClientRect();
+    var x=(e.clientX-rect.left)/rect.width*W;
+    var y=(e.clientY-rect.top)/rect.height*H;
+    for (var i=hits.length-1;i>=0;i--){
+      var h=hits[i];
+      if (x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h){ h.fn(x,y); return; }
+    }
+  }, {passive:false});
+
+  // ---------- 描画ヘルパ ----------
+  function F(size,weight){ return (weight||400)+' '+size+'px "Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4","BIZ UDGothic",sans-serif'; }
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  function easeOut(t){ return 1-Math.pow(1-t,3); }
+  function drawCover(img,x,y,w,h){
+    var iw=img.width, ih=img.height;
+    if(!iw||!ih) return;
+    var s=Math.max(w/iw,h/ih), dw=iw*s, dh=ih*s;
+    ctx.drawImage(img, x+(w-dw)/2, y+(h-dh)/2, dw, dh);
+  }
+  function drawContainH(img, cx, bottomY, targetH){
+    var iw=img.width, ih=img.height; if(!iw||!ih) return;
+    var s=targetH/ih, dw=iw*s;
+    ctx.drawImage(img, cx-dw/2, bottomY-targetH, dw, targetH);
+  }
+  function outlineText(txt,x,y,size,fill,stroke,lw){
+    ctx.font=F(size,700); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineJoin='round';
+    ctx.strokeStyle=stroke; ctx.lineWidth=lw;
+    ctx.strokeText(txt,x,y);
+    ctx.fillStyle=fill; ctx.fillText(txt,x,y);
+  }
+  function btn(x,y,w,h,label,fn,opts){
+    opts=opts||{};
+    var sc=opts.pulse ? 1+0.035*Math.sin(time*4.2) : 1;
+    ctx.save();
+    ctx.translate(x+w/2,y+h/2); ctx.scale(sc,sc);
+    rr(-w/2,-h/2,w,h,h/2.6);
+    ctx.fillStyle=opts.bg||ORANGE;
+    ctx.shadowColor='rgba(0,0,0,.35)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+    ctx.fill();
+    ctx.shadowColor='transparent';
+    ctx.strokeStyle='rgba(245,242,236,.5)'; ctx.lineWidth=1.5;
+    rr(-w/2+2,-h/2+2,w-4,h-4,h/2.8); ctx.stroke();
+    ctx.fillStyle=opts.fg||WHITE; ctx.font=F(opts.size||17,700);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label,0,1);
+    ctx.restore();
+    hit(x,y,w,h,function(){ sfx.tap(); fn(); });
+  }
+
+  // ---------- タイトル ----------
+  function drawTitle(){
+    if (IMG.title.ok) drawCover(IMG.title.img,0,0,W,H);
+    else { ctx.fillStyle=NAVY; ctx.fillRect(0,0,W,H); }
+    var g=ctx.createLinearGradient(0,H*0.35,0,H);
+    g.addColorStop(0,'rgba(26,30,36,0)'); g.addColorStop(0.55,'rgba(26,30,36,.72)'); g.addColorStop(1,'rgba(26,30,36,.94)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(26,30,36,.45)'; ctx.fillRect(0,0,W,120);
+
+    // 社名バッジ
+    ctx.font=F(12,700); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(26,30,36,.7)';
+    rr(105,388,210,26,13); ctx.fill();
+    ctx.fillStyle=CYAN; ctx.fillText('四国生コンクリート工業 presents',210,401);
+
+    outlineText('生コン工場',210,452,46,WHITE,INK,9);
+    outlineText('タイクーン',210,506,46,ORANGE,INK,9);
+    ctx.font=F(13,400); ctx.fillStyle=WHITE; ctx.textAlign='center';
+    ctx.fillText('きみは工場長。品質と時間のシビアな一日を回せ。',210,545);
+    ctx.font=F(11,700); ctx.fillStyle=CYAN;
+    ctx.fillText('社是「高品質とスピード」',210,568);
+
+    if (progress && progress.day>1){
+      btn(90,596,240,58,'続きから  '+progress.day+'日目', function(){ startDay(); }, {pulse:true});
+      btn(130,668,160,36,'はじめから', function(){ progress=C.newProgress(); saveNow(); startDay(); }, {bg:'#40566b',size:13});
+    } else {
+      btn(90,608,240,62,'営業スタート', function(){ progress=progress||C.newProgress(); startDay(); }, {pulse:true});
+    }
+    ctx.font=F(9.5,400); ctx.fillStyle=GRAY; ctx.textAlign='center';
+    ctx.fillText('JIS A 5308「練り混ぜから90分」ルール準拠シミュレーション',210,712);
+  }
+
+  // ---------- プレイ画面 ----------
+  function drawPlay(){
+    var r=run;
+    // マップ背景
+    ctx.fillStyle=NAVY; ctx.fillRect(0,0,W,H);
+    // 回路風ドットグリッド
+    ctx.fillStyle='rgba(140,155,165,.08)';
+    for (var gx=14;gx<W;gx+=28) for (var gy=76;gy<470;gy+=28){
+      ctx.fillRect(gx,gy,2,2);
+    }
+    // 吉野川
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0,196); ctx.quadraticCurveTo(180,168,420,108);
+    ctx.lineTo(420,86); ctx.quadraticCurveTo(180,146,0,174);
+    ctx.closePath();
+    ctx.fillStyle='rgba(41,199,228,.13)'; ctx.fill();
+    ctx.strokeStyle='rgba(41,199,228,.25)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.font=F(9,400); ctx.fillStyle='rgba(41,199,228,.55)';
+    ctx.textAlign='left'; ctx.fillText('吉野川',8,190);
+    ctx.restore();
+
+    drawRoads();
+    drawSites();
+    drawPlant();
+    for (var i=0;i<r.trucks.length;i++) drawTruck(r.trucks[i]);
+
+    // 社是（マップ右下）
+    ctx.font=F(9,700); ctx.textAlign='right';
+    ctx.fillStyle='rgba(245,242,236,.4)';
+    ctx.fillText('社是「高品質とスピード」',412,478);
+
+    drawOrderPanel();
+    drawHUD();
+  }
+  function drawRoads(){
+    var r=run;
+    var activeSites={};
+    r.trucks.forEach(function(t){
+      if (t.order && (t.state==='out'||t.state==='waiting'||t.state==='unloading'||t.state==='inspect')) activeSites[t.order.siteId]=1;
+      if (t.state==='returning' && t.returnSite) activeSites[t.returnSite]=1;
+    });
+    var idx=0;
+    for (var id in SITE_POS){
+      var p=SITE_POS[id];
+      ctx.beginPath();
+      ctx.moveTo(p.path[0][0],p.path[0][1]);
+      for (var i=1;i<p.path.length;i++) ctx.lineTo(p.path[i][0],p.path[i][1]);
+      ctx.strokeStyle='#38495B'; ctx.lineWidth=7; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.stroke();
+      ctx.strokeStyle=activeSites[id]?'rgba(41,199,228,.8)':'rgba(41,199,228,.22)';
+      ctx.lineWidth=1.6;
+      ctx.setLineDash([7,9]);
+      ctx.lineDashOffset=-time*26;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 回路パルス
+      var f=(time*0.10 + idx*0.23)%1;
+      var pt=pathPoint(id,f);
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,2.1,0,7);
+      ctx.fillStyle='rgba(41,199,228,'+(activeSites[id]?0.9:0.4)+')'; ctx.fill();
+      idx++;
+    }
+  }
+  function drawSites(){
+    var r=run;
+    var wanted={}, engaged={};
+    r.avail.forEach(function(a){ wanted[a.o.siteId]=1; });
+    r.jobs.forEach(function(j){ engaged[j.siteId]=1; });
+    r.trucks.forEach(function(t){ if(t.order) engaged[t.order.siteId]=1; });
+    C.SITES.forEach(function(s){
+      var p=SITE_POS[s.id];
+      var isW=wanted[s.id], isE=engaged[s.id];
+      if (isW){
+        var pr=1+0.18*Math.sin(time*5);
+        ctx.beginPath(); ctx.arc(p.x,p.y,12*pr,0,7);
+        ctx.strokeStyle='rgba(255,122,26,.75)'; ctx.lineWidth=2; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(p.x,p.y,9,0,7);
+      ctx.fillStyle=isE?CYAN:(isW?ORANGE:'#42566B'); ctx.fill();
+      ctx.strokeStyle=INK; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.font=F(10,700); ctx.fillStyle=isE||isW?INK:GRAY;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(SITE_NO[s.id]),p.x,p.y+0.5);
+      ctx.font=F(8.5,isW||isE?700:400);
+      ctx.fillStyle=isW||isE?WHITE:GRAY;
+      var ly=p.y+18;
+      ctx.fillText(s.name.split(' ')[0],p.x,ly);
+      if (s.narrow){
+        ctx.font=F(7.5,400); ctx.fillStyle='rgba(41,199,228,.8)';
+        ctx.fillText('狭小',p.x,ly+10);
+      }
+    });
+  }
+  function drawPlant(){
+    var x=PLANT.x, y=PLANT.y;
+    ctx.save();
+    // 敷地
+    rr(x-52,y-8,104,52,6);
+    ctx.fillStyle='#22303E'; ctx.fill();
+    // サイロ2本
+    for (var i=0;i<2;i++){
+      var sx=x-30+i*24;
+      ctx.fillStyle='#8C9BA5';
+      rr(sx-9,y-44,18,44,4); ctx.fill();
+      ctx.fillStyle='#6d7d8a';
+      ctx.beginPath(); ctx.moveTo(sx-9,y-44); ctx.lineTo(sx,y-56); ctx.lineTo(sx+9,y-44); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=ORANGE; ctx.fillRect(sx-9,y-22,18,5);
+    }
+    // ミキサ塔
+    ctx.fillStyle='#5e6f7d';
+    rr(x+14,y-36,26,44,4); ctx.fill();
+    ctx.fillStyle=ORANGE; ctx.fillRect(x+14,y-36,26,6);
+    // ドラム（回転）
+    ctx.save();
+    ctx.translate(x+27,y-14);
+    ctx.rotate(run.mix?time*4:time*0.6);
+    ctx.beginPath(); ctx.arc(0,0,8,0,7);
+    ctx.fillStyle=WHITE; ctx.fill();
+    ctx.strokeStyle=NAVY; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.moveTo(0,-8); ctx.lineTo(0,8); ctx.stroke();
+    ctx.restore();
+    // 看板
+    rr(x-50,y+18,100,20,4);
+    ctx.fillStyle=INK; ctx.fill();
+    ctx.strokeStyle=ORANGE; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.font=F(10.5,700); ctx.fillStyle=WHITE; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('四国生コン',x,y+28);
+    ctx.font=F(6.5,400); ctx.fillStyle=CYAN;
+    ctx.fillText('高品質とスピード',x,y+43);
+
+    // 練り混ぜゲージ
+    if (run.mix){
+      var m=run.mix, pr=C.clamp(m.t/m.dur,0,1);
+      rr(x-44,y-70,88,14,7);
+      ctx.fillStyle='rgba(26,30,36,.85)'; ctx.fill();
+      rr(x-41,y-67,82*pr,8,4);
+      ctx.fillStyle=pr<1?CYAN:ORANGE; ctx.fill();
+      ctx.font=F(8,700); ctx.fillStyle=WHITE; ctx.textAlign='center';
+      ctx.fillText('練り混ぜ中 '+m.job.vol.toFixed(1)+'m³',x,y-80);
+      if (Math.random()<0.3) spawnParts(x+27,y-24,1,[GRAY],40,0.5);
+    } else if (run.jobs.length){
+      ctx.font=F(8,700); ctx.fillStyle=GRAY; ctx.textAlign='center';
+      ctx.fillText('待機ジョブ '+run.jobs.length+'件（空き車両待ち）',x,y-66);
+    }
+    ctx.restore();
+  }
+  function drawTruck(tr){
+    if (tr.state==='idle' && run.clock>=CFG.DAY_MIN) return;
+    var x=tr.x, y=tr.y+Math.sin(time*7+tr.idx)*0.8;
+    var isB=tr.type==='bmx';
+    ctx.save();
+    ctx.translate(x,y);
+    // 影
+    ctx.beginPath(); ctx.ellipse(0,9,13,3.5,0,0,7);
+    ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fill();
+    // 車体
+    var body=isB?CYAN:ORANGE;
+    rr(-13,-4,12,10,2); ctx.fillStyle=body; ctx.fill();   // キャブ
+    ctx.fillStyle='rgba(26,30,36,.7)'; ctx.fillRect(-11,-2,7,4); // 窓
+    // ドラム
+    ctx.save();
+    ctx.translate(5,-2);
+    ctx.rotate(time*5);
+    ctx.beginPath(); ctx.ellipse(0,0,8,6,0.3,0,7);
+    ctx.fillStyle=WHITE; ctx.fill();
+    ctx.strokeStyle=isB?CYAN:GRAY; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(-7,-2); ctx.lineTo(7,2); ctx.moveTo(-6,3); ctx.lineTo(6,-3); ctx.stroke();
+    ctx.restore();
+    // 車輪
+    ctx.fillStyle=INK;
+    [-8,2,9].forEach(function(wx){ ctx.beginPath(); ctx.arc(wx,7,2.8,0,7); ctx.fill(); });
+    if (isB){
+      ctx.font=F(6.5,700); ctx.fillStyle=INK; ctx.textAlign='center';
+      ctx.fillText('BMX',-7,-8);
+    }
+    ctx.restore();
+
+    // 90分タイマー（積載中のみ・常時表示）
+    if (tr.order && (tr.state==='loading'||tr.state==='out'||tr.state==='waiting'||tr.state==='unloading')){
+      var remain=Math.max(0, CFG.LIMIT_MIN-(run.clock-tr.loadStartMin));
+      var fr=tr.fresh;
+      var col = fr>0.45?CYAN : ORANGE;
+      var blink = fr<=0.22 && Math.sin(time*10)>0;
+      rr(x-19,y-30,38,13,6.5);
+      ctx.fillStyle='rgba(26,30,36,.88)'; ctx.fill();
+      if (blink){ ctx.strokeStyle=ORANGE; ctx.lineWidth=1.5; ctx.stroke(); }
+      ctx.font=F(9,700); ctx.fillStyle=blink?ORANGE:col; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(Math.ceil(remain)+'分',x,y-23);
+      rr(x-16,y-16,32,3,1.5); ctx.fillStyle='rgba(140,155,165,.3)'; ctx.fill();
+      rr(x-16,y-16,32*fr,3,1.5); ctx.fillStyle=col; ctx.fill();
+      if (tr.state==='waiting'){
+        ctx.font=F(7.5,700); ctx.fillStyle=WHITE;
+        ctx.fillText('現場待機 '+fmtClock(tr.order.windowOpen)+'開場',x,y-38);
+      }
+    }
+    // 検査演出
+    if (tr.state==='inspect' && tr.inspect){
+      var t=tr.t;
+      var ax=C.clamp(x,70,350), ay=Math.max(y-52,84);
+      rr(ax-64,ay-14,128,28,6);
+      ctx.fillStyle='rgba(26,30,36,.92)'; ctx.fill();
+      ctx.strokeStyle=CYAN; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.font=F(10,700); ctx.textAlign='center'; ctx.textBaseline='middle';
+      if (!tr.inspect.done){
+        ctx.fillStyle=CYAN; ctx.fillText('抜き打ちスランプ検査…',ax,ay);
+      } else {
+        var pass=tr.inspect.pass;
+        var st=Math.min(1,(t-0.9)/0.25), ss=1+ (1-easeOut(st))*1.6;
+        ctx.save(); ctx.translate(ax,ay); ctx.scale(ss,ss);
+        ctx.fillStyle=pass?CYAN:ORANGE;
+        ctx.fillText(pass?'合格':'不合格',0,0);
+        ctx.restore();
+      }
+      ctx.font=F(7,400); ctx.fillStyle=GRAY;
+      ctx.fillText('スランプ検査＝生コンの固さ・品質チェック',ax,ay+22);
+    }
+  }
+  function drawOrderPanel(){
+    var r=run;
+    var py=486;
+    rr(0,py,W,H-py,0);
+    ctx.fillStyle=INK; ctx.fillRect(0,py,W,H-py);
+    ctx.fillStyle='rgba(140,155,165,.18)'; ctx.fillRect(0,py,W,2);
+    // ヘッダ
+    ctx.font=F(12,700); ctx.fillStyle=WHITE; ctx.textAlign='left'; ctx.textBaseline='middle';
+    var extra=Math.max(0,r.avail.length-3);
+    ctx.fillText('本日の注文'+(extra?'（+'+extra+'件待ち）':''),12,py+16);
+    // 営業時間バー
+    var bw=150, bx=W-12-bw;
+    rr(bx,py+11,bw,10,5); ctx.fillStyle='rgba(140,155,165,.25)'; ctx.fill();
+    var dp=C.clamp(r.clock/CFG.DAY_MIN,0,1);
+    rr(bx,py+11,bw*dp,10,5); ctx.fillStyle=dp<1?CYAN:ORANGE; ctx.fill();
+    ctx.font=F(8,400); ctx.fillStyle=GRAY; ctx.textAlign='right';
+    ctx.fillText(r.clock>=CFG.DAY_MIN?'営業終了 帰庫待ち…':'17:00 閉店',bx+bw,py+30);
+
+    // カード3枚
+    for (var i=0;i<Math.min(3,r.avail.length);i++){
+      drawOrderCard(r.avail[i], i, py+38+i*70);
+    }
+    if (!r.avail.length){
+      ctx.font=F(11,400); ctx.fillStyle=GRAY; ctx.textAlign='center';
+      ctx.fillText(r.clock>=CFG.DAY_MIN?'本日の受付は終了しました':'次の注文を待っています…',210,py+120);
+    }
+  }
+  function drawOrderCard(a, i, y){
+    var o=a.o;
+    var born=C.clamp((time-a.born)/0.35,0,1);
+    var ox=(1-easeOut(born))*60;
+    var x=8+ox, w=404, h=64;
+    var locked=o.narrow && !progress.hasBMX;
+    ctx.save();
+    ctx.globalAlpha=born;
+    rr(x,y,w,h,10);
+    ctx.fillStyle=locked?'#252d36':'#2f4051'; ctx.fill();
+    ctx.strokeStyle=o.narrow?'rgba(41,199,228,.5)':'rgba(140,155,165,.25)';
+    ctx.lineWidth=1.2; ctx.stroke();
+    // 現場番号チップ
+    ctx.beginPath(); ctx.arc(x+26,y+24,13,0,7);
+    ctx.fillStyle=locked?GRAY:ORANGE; ctx.fill();
+    ctx.font=F(12,700); ctx.fillStyle=INK; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(SITE_NO[o.siteId]),x+26,y+24.5);
+    ctx.font=F(9,700); ctx.fillStyle=locked?GRAY:WHITE;
+    ctx.fillText(o.vol.toFixed(1)+'m³',x+26,y+46);
+    // テキスト
+    ctx.textAlign='left';
+    ctx.font=F(12.5,700); ctx.fillStyle=locked?GRAY:WHITE;
+    ctx.fillText(o.siteName,x+48,y+18);
+    ctx.font=F(10,400); ctx.fillStyle=GRAY;
+    ctx.fillText('納入枠 '+fmtClock(o.windowOpen)+'〜'+fmtClock(o.windowClose)+'  片道'+o.travel+'分',x+48,y+37);
+    // 報酬
+    ctx.textAlign='right';
+    ctx.font=F(14,700); ctx.fillStyle=locked?GRAY:ORANGE;
+    ctx.fillText(fmtYen(o.pay),x+w-12,y+20);
+    ctx.font=F(9,700);
+    if (o.narrow){
+      ctx.fillStyle=locked?ORANGE:CYAN;
+      ctx.fillText(locked?'要BMX特殊車':'狭小現場・高単価',x+w-12,y+38);
+    } else {
+      ctx.fillStyle=GRAY; ctx.fillText('タップで受注',x+w-12,y+38);
+    }
+    // 受注期限バー
+    var lifeAll=o.expireAt-o.spawnAt, lifeRem=C.clamp((o.expireAt-run.clock)/lifeAll,0,1);
+    rr(x+48,y+50,w-108,4,2); ctx.fillStyle='rgba(140,155,165,.25)'; ctx.fill();
+    rr(x+48,y+50,(w-108)*lifeRem,4,2);
+    ctx.fillStyle=lifeRem>0.35?CYAN:ORANGE; ctx.fill();
+    ctx.restore();
+
+    hit(x,y,w,h,function(){
+      if (locked){ toast('BMX特殊車が必要（設備投資で解禁）',CYAN); sfx.fail(); shake(2,0.15); return; }
+      if (run.jobs.length>=4){ toast('受注しすぎ！ジョブ待ちは4件まで',ORANGE); sfx.fail(); return; }
+      var ix=run.avail.indexOf(a);
+      if (ix>=0){
+        run.avail.splice(ix,1);
+        run.jobs.push(o);
+        sfx.accept();
+        floatText(x+w/2,y+10,'受注！',CYAN,14);
+        spawnParts(x+40,y+30,8,[CYAN,WHITE],110,0.6);
+      }
+    });
+  }
+  function drawHUD(){
+    // 上バー
+    var g=ctx.createLinearGradient(0,0,0,64);
+    g.addColorStop(0,'rgba(26,30,36,.95)'); g.addColorStop(1,'rgba(26,30,36,.75)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,64);
+    ctx.textBaseline='middle';
+    // Day
+    ctx.font=F(12,700); ctx.fillStyle=ORANGE; ctx.textAlign='center';
+    ctx.fillText(progress.day+'日目',110,16);
+    ctx.font=F(8.5,400); ctx.fillStyle=GRAY;
+    ctx.fillText('工場Lv.'+C.factoryLevel(progress),110,30);
+    // 時計
+    ctx.font=F(21,700); ctx.fillStyle=WHITE;
+    ctx.fillText(fmtClock(Math.min(run.clock,CFG.DAY_MIN+60)),210,20);
+    // 金
+    ctx.font=F(14,700); ctx.fillStyle=ORANGE; ctx.textAlign='center';
+    ctx.fillText(fmtYen(progress.money),320,16);
+    ctx.font=F(8.5,400); ctx.fillStyle=GRAY;
+    ctx.fillText('配達累計 '+progress.delivered+'件',320,30);
+    // 信頼度
+    var tx=58, tw=250;
+    ctx.font=F(9.5,700); ctx.fillStyle=GRAY; ctx.textAlign='left';
+    ctx.fillText('信頼度',12,49);
+    rr(tx,44,tw,10,5); ctx.fillStyle='rgba(140,155,165,.25)'; ctx.fill();
+    var tp=progress.trust/100;
+    rr(tx,44,tw*tp,10,5);
+    ctx.fillStyle=progress.trust>=100?ORANGE:(progress.trust<=20?ORANGE:CYAN); ctx.fill();
+    if (progress.trust<=20 && Math.sin(time*8)>0){
+      ctx.strokeStyle=ORANGE; ctx.lineWidth=1.4;
+      rr(tx-1,43,tw+2,12,6); ctx.stroke();
+    }
+    ctx.font=F(9.5,700); ctx.textAlign='left';
+    ctx.fillStyle=progress.trust>=100?ORANGE:WHITE;
+    ctx.fillText(progress.trust>=100?'JIS優良':String(progress.trust),tx+tw+8,49);
+    // ポーズ
+    ctx.font=F(9,700); ctx.fillStyle=GRAY; ctx.textAlign='right';
+    ctx.fillText('II 一時停止',408,49);
+    hit(340,38,80,22,function(){ overlay={type:'pause'}; saveNow(); });
+  }
+
+  // ---------- リザルト/ショップ/営業停止 ----------
+  function drawPanelBase(title,color){
+    ctx.fillStyle='rgba(26,30,36,.88)'; ctx.fillRect(0,0,W,H);
+    var t=C.clamp(fadeT*1.6,0,1);
+    var py=90+(1-easeOut(t))*60;
+    ctx.save();
+    ctx.globalAlpha=t;
+    rr(22,py,W-44,540,16);
+    ctx.fillStyle=NAVY; ctx.fill();
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+    outlineText(title,210,py+42,26,color,INK,7);
+    ctx.restore();
+    return py;
+  }
+  function statLine(label,val,y,color){
+    ctx.font=F(13,400); ctx.fillStyle=GRAY; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(label,56,y);
+    ctx.font=F(15,700); ctx.fillStyle=color||WHITE; ctx.textAlign='right';
+    ctx.fillText(val,364,y);
+  }
+  function drawResult(){
+    drawPlay();
+    var py=drawPanelBase(progress.day+'日目 営業終了！',ORANGE);
+    var s=run.stats;
+    if (IMG.joy.ok) drawContainH(IMG.joy.img,210,py+215,130);
+    statLine('配達完了', s.delivered+' 件', py+248, WHITE);
+    statLine('売上', fmtYen(s.revenue), py+278, ORANGE);
+    statLine('スランプ検査', '合格 '+s.inspPass+' ／ 不合格 '+s.inspFail, py+308, s.inspFail?ORANGE:CYAN);
+    statLine('90分超過 廃棄', s.discards+' 件', py+338, s.discards?ORANGE:CYAN);
+    statLine('信頼度', progress.trust+' / 100', py+368, progress.trust>=100?ORANGE:CYAN);
+    ctx.font=F(10.5,400); ctx.fillStyle=GRAY; ctx.textAlign='center';
+    ctx.fillText('「高品質とスピード」— 明日もこの調子で。',210,py+404);
+    btn(80,py+432,260,54,'設備投資へ →',function(){ scene='shop'; fadeT=0; },{pulse:true});
+  }
+  function drawShop(){
+    ctx.fillStyle=INK; ctx.fillRect(0,0,W,H);
+    var t=C.clamp(fadeT*1.6,0,1);
+    ctx.globalAlpha=t;
+    outlineText('設備投資',210,52,28,WHITE,'#0d1013',7);
+    ctx.font=F(13,700); ctx.fillStyle=ORANGE; ctx.textAlign='center';
+    ctx.fillText('所持金 '+fmtYen(progress.money),210,86);
+    ctx.font=F(10,400); ctx.fillStyle=GRAY;
+    ctx.fillText('工場Lv.'+C.factoryLevel(progress)+'  車両: 標準'+progress.trucks+'台'+(progress.hasBMX?' + BMX':''),210,106);
+    var y=128;
+    C.UPGRADES.forEach(function(u){
+      var own=C.owned(progress,u.id);
+      var can=C.canBuy(progress,u.id);
+      var lockedReq=u.req && !C.owned(progress,u.req);
+      rr(20,y,W-40,74,12);
+      ctx.fillStyle=own?'#22303c':'#2f4051'; ctx.fill();
+      ctx.strokeStyle=own?'rgba(41,199,228,.5)':'rgba(140,155,165,.25)'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.font=F(14,700); ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillStyle=own?CYAN:WHITE;
+      ctx.fillText(u.name,36,y+22);
+      ctx.font=F(10,400); ctx.fillStyle=GRAY;
+      ctx.fillText(lockedReq?'（先に '+C.upgradeById(u.req).name+' が必要）':u.desc,36,y+44);
+      if (own){
+        ctx.font=F(13,700); ctx.fillStyle=CYAN; ctx.textAlign='right';
+        ctx.fillText('導入済',W-38,y+37);
+      } else {
+        var bw2=118,bx2=W-38-bw2,by2=y+18,bh2=38;
+        rr(bx2,by2,bw2,bh2,10);
+        ctx.fillStyle=can?ORANGE:'#3a4653'; ctx.fill();
+        ctx.font=F(12.5,700); ctx.fillStyle=can?WHITE:GRAY; ctx.textAlign='center';
+        ctx.fillText(fmtYen(u.cost),bx2+bw2/2,by2+bh2/2+1);
+        (function(uid,ok){
+          hit(bx2,by2,bw2,bh2,function(){
+            if (!ok){ sfx.fail(); toast('資金不足か、前提設備が未導入',ORANGE); return; }
+            C.applyBuy(progress,uid); saveNow();
+            sfx.buy(); shake(2,0.15);
+            spawnParts(210,y+37,20,[ORANGE,CYAN,WHITE],160,0.9);
+            toast(C.upgradeById(uid).name+' を導入！',CYAN);
+          });
+        })(u.id,can);
+      }
+      y+=82;
+    });
+    btn(80,y+14,260,56,'翌営業日へ →',function(){ nextDay(); },{pulse:true});
+    ctx.globalAlpha=1;
+  }
+  function drawShutdown(){
+    drawPlay();
+    var py=drawPanelBase('営 業 停 止',ORANGE);
+    if (IMG.sad.ok) drawContainH(IMG.sad.img,210,py+220,135);
+    ctx.font=F(12.5,400); ctx.fillStyle=WHITE; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('信頼度がゼロになった…',210,py+252);
+    ctx.font=F(10.5,400); ctx.fillStyle=GRAY;
+    ctx.fillText('品質を守れない工場に、注文は来ない。',210,py+274);
+    var s=run.stats;
+    statLine('本日の配達', s.delivered+' 件', py+310);
+    statLine('廃棄・不合格', (s.discards+s.inspFail)+' 件', py+340, ORANGE);
+    statLine('所持金', fmtYen(progress.money), py+370, WHITE);
+    btn(70,py+412,280,54,'再起をはかる（同じ日に再挑戦）',function(){ retryDay(); },{size:14,pulse:true});
+  }
+
+  // ---------- オーバーレイ ----------
+  var TUT=[
+    '下の注文カードをタップで受注。\nプラントで練り混ぜたら、\nミキサー車が自動でお届けだ。',
+    '生コンは積み込みから90分が寿命\n（JIS規格の90分ルール）。\n車の上のタイマーが切れると全部廃棄！',
+    'たまに抜き打ちスランプ検査が来る\n（＝生コンの品質チェック）。\n新鮮なうちに届けて信頼度MAXを狙え！'
+  ];
+  function drawOverlay(){
+    if (!overlay) return;
+    if (overlay.type==='tutorial'){
+      ctx.fillStyle='rgba(26,30,36,.78)'; ctx.fillRect(0,0,W,H);
+      if (IMG.point.ok) drawContainH(IMG.point.img,110,H-20,190);
+      // ふきだし
+      var bx=36,by=300,bw=348,bh=150;
+      rr(bx,by,bw,bh,16);
+      ctx.fillStyle=WHITE; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(130,by+bh); ctx.lineTo(118,by+bh+26); ctx.lineTo(160,by+bh); ctx.closePath();
+      ctx.fillStyle=WHITE; ctx.fill();
+      ctx.font=F(13.5,700); ctx.fillStyle=INK; ctx.textAlign='center'; ctx.textBaseline='middle';
+      var lines=TUT[overlay.page].split('\n');
+      lines.forEach(function(ln,i){ ctx.fillText(ln,bx+bw/2,by+42+i*28); });
+      ctx.font=F(10,700); ctx.fillStyle=ORANGE; ctx.textAlign='right';
+      ctx.fillText('タップで'+(overlay.page<2?'次へ':'スタート')+' ('+(overlay.page+1)+'/3)',bx+bw-16,by+bh-18);
+      hit(0,0,W,H,function(){
+        sfx.tap();
+        overlay.page++;
+        if (overlay.page>=3){
+          overlay=null;
+          localStorage.setItem(TUT_KEY,'1');
+        }
+      });
+    } else if (overlay.type==='pause'){
+      ctx.fillStyle='rgba(26,30,36,.82)'; ctx.fillRect(0,0,W,H);
+      outlineText('一時停止',210,300,30,WHITE,INK,7);
+      ctx.font=F(11,400); ctx.fillStyle=GRAY; ctx.textAlign='center';
+      ctx.fillText('進行状況はセーブ済み',210,340);
+      btn(110,380,200,54,'再開する',function(){ overlay=null; },{pulse:true});
+    } else if (overlay.type==='jis'){
+      overlay.t+=1/60;
+      var t=C.clamp(overlay.t/0.4,0,1);
+      var y=easeOut(t)*250;
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,t*2);
+      rr(40,y-90,340,120,14);
+      ctx.fillStyle='rgba(26,30,36,.94)'; ctx.fill();
+      ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.stroke();
+      outlineText('JIS優良工場 認定！',210,y-52,24,ORANGE,INK,6);
+      ctx.font=F(12,700); ctx.fillStyle=CYAN; ctx.textAlign='center';
+      ctx.fillText('信頼度MAX達成 ボーナス '+fmtYen(CFG.JIS_BONUS),210,y-18);
+      ctx.restore();
+      if (overlay.t>2.6) overlay=null;
+    }
+  }
+
+  // ---------- エフェクト描画 ----------
+  function drawFx(dt){
+    for (var i=particles.length-1;i>=0;i--){
+      var p=particles[i];
+      p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt;
+      if (p.t>=p.life){ particles.splice(i,1); continue; }
+      ctx.globalAlpha=1-p.t/p.life;
+      ctx.fillStyle=p.c;
+      ctx.fillRect(p.x-p.r/2,p.y-p.r/2,p.r,p.r);
+    }
+    ctx.globalAlpha=1;
+    for (i=floaters.length-1;i>=0;i--){
+      var f=floaters[i];
+      f.t+=dt;
+      if (f.t>=f.dur){ floaters.splice(i,1); continue; }
+      var ft=f.t/f.dur;
+      ctx.globalAlpha=1-ft*ft;
+      ctx.font=F(f.size,700); ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.lineWidth=3; ctx.strokeStyle=INK; ctx.lineJoin='round';
+      var fy=f.y-easeOut(ft)*34;
+      ctx.strokeText(f.txt,f.x,fy);
+      ctx.fillStyle=f.c; ctx.fillText(f.txt,f.x,fy);
+    }
+    ctx.globalAlpha=1;
+    // トースト
+    for (i=toasts.length-1;i>=0;i--){
+      var tt=toasts[i];
+      tt.t+=dt;
+      if (tt.t>=tt.dur){ toasts.splice(i,1); continue; }
+    }
+    toasts.slice(0,2).forEach(function(tt,idx){
+      var a=Math.min(1,tt.t/0.15)*Math.min(1,(tt.dur-tt.t)/0.3);
+      ctx.globalAlpha=a;
+      ctx.font=F(11,700); ctx.textAlign='center'; ctx.textBaseline='middle';
+      var tw2=ctx.measureText(tt.txt).width+28;
+      var ty=430-idx*32;
+      rr(210-tw2/2,ty-13,tw2,26,13);
+      ctx.fillStyle='rgba(26,30,36,.92)'; ctx.fill();
+      ctx.strokeStyle=tt.c; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.fillStyle=tt.c;
+      ctx.fillText(tt.txt,210,ty);
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // ---------- メインループ ----------
+  var lastT=0;
+  function frame(ts){
+    var dt=Math.min(0.05,(ts-lastT)/1000||0.016);
+    lastT=ts;
+    time+=dt;
+    fadeT=Math.min(1,fadeT+dt);
+    if (shakeT>0){ shakeT-=dt; if(shakeT<=0) shakeAmp=0; }
+
+    if (scene==='play' && !overlay && !run.ended){
+      simUpdate(dt);
+    }
+
+    ctx.setTransform(viewScale,0,0,viewScale,0,0);
+    ctx.clearRect(0,0,W,H);
+    hits.length=0;
+    ctx.save();
+    if (shakeT>0){
+      ctx.translate((Math.random()-0.5)*2*shakeAmp,(Math.random()-0.5)*2*shakeAmp);
+    }
+    if (scene==='title') drawTitle();
+    else if (scene==='play') drawPlay();
+    else if (scene==='result') drawResult();
+    else if (scene==='shop') drawShop();
+    else if (scene==='shutdown') drawShutdown();
+    drawFx(dt);
+    drawOverlay();
+    ctx.restore();
+    // フェードイン
+    if (fadeT<1){
+      ctx.fillStyle='rgba(26,30,36,'+(1-fadeT)+')';
+      ctx.fillRect(0,0,W,H);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- ポーズ＆セーブ ----------
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden){
+      saveNow();
+      if (scene==='play' && !overlay) overlay={type:'pause'};
+    }
+  });
+  window.addEventListener('pagehide', saveNow);
+})();
+</script>
+</body>
+</html>

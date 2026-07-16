@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>KOBE循環シティ｜ハイキー・ゲームパーク</title>
+<meta name="description" content="ごみをあつめて発電して、まっくらな神戸の街にあかりをともそう！KOBE Hikey Energy 公式ミニゲーム。">
+<style>
+  :root{ --navy:#1a2350; --amber:#ffc400; --leaf:#6abf40; --pink:#ff6fb1; --aqua:#35d0e0; --ink:#132043; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; background:#0e1440; overflow:hidden;
+    font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+    touch-action:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; color:#fff; }
+  #stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #box{ position:relative; }
+  canvas{ display:block; border-radius:6px; }
+
+  .chip{ position:absolute; z-index:30; background:rgba(19,32,67,.66); border:1.5px solid rgba(255,255,255,.4);
+    border-radius:99px; color:#fff; font-weight:800; font-size:12px; padding:7px 14px;
+    backdrop-filter:blur(5px); cursor:pointer; text-decoration:none; }
+  #back{ top:10px; left:10px; }
+  #mute{ top:10px; right:10px; width:38px; height:38px; padding:0; font-size:16px; border-radius:50%; }
+
+  /* ---- 下部アクションバー ---- */
+  #bar{ position:absolute; z-index:25; left:0; right:0; bottom:0; display:flex; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, transparent, rgba(10,14,40,.88) 40%); }
+  .act{ flex:1; border:none; border-radius:16px; padding:9px 6px 8px; font-family:inherit; font-weight:900; font-size:12.5px;
+    color:var(--ink); background:var(--amber); box-shadow:0 4px 0 #b8880a; cursor:pointer;
+    transition:transform .12s, filter .2s; line-height:1.25; }
+  .act small{ display:block; font-size:10px; font-weight:800; opacity:.75; }
+  .act:active{ transform:translateY(3px); box-shadow:0 1px 0 #b8880a; }
+  .act:disabled{ filter:grayscale(.85) brightness(.75); box-shadow:0 4px 0 #555; cursor:default; }
+  .act.green{ background:var(--leaf); box-shadow:0 4px 0 #3f7a22; color:#fff; }
+  .act.green:active{ box-shadow:0 1px 0 #3f7a22; }
+
+  /* ---- オーバーレイ共通 ---- */
+  .ov{ position:absolute; inset:0; z-index:40; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:26px; background:rgba(10,14,40,.55); }
+  .ov.hidden{ display:none; }
+  .panel{ background:rgba(19,32,67,.92); border:2.5px solid rgba(255,255,255,.55); border-radius:24px;
+    padding:22px 20px; max-width:340px; width:100%; box-shadow:0 16px 40px rgba(0,0,0,.5);
+    animation:pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes pop{ from{ transform:scale(.65); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .panel h2{ font-size:21px; font-weight:900; color:var(--amber); margin-bottom:10px; }
+  .panel p{ font-size:13.5px; line-height:1.75; }
+  .btn{ display:inline-block; margin-top:14px; border:none; border-radius:99px; padding:12px 30px;
+    font-family:inherit; font-size:15px; font-weight:900; color:var(--ink); background:var(--amber);
+    box-shadow:0 5px 0 #b8880a; cursor:pointer; transition:transform .12s; }
+  .btn:active{ transform:translateY(4px); box-shadow:0 1px 0 #b8880a; }
+  .btn.sub{ background:rgba(255,255,255,.18); color:#fff; box-shadow:0 5px 0 rgba(0,0,0,.35); font-size:13px; padding:10px 22px; }
+  .btn+.btn{ margin-left:8px; }
+  .mascot-img{ width:110px; filter:drop-shadow(0 8px 14px rgba(0,0,0,.5)); animation:float 3s ease-in-out infinite; }
+  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+
+  /* ---- タイトル ---- */
+  #title{ background:url('assets/card_city.jpg') center/cover; }
+  #title::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(12,16,48,.72), rgba(12,16,48,.42) 45%, rgba(12,16,48,.85)); }
+  #title>*{ position:relative; }
+  #title h1{ font-size:34px; font-weight:900; line-height:1.25; text-shadow:0 3px 0 var(--ink), 0 10px 26px rgba(0,0,0,.6); }
+  #title h1 span{ color:var(--amber); }
+  #title .lead{ margin:10px 0 18px; font-size:13px; font-weight:800; color:#ffe9a8; text-shadow:0 2px 6px rgba(0,0,0,.7); }
+  .tapstart{ animation:pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.06);} }
+
+  /* ---- 豆知識トースト ---- */
+  #toast{ position:absolute; z-index:35; left:50%; top:64px; transform:translateX(-50%) translateY(-20px);
+    width:86%; max-width:340px; background:rgba(255,255,255,.96); color:var(--ink); border-radius:18px;
+    padding:12px 14px 12px 54px; font-size:12.5px; font-weight:800; line-height:1.6;
+    box-shadow:0 10px 26px rgba(0,0,0,.45); opacity:0; pointer-events:none; transition:all .45s cubic-bezier(.2,1.2,.4,1); }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast::before{ content:'💡'; position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    font-size:24px; }
+  #toast b{ color:#c2186b; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="box">
+  <canvas id="cv"></canvas>
+
+  <a id="back" class="chip" href="index.html">← もどる</a>
+  <button id="mute" class="chip" aria-label="サウンド切替">♪</button>
+
+  <div id="toast"></div>
+
+  <div id="bar" style="display:none">
+    <button class="act" id="bShop">おみせをふやす<small id="bShopCost">⚡20</small></button>
+    <button class="act" id="bTruck">トラックをふやす<small id="bTruckCost">⚡60</small></button>
+    <button class="act green" id="bCode">ひきつぎ<small>コード</small></button>
+  </div>
+
+  <!-- タイトル -->
+  <div id="title" class="ov">
+    <h1>KOBE<span>循環</span>シティ</h1>
+    <div class="lead">ごみをあつめて発電して、神戸の街をあかりでいっぱいにしよう！</div>
+    <img class="mascot-img" src="assets/mascot.png" alt="">
+    <div style="margin-top:16px">
+      <button class="btn tapstart" id="btStart">はじめる ▶</button>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn sub" id="btReset">さいしょから</button>
+      <button class="btn sub" id="btCode">コード入力</button>
+    </div>
+    <div id="saveInfo" style="position:relative;margin-top:14px;font-size:11.5px;font-weight:800;opacity:.9"></div>
+  </div>
+
+  <!-- チュートリアル -->
+  <div id="tut" class="ov hidden">
+    <div class="panel">
+      <img class="mascot-img" src="assets/mascot_point.png" alt="" style="width:88px">
+      <h2 id="tutTitle">あそびかた 1/3</h2>
+      <p id="tutText"></p>
+      <button class="btn" id="tutNext">つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- フィナーレ -->
+  <div id="fin" class="ov hidden">
+    <div class="panel">
+      <img class="mascot-img" src="assets/mascot_joy.png" alt="">
+      <h2>🎉 まち全体が点灯！ 🎉</h2>
+      <p>神戸の街が、ごみから生まれた電気でいっぱいになったよ！<br>きみはでんせつの<b style="color:var(--amber)">ハイキーマスター</b>だ！<br><br>「廃棄物は宝。捨てたもんちゃうで！」</p>
+      <button class="btn" id="finClose">つづける</button>
+    </div>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+/* ============================================================
+   KOBE循環シティ — ごみが街を動かす育成ゲーム
+   KOBE Hikey Energy 公式ミニゲーム / 1 file / no deps
+   ============================================================ */
+
+/* ---------- 基本セットアップ ---------- */
+var VW = 420, VH = 740, SCALE = 1, DPR = 1;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var box = document.getElementById('box');
+function fit(){
+  SCALE = Math.min(innerWidth / VW, innerHeight / VH);
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  cv.style.width = VW * SCALE + 'px'; cv.style.height = VH * SCALE + 'px';
+  box.style.width = VW * SCALE + 'px'; box.style.height = VH * SCALE + 'px';
+  cv.width = Math.round(VW * SCALE * DPR); cv.height = Math.round(VH * SCALE * DPR);
+  ctx.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
+  bgDirty = true;
+}
+addEventListener('resize', fit);
+
+/* ---------- ゲームデータ定義 ---------- */
+var DISTRICTS = [
+  { name: 'すま・たるみ',   x0: 6,   x1: 118, y0: 388, y1: 500, hue: '#35d0e0' },
+  { name: 'ながた・ひょうご', x0: 6,  x1: 168, y0: 268, y1: 386, hue: '#6abf40' },
+  { name: 'さんのみや',     x0: 172, x1: 300, y0: 250, y1: 470, hue: '#ffc400' },
+  { name: 'なだ・ひがしなだ', x0: 304, x1: 414, y0: 250, y1: 420, hue: '#ff6fb1' },
+  { name: 'きた・やまて',   x0: 60,  x1: 360, y0: 186, y1: 246, hue: '#b78bf7' },
+  { name: 'ポートアイランド', x0: 236, x1: 400, y0: 560, y1: 646, hue: '#35d0e0' }
+];
+var LV_XP = [0, 14, 34, 62];           // 区レベル閾値
+var XP_MAX = LV_XP[3];
+/* 店: d=区, x,y, t=種類(0コンビニ 1レストラン 2スーパー 3こうじょう), r=ごみ発生/秒 */
+var SHOPS = [
+  { d: 2, x: 216, y: 430, t: 0, r: .34 }, { d: 2, x: 272, y: 396, t: 1, r: .30 },
+  { d: 1, x: 66,  y: 348, t: 2, r: .28 }, { d: 0, x: 58,  y: 452, t: 0, r: .26 },
+  { d: 3, x: 336, y: 372, t: 1, r: .30 }, { d: 2, x: 248, y: 318, t: 2, r: .30 },
+  { d: 1, x: 128, y: 300, t: 3, r: .36 }, { d: 4, x: 130, y: 218, t: 0, r: .26 },
+  { d: 3, x: 380, y: 320, t: 3, r: .34 }, { d: 4, x: 270, y: 214, t: 1, r: .28 },
+  { d: 5, x: 282, y: 606, t: 3, r: .40 }, { d: 5, x: 352, y: 590, t: 2, r: .32 }
+];
+var SHOP_ICON = ['🏪', '🍜', '🛒', '🏭'];
+var SHOP_NAME = ['コンビニ', 'レストラン', 'スーパー', 'こうじょう'];
+var SHOP_COST = [0, 0, 22, 34, 50, 70, 95, 125, 160, 200, 245, 295];
+var TRUCK_COST = [0, 60, 150, 320];
+var WASTE_CAP = 5;
+var PLANT = { x: 96, y: 508 };
+var TOWER = { x: 208, y: 486 };
+
+var TIPS = [
+  '<b>生ごみ</b>はメタンはっこうで<b>ガス</b>になって、電気を作れるんだよ！',
+  '神戸市には、コンビニやレストランがたくさん。毎日たくさんの食品ごみが出ているよ。',
+  'ごみをあつめる<b>「神戸方式」</b>は、小さなお店でもリサイクルに参加できるしくみなんだ。',
+  '食べのこしは<b>ぶたさんのごはん（飼料）</b>にもなるよ。栄養たっぷり！',
+  'はっこうのあとにのこったどろは、<b>畑の肥料</b>としても使えるんだ。',
+  '<b>プラスチック</b>がまざると、リサイクルがむずかしくなるよ。分別が大事！',
+  'ごみをもやすだけの発電より、<b>バイオガス発電</b>のほうがエネルギーを多く取り出せるんだ。',
+  '神戸で生まれたごみが、神戸を動かす電気になる。<b>くるくる回る「循環」</b>だね！'
+];
+
+/* ---------- 状態 ---------- */
+var S = null;               // セーブ対象の状態
+var trucks = [];            // {sx,sy, shop, t, phase(go|load|back|unload), carry}
+var parts = [], floats = [];
+var scene = 'title';        // title | play
+var shake = 0, tGlobal = 0;
+var bgDirty = true;
+var finaleDone = false, finaleT = -1;
+var tipCooldown = 0, tipIndex = 0;
+
+function newState(){
+  return { energy: 14, shopsOpen: 2, trucksN: 1, xp: [0,0,0,0,0,0],
+           waste: SHOPS.map(function(){ return 1.5; }), store: 0,
+           tutDone: false, tips: 0, ver: 1 };
+}
+
+/* ---------- セーブ / 引き継ぎコード ---------- */
+var KEY = 'hikey_city_save';
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+function load(){
+  try {
+    var d = JSON.parse(localStorage.getItem(KEY));
+    if (d && d.ver === 1 && d.xp && d.xp.length === 6) return d;
+  } catch (e) {}
+  return null;
+}
+function checksum(str){
+  var h = 7;
+  for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 99991;
+  return h.toString(36);
+}
+function makeCode(){
+  var body = btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  return 'HIKEY1.' + body + '.' + checksum(body);
+}
+function parseCode(code){
+  try {
+    var m = String(code).trim().split('.');
+    if (m.length !== 3 || m[0] !== 'HIKEY1' || checksum(m[1]) !== m[2]) return null;
+    var d = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    if (d && d.ver === 1 && d.xp && d.xp.length === 6) return d;
+  } catch (e) {}
+  return null;
+}
+
+/* ---------- サウンド（WebAudio合成） ---------- */
+var AC = null, master = null, muted = false;
+try { muted = localStorage.getItem('hikey_city_muted') === '1'; } catch (e) {}
+var muteBtn = document.getElementById('mute');
+function syncMute(){ muteBtn.textContent = muted ? '×' : '♪'; if (master) master.gain.value = muted ? 0 : .5; }
+syncMute();
+muteBtn.addEventListener('click', function(){
+  muted = !muted;
+  try { localStorage.setItem('hikey_city_muted', muted ? '1' : '0'); } catch (e) {}
+  syncMute();
+});
+function unlockAudio(){
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = muted ? 0 : .5; master.connect(AC.destination);
+  } catch (e) { AC = null; }
+}
+function beep(f, dur, type, vol, slide){
+  if (!AC || muted) return;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.value = f;
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, AC.currentTime + dur);
+  g.gain.setValueAtTime(vol || .16, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime + dur);
+}
+function arp(notes, step, dur, type, vol){
+  notes.forEach(function(f, i){ setTimeout(function(){ beep(f, dur, type, vol); }, i * step); });
+}
+var sfx = {
+  go:     function(){ beep(180, .18, 'sawtooth', .12, 320); },
+  pick:   function(){ beep(520, .09, 'triangle', .18, 700); },
+  drop:   function(){ beep(300, .14, 'sine', .2, 180); },
+  energy: function(){ beep(880, .07, 'triangle', .1, 1100); },
+  lvup:   function(){ arp([523, 659, 784, 1047], 90, .16, 'square', .16); },
+  unlock: function(){ arp([392, 523, 659], 80, .14, 'triangle', .18); },
+  err:    function(){ beep(140, .18, 'sawtooth', .2, 90); },
+  finale: function(){ arp([523, 659, 784, 1047, 1319, 1568], 130, .3, 'square', .16); }
+};
+
+/* ---------- ユーティリティ ---------- */
+function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+function ease(t){ return 1 - Math.pow(1 - t, 3); }
+function rr(x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function districtLevel(d){
+  var xp = Math.min(S.xp[d], XP_MAX);
+  for (var l = 3; l >= 0; l--) if (xp >= LV_XP[l]) return l;
+  return 0;
+}
+function totalProgress(){
+  var s = 0;
+  for (var i = 0; i < 6; i++) s += Math.min(S.xp[i], XP_MAX);
+  return s / (XP_MAX * 6);
+}
+function addFloat(txt, x, y, col){ floats.push({ t: txt, x: x, y: y, life: 1.1, c: col || '#ffc400' }); }
+function addParts(x, y, col, n, sp){
+  for (var i = 0; i < n; i++) parts.push({
+    x: x, y: y, vx: (Math.random() - .5) * sp, vy: -Math.random() * sp * .9,
+    life: .5 + Math.random() * .6, c: col, r: 1.5 + Math.random() * 2.8
+  });
+}
+function showTip(html){
+  var el = document.getElementById('toast');
+  el.innerHTML = html; el.classList.add('show');
+  clearTimeout(showTip._t);
+  showTip._t = setTimeout(function(){ el.classList.remove('show'); }, 4200);
+}
+
+/* ---------- 疑似乱数（見た目の固定用） ---------- */
+function srnd(seed){ var s = seed; return function(){ s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }; }
+
+/* ---------- 建物データ（固定生成） ---------- */
+var BUILDINGS = [];
+(function(){
+  var rnd = srnd(20260712);
+  DISTRICTS.forEach(function(D, di){
+    var n = di === 4 ? 7 : di === 5 ? 5 : 8;
+    for (var i = 0; i < n; i++) {
+      var w = 22 + rnd() * 26;
+      var h = di === 2 ? 46 + rnd() * 88 : 28 + rnd() * 46;
+      var x = D.x0 + 4 + rnd() * (D.x1 - D.x0 - w - 8);
+      var y1 = D.y1 - 4;
+      BUILDINGS.push({ d: di, x: x, y: y1 - h, w: w, h: h,
+        win: [], tone: .16 + rnd() * .12 });
+      var b = BUILDINGS[BUILDINGS.length - 1];
+      for (var wy = b.y + 6; wy < y1 - 8; wy += 11)
+        for (var wx = x + 4; wx < x + w - 6; wx += 9)
+          b.win.push({ x: wx, y: wy, on: rnd() });
+    }
+  });
+})();
+
+/* ---------- 背景（静的部分をオフスクリーンにキャッシュ） ---------- */
+var bgCv = document.createElement('canvas'), bg = bgCv.getContext('2d');
+function renderBG(){
+  bgCv.width = Math.round(VW * SCALE * DPR); bgCv.height = Math.round(VH * SCALE * DPR);
+  bg.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
+  // 空
+  var g = bg.createLinearGradient(0, 0, 0, 200);
+  g.addColorStop(0, '#232e6e'); g.addColorStop(1, '#4a4a9e');
+  bg.fillStyle = g; bg.fillRect(0, 0, VW, 200);
+  // 星
+  var rnd = srnd(777);
+  bg.fillStyle = '#fff';
+  for (var i = 0; i < 34; i++) { bg.globalAlpha = .3 + rnd() * .6; bg.fillRect(rnd() * VW, rnd() * 150, 1.7, 1.7); }
+  bg.globalAlpha = 1;
+  // 山（六甲）
+  bg.fillStyle = '#1d3f34';
+  bg.beginPath(); bg.moveTo(-20, 200);
+  bg.quadraticCurveTo(80, 96, 190, 168); bg.quadraticCurveTo(300, 92, 440, 186);
+  bg.lineTo(440, 210); bg.lineTo(-20, 210); bg.closePath(); bg.fill();
+  bg.fillStyle = '#26523f';
+  bg.beginPath(); bg.moveTo(-20, 206);
+  bg.quadraticCurveTo(120, 130, 240, 190); bg.quadraticCurveTo(340, 140, 440, 200);
+  bg.lineTo(440, 216); bg.lineTo(-20, 216); bg.closePath(); bg.fill();
+  // 地面（市街）
+  var g2 = bg.createLinearGradient(0, 190, 0, 560);
+  g2.addColorStop(0, '#2c3164'); g2.addColorStop(1, '#232a58');
+  bg.fillStyle = g2; bg.fillRect(0, 190, VW, 370);
+  // 海
+  var g3 = bg.createLinearGradient(0, 545, 0, VH);
+  g3.addColorStop(0, '#14224e'); g3.addColorStop(1, '#0c1638');
+  bg.fillStyle = g3; bg.fillRect(0, 545, VW, VH - 545);
+  bg.fillStyle = 'rgba(255,255,255,.08)'; bg.fillRect(0, 545, VW, 2.5);
+  // ポートアイランド（島）
+  bg.fillStyle = '#242b59';
+  rr2(bg, DISTRICTS[5].x0 - 10, DISTRICTS[5].y0 - 8, DISTRICTS[5].x1 - DISTRICTS[5].x0 + 20, DISTRICTS[5].y1 - DISTRICTS[5].y0 + 20, 18);
+  bg.fill();
+  // 道路（プラント→各店）
+  bg.strokeStyle = '#3a4066'; bg.lineWidth = 9; bg.lineCap = 'round';
+  SHOPS.forEach(function(sh){
+    bg.beginPath(); roadPath(bg, sh);
+    bg.stroke();
+  });
+  bg.strokeStyle = 'rgba(255,255,255,.14)'; bg.lineWidth = 1.6; bg.setLineDash([7, 8]);
+  SHOPS.forEach(function(sh){ bg.beginPath(); roadPath(bg, sh); bg.stroke(); });
+  bg.setLineDash([]);
+}
+function rr2(c, x, y, w, h, r){
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function roadCtrl(sh){
+  var mx = (PLANT.x + sh.x) / 2, my = (PLANT.y + sh.y) / 2;
+  var dx = sh.x - PLANT.x, dy = sh.y - PLANT.y;
+  var len = Math.sqrt(dx * dx + dy * dy) || 1;
+  var k = sh.d === 5 ? -34 : 26;                 // 島へは海側へ膨らむ橋
+  return { x: mx - dy / len * k, y: my + dx / len * k };
+}
+function roadPath(c, sh){
+  var q = roadCtrl(sh);
+  c.moveTo(PLANT.x, PLANT.y); c.quadraticCurveTo(q.x, q.y, sh.x, sh.y);
+}
+function roadPoint(sh, t){
+  var q = roadCtrl(sh), u = 1 - t;
+  return { x: u * u * PLANT.x + 2 * u * t * q.x + t * t * sh.x,
+           y: u * u * PLANT.y + 2 * u * t * q.y + t * t * sh.y };
+}
+
+/* ---------- 描画: 街 ---------- */
+function drawCity(dt){
+  if (bgDirty) { renderBG(); bgDirty = false; }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bgCv, 0, 0, cv.width, cv.height);
+  ctx.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
+  if (shake > 0) {
+    shake -= dt;
+    ctx.translate((Math.random() - .5) * shake * 14, (Math.random() - .5) * shake * 14);
+  }
+
+  // 建物と窓あかり
+  BUILDINGS.forEach(function(b){
+    var lv = districtLevel(b.d);
+    var frac = clamp((Math.min(S.xp[b.d], XP_MAX) / XP_MAX) * 1.15, 0, 1);
+    ctx.fillStyle = 'rgba(16,20,52,' + (.75 - b.tone) + ')';
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    ctx.fillRect(b.x, b.y, b.w, 2);
+    b.win.forEach(function(w){
+      if (w.on < frac) {
+        var tw = .75 + Math.sin(tGlobal * 2.2 + w.x * 3.1 + w.y) * .25;
+        ctx.fillStyle = 'rgba(255,206,84,' + (.5 + tw * .45) + ')';
+        ctx.fillRect(w.x, w.y, 5, 6.5);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,.05)';
+        ctx.fillRect(w.x, w.y, 5, 6.5);
+      }
+    });
+    if (lv >= 3) { // 屋上ネオン
+      ctx.fillStyle = ['#ff6fb1', '#35d0e0', '#ffc400'][ (b.x | 0) % 3 ];
+      ctx.globalAlpha = .6 + Math.sin(tGlobal * 3 + b.x) * .4;
+      ctx.fillRect(b.x + b.w * .2, b.y - 3.5, b.w * .6, 2.6);
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // 海の反射（点灯度に応じてカラフルに）
+  var prog = totalProgress();
+  for (var i = 0; i < 14; i++) {
+    var rx = 20 + (i * 61) % (VW - 40);
+    var cols = ['#ffc400', '#ff6fb1', '#35d0e0', '#6abf40'];
+    ctx.globalAlpha = (0.05 + prog * .3) * (.6 + Math.sin(tGlobal * 1.4 + i * 2.4) * .4);
+    ctx.fillStyle = cols[i % 4];
+    ctx.fillRect(rx, 556 + (i % 5) * 34, 26 + (i % 3) * 14, 2.4);
+  }
+  ctx.globalAlpha = 1;
+
+  drawTower(prog);
+  drawFerris(prog);
+  drawPlant();
+  SHOPS.forEach(drawShop);
+  trucks.forEach(drawTruck);
+
+  // パーティクル・浮き文字
+  for (var p, j = parts.length - 1; j >= 0; j--) {
+    p = parts[j]; p.life -= dt;
+    if (p.life <= 0) { parts.splice(j, 1); continue; }
+    p.x += p.vx; p.y += p.vy; p.vy += 24 * dt;
+    ctx.globalAlpha = clamp(p.life * 2, 0, 1); ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.font = '900 15px sans-serif';
+  for (var f, k = floats.length - 1; k >= 0; k--) {
+    f = floats[k]; f.life -= dt; f.y -= 34 * dt;
+    if (f.life <= 0) { floats.splice(k, 1); continue; }
+    ctx.globalAlpha = clamp(f.life * 1.5, 0, 1);
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(19,32,67,.85)';
+    ctx.strokeText(f.t, f.x, f.y); ctx.fillStyle = f.c; ctx.fillText(f.t, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+
+  drawHUD();
+  if (finaleT >= 0) drawFinale(dt);
+}
+
+/* ---------- 描画: ランドマーク ---------- */
+function drawTower(prog){
+  var x = TOWER.x, y = TOWER.y, lit = prog >= 1;
+  ctx.save();
+  ctx.strokeStyle = lit ? '#ff5252' : '#7e3040';
+  if (lit) { ctx.shadowColor = '#ff5252'; ctx.shadowBlur = 14; }
+  ctx.lineWidth = 3;
+  // 鼓型シルエット
+  ctx.beginPath();
+  ctx.moveTo(x - 13, y); ctx.quadraticCurveTo(x - 2, y - 33, x - 6, y - 62);
+  ctx.moveTo(x + 13, y); ctx.quadraticCurveTo(x + 2, y - 33, x + 6, y - 62);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  for (var i = 1; i <= 4; i++) {
+    var yy = y - i * 12.5, w = 13 - Math.sin(i / 4.6 * Math.PI) * 8;
+    ctx.beginPath(); ctx.moveTo(x - w, yy); ctx.lineTo(x + w, yy); ctx.stroke();
+  }
+  rr(x - 8, y - 70, 16, 9, 3);
+  ctx.fillStyle = lit ? '#ffd7d7' : '#5a2833'; ctx.fill();
+  if (lit) {
+    var hue = (tGlobal * 60) % 360;
+    ctx.fillStyle = 'hsla(' + hue + ',90%,65%,.85)';
+    ctx.beginPath(); ctx.arc(x, y - 74, 3.4 + Math.sin(tGlobal * 5) * 1.2, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawFerris(prog){
+  var x = 178, y = 512, r = 17, on = districtLevel(2) >= 2;
+  ctx.save();
+  ctx.strokeStyle = on ? '#ffc400' : '#4a4670'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y - r, r, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 9, y + 4); ctx.lineTo(x, y - r); ctx.lineTo(x + 9, y + 4); ctx.stroke();
+  var spin = on ? tGlobal * .8 : 0;
+  for (var i = 0; i < 8; i++) {
+    var a = spin + i / 8 * 6.283;
+    var gx = x + Math.cos(a) * r, gy = y - r + Math.sin(a) * r;
+    ctx.fillStyle = on ? ['#ff6fb1', '#35d0e0', '#ffc400', '#6abf40'][i % 4] : '#3c3960';
+    ctx.beginPath(); ctx.arc(gx, gy, 3, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawPlant(){
+  var x = PLANT.x, y = PLANT.y;
+  ctx.save();
+  // 光彩
+  ctx.fillStyle = 'rgba(106,191,64,.18)';
+  ctx.beginPath(); ctx.arc(x, y - 10, 34 + Math.sin(tGlobal * 2) * 3, 0, 7); ctx.fill();
+  // タンク
+  var g = ctx.createLinearGradient(x - 20, 0, x + 20, 0);
+  g.addColorStop(0, '#57a334'); g.addColorStop(.5, '#79ce4c'); g.addColorStop(1, '#4c8f2e');
+  ctx.fillStyle = g;
+  rr(x - 19, y - 26, 38, 30, 9); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y - 26, 19, 7, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.3)';
+  ctx.beginPath(); ctx.ellipse(x, y - 26, 19, 7, 0, 3.3, 6.1); ctx.fill();
+  // 煙突と光る玉（ごみ→電気の変換中）
+  ctx.fillStyle = '#3f7a22'; ctx.fillRect(x + 12, y - 44, 7, 20);
+  if (S.store > 0) {
+    var by = y - 46 - (tGlobal * 30 % 18);
+    ctx.fillStyle = 'rgba(255,196,0,.9)';
+    ctx.beginPath(); ctx.arc(x + 15.5, by, 3, 0, 7); ctx.fill();
+  }
+  // ごみ貯蔵メーター
+  ctx.fillStyle = 'rgba(19,32,67,.65)'; rr(x - 16, y - 18, 32, 7, 3.5); ctx.fill();
+  ctx.fillStyle = '#ffc400';
+  rr(x - 16, y - 18, 32 * clamp(S.store / 12, 0, 1), 7, 3.5); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '900 9px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('はつでんしょ', x, y + 16);
+  ctx.restore();
+}
+function drawShop(sh, i){
+  var open = i < S.shopsOpen;
+  var x = sh.x, y = sh.y;
+  ctx.save();
+  if (!open) {
+    ctx.globalAlpha = .34;
+    ctx.fillStyle = '#2c3161';
+    rr(x - 15, y - 15, 30, 26, 7); ctx.fill();
+    ctx.fillStyle = '#aab'; ctx.font = '900 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('🔒', x, y + 2);
+    ctx.restore(); return;
+  }
+  var w = S.waste[i], full = w >= WASTE_CAP;
+  // 建物
+  ctx.fillStyle = ['#2e6f7d', '#7d2e55', '#7d6a2e', '#3f7a44'][sh.t];
+  rr(x - 15, y - 15, 30, 26, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(x - 15, y - 15, 30, 8, 7); ctx.fill();
+  ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(SHOP_ICON[sh.t], x, y + 5);
+  // ごみメーター
+  ctx.fillStyle = 'rgba(19,32,67,.7)'; rr(x - 14, y + 14, 28, 5.5, 2.7); ctx.fill();
+  ctx.fillStyle = full ? '#ff5252' : '#8de05a';
+  rr(x - 14, y + 14, 28 * clamp(w / WASTE_CAP, 0, 1), 5.5, 2.7); ctx.fill();
+  // ごみ袋アイコン（1以上で表示）
+  if (w >= 1) {
+    var bob = Math.sin(tGlobal * 3 + i) * 2;
+    ctx.font = '13px sans-serif';
+    ctx.fillText('🗑️', x + 20, y - 12 + bob);
+  }
+  if (full) { // ！マーク点滅
+    ctx.globalAlpha = .5 + Math.sin(tGlobal * 6) * .5;
+    ctx.fillStyle = '#ff5252'; ctx.font = '900 15px sans-serif';
+    ctx.fillText('！', x - 20, y - 12);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function drawTruck(tr){
+  var p = roadPoint(SHOPS[tr.shop], tr.phase === 'back' ? 1 - tr.t : tr.t);
+  var nxt = roadPoint(SHOPS[tr.shop], (tr.phase === 'back' ? 1 - tr.t : tr.t) + (tr.phase === 'back' ? -.02 : .02));
+  var ang = Math.atan2(nxt.y - p.y, nxt.x - p.x);
+  ctx.save();
+  ctx.translate(p.x, p.y); ctx.rotate(ang);
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(0, 4, 11, 3.4, 0, 0, 7); ctx.fill();
+  // 荷台（ごみ有りなら緑の山）
+  ctx.fillStyle = '#e8e7e3'; rr(-11, -7, 14, 11, 3); ctx.fill();
+  if (tr.carry > 0) { ctx.fillStyle = '#6abf40'; ctx.beginPath(); ctx.arc(-4, -8, 4.5, 3.14, 0); ctx.fill(); }
+  // キャビン
+  ctx.fillStyle = '#ffc400'; rr(3, -6.5, 9, 10, 2.5); ctx.fill();
+  ctx.fillStyle = '#35d0e0'; ctx.fillRect(5.4, -4.6, 4.4, 3.4);
+  // タイヤ
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-6, 4.6, 2.6, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(7, 4.6, 2.6, 0, 7); ctx.fill();
+  ctx.restore();
+  if (tr.phase === 'load' || tr.phase === 'unload') {
+    ctx.fillStyle = '#fff'; ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(tr.phase === 'load' ? 'かいしゅう中…' : 'とうにゅう！', p.x, p.y - 16);
+  }
+}
+
+/* ---------- HUD ---------- */
+function drawHUD(){
+  // エネルギー
+  ctx.save();
+  ctx.fillStyle = 'rgba(19,32,67,.72)'; rr(12, 54, 128, 34, 17); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; rr(12, 54, 128, 34, 17); ctx.stroke();
+  ctx.font = '900 17px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffc400'; ctx.fillText('⚡', 24, 77);
+  ctx.fillStyle = '#fff'; ctx.fillText(String(Math.floor(S.energy)), 46, 77);
+  // トラック数
+  ctx.fillStyle = 'rgba(19,32,67,.72)'; rr(150, 54, 86, 34, 17); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; rr(150, 54, 86, 34, 17); ctx.stroke();
+  ctx.font = '900 14px sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('🚚 ' + trucks.filter(function(t){ return t.phase; }).length + '/' + S.trucksN, 162, 76);
+  // まちのあかりメーター
+  var prog = totalProgress();
+  ctx.fillStyle = 'rgba(19,32,67,.72)'; rr(246, 54, 162, 34, 17); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; rr(246, 54, 162, 34, 17); ctx.stroke();
+  ctx.font = '900 10.5px sans-serif';
+  ctx.fillStyle = '#ffe9a8'; ctx.fillText('まちのあかり', 258, 68);
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(258, 72, 108, 10, 5); ctx.fill();
+  var gr = ctx.createLinearGradient(258, 0, 366, 0);
+  gr.addColorStop(0, '#ffc400'); gr.addColorStop(1, '#ff6fb1');
+  ctx.fillStyle = gr; rr(258, 72, 108 * prog, 10, 5); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '900 12px sans-serif';
+  ctx.fillText(Math.floor(prog * 100) + '%', 372, 82);
+  ctx.restore();
+}
+
+/* ---------- フィナーレ演出 ---------- */
+function drawFinale(dt){
+  finaleT += dt;
+  if (Math.random() < .12) {
+    var fx = 40 + Math.random() * (VW - 80), fy = 90 + Math.random() * 260;
+    var col = ['#ffc400', '#ff6fb1', '#35d0e0', '#6abf40', '#fff'][(Math.random() * 5) | 0];
+    addParts(fx, fy, col, 26, 5.5);
+    if (Math.random() < .5) sfx.energy();
+  }
+  if (finaleT > 2.2 && !finaleDone) {
+    finaleDone = true;
+    document.getElementById('fin').classList.remove('hidden');
+  }
+}
+
+/* ---------- ゲームロジック ---------- */
+function step(dt){
+  tGlobal += dt;
+  tipCooldown -= dt;
+
+  // 店のごみ蓄積
+  for (var i = 0; i < S.shopsOpen; i++) {
+    S.waste[i] = Math.min(WASTE_CAP, S.waste[i] + SHOPS[i].r * dt);
+  }
+  // プラント: ごみ→電気
+  if (S.store > 0) {
+    var conv = Math.min(S.store, dt * 1.6);
+    S.store -= conv;
+    S.energy += conv * 3;
+    if (((tGlobal * 3) | 0) !== (((tGlobal - dt) * 3) | 0)) sfx.energy();
+  }
+  // トラック
+  trucks.forEach(function(tr){
+    if (!tr.phase) return;
+    var sh = SHOPS[tr.shop];
+    var dur = .014 + (Math.abs(sh.x - PLANT.x) + Math.abs(sh.y - PLANT.y)) * 0;
+    var speed = 130 / (Math.abs(sh.x - PLANT.x) + Math.abs(sh.y - PLANT.y) + 60); // ほぼ等速
+    if (tr.phase === 'go') {
+      tr.t += dt * speed * 60 * .018;
+      if (tr.t >= 1) { tr.t = 1; tr.phase = 'load'; tr.wait = .7; }
+    } else if (tr.phase === 'load') {
+      tr.wait -= dt;
+      if (tr.wait <= 0) {
+        tr.carry = Math.floor(S.waste[tr.shop]);
+        S.waste[tr.shop] -= tr.carry;
+        sfx.pick();
+        addFloat('ごみ +' + tr.carry, sh.x, sh.y - 24, '#8de05a');
+        addParts(sh.x, sh.y, '#6abf40', 8, 3);
+        tr.phase = 'back'; tr.t = 0;
+      }
+    } else if (tr.phase === 'back') {
+      tr.t += dt * speed * 60 * .018;
+      if (tr.t >= 1) { tr.t = 1; tr.phase = 'unload'; tr.wait = .5; }
+    } else if (tr.phase === 'unload') {
+      tr.wait -= dt;
+      if (tr.wait <= 0) {
+        S.store += tr.carry;
+        var d = SHOPS[tr.shop].d;
+        var beforeLv = districtLevel(d);
+        S.xp[d] += tr.carry;
+        sfx.drop();
+        addFloat('⚡へんかん中', PLANT.x, PLANT.y - 40, '#ffc400');
+        addParts(PLANT.x, PLANT.y - 20, '#ffc400', 10, 3.4);
+        if (districtLevel(d) > beforeLv) onLevelUp(d);
+        tr.carry = 0; tr.phase = null;
+        save();
+      }
+    }
+  });
+  // フィナーレ判定
+  if (finaleT < 0 && totalProgress() >= 1) {
+    finaleT = 0; sfx.finale(); shake = .4;
+  }
+}
+function onLevelUp(d){
+  var D = DISTRICTS[d];
+  sfx.lvup(); shake = .3;
+  addFloat(D.name + ' レベルアップ！', clamp((D.x0 + D.x1) / 2, 70, VW - 70), D.y0 + 20, '#ffc400');
+  addParts((D.x0 + D.x1) / 2, (D.y0 + D.y1) / 2, '#ffc400', 22, 5);
+  if (tipCooldown <= 0 && S.tips < TIPS.length) {
+    showTip(TIPS[S.tips % TIPS.length]);
+    S.tips++; tipCooldown = 6;
+  }
+}
+function dispatch(shopIdx){
+  if (S.waste[shopIdx] < 1) { sfx.err(); addFloat('まだごみがないよ', SHOPS[shopIdx].x, SHOPS[shopIdx].y - 26, '#aac'); return; }
+  var free = null;
+  for (var i = 0; i < trucks.length; i++) if (!trucks[i].phase) { free = trucks[i]; break; }
+  if (!free) { sfx.err(); shake = .18; addFloat('トラックがぜんぶ出動中！', VW / 2, 120, '#ff8f8f'); return; }
+  free.shop = shopIdx; free.phase = 'go'; free.t = 0; free.carry = 0;
+  sfx.go();
+}
+
+/* ---------- 入力 ---------- */
+cv.addEventListener('pointerdown', function(e){
+  unlockAudio();
+  if (scene !== 'play') return;
+  var rect = cv.getBoundingClientRect();
+  var x = (e.clientX - rect.left) / SCALE, y = (e.clientY - rect.top) / SCALE;
+  // 店ヒット判定
+  var best = -1, bd = 1e9;
+  for (var i = 0; i < S.shopsOpen; i++) {
+    var dx = SHOPS[i].x - x, dy = SHOPS[i].y - y, dd = dx * dx + dy * dy;
+    if (dd < 30 * 30 && dd < bd) { bd = dd; best = i; }
+  }
+  if (best >= 0) { dispatch(best); return; }
+  // プラントタップ → 説明
+  var px = PLANT.x - x, py = PLANT.y - y;
+  if (px * px + py * py < 36 * 36) {
+    showTip('ここが<b>バイオガスはつでんしょ</b>。あつめたごみが電気にかわるよ！');
+  }
+});
+
+/* ---------- ボタン類 ---------- */
+var bShop = document.getElementById('bShop'), bTruck = document.getElementById('bTruck');
+function shopCost(){ return S.shopsOpen < SHOPS.length ? SHOP_COST[S.shopsOpen] : null; }
+function truckCost(){ return S.trucksN < TRUCK_COST.length ? TRUCK_COST[S.trucksN] : null; }
+function syncBar(){
+  var sc = shopCost(), tc = truckCost();
+  document.getElementById('bShopCost').textContent = sc === null ? 'ぜんぶ開店！' : '⚡' + sc;
+  document.getElementById('bTruckCost').textContent = tc === null ? 'さいだい数！' : '⚡' + tc;
+  bShop.disabled = sc === null || S.energy < sc;
+  bTruck.disabled = tc === null || S.energy < tc;
+}
+setInterval(syncBar, 300);
+bShop.addEventListener('click', function(){
+  unlockAudio();
+  var c = shopCost();
+  if (c === null || S.energy < c) return;
+  S.energy -= c; S.shopsOpen++;
+  var sh = SHOPS[S.shopsOpen - 1];
+  sfx.unlock();
+  addFloat(SHOP_NAME[sh.t] + ' オープン！', clamp(sh.x, 80, VW - 80), sh.y - 30, '#8de05a');
+  addParts(sh.x, sh.y, '#35d0e0', 16, 4);
+  save();
+});
+bTruck.addEventListener('click', function(){
+  unlockAudio();
+  var c = truckCost();
+  if (c === null || S.energy < c) return;
+  S.energy -= c; S.trucksN++;
+  trucks.push({ phase: null, shop: 0, t: 0, carry: 0 });
+  sfx.unlock();
+  addFloat('トラックが増えた！ 🚚', VW / 2, 140, '#ffc400');
+  save();
+});
+document.getElementById('bCode').addEventListener('click', function(){
+  save();
+  prompt('この「ひきつぎコード」をコピーしてね。\n別の機械の「コード入力」に貼ると、続きから遊べるよ！', makeCode());
+});
+
+/* ---------- シーン遷移 ---------- */
+var TUT = [
+  'お店に<b>ごみマーク🗑️</b>が出たらタップ！トラックがごみを取りにいくよ。',
+  'あつめたごみは<b>はつでんしょ</b>で電気⚡にへんしん！電気でお店やトラックを増やせるよ。',
+  'ごみをあつめるほど、まっくらな街に<b>あかりがともる</b>よ。神戸ぜんぶを光らせよう！'
+];
+var tutStep = 0;
+function showTut(){
+  var el = document.getElementById('tut');
+  el.classList.remove('hidden');
+  document.getElementById('tutTitle').textContent = 'あそびかた ' + (tutStep + 1) + '/3';
+  document.getElementById('tutText').innerHTML = TUT[tutStep];
+}
+document.getElementById('tutNext').addEventListener('click', function(){
+  unlockAudio(); beep(660, .08, 'triangle', .15);
+  tutStep++;
+  if (tutStep >= TUT.length) {
+    document.getElementById('tut').classList.add('hidden');
+    S.tutDone = true; save();
+  } else showTut();
+});
+function startPlay(){
+  scene = 'play';
+  document.getElementById('title').classList.add('hidden');
+  document.getElementById('bar').style.display = 'flex';
+  trucks = [];
+  for (var i = 0; i < S.trucksN; i++) trucks.push({ phase: null, shop: 0, t: 0, carry: 0 });
+  if (!S.tutDone) { tutStep = 0; showTut(); }
+}
+document.getElementById('btStart').addEventListener('click', function(){
+  unlockAudio(); sfx.unlock();
+  startPlay();
+});
+document.getElementById('btReset').addEventListener('click', function(){
+  if (!confirm('セーブを消して、さいしょから遊ぶ？')) return;
+  S = newState(); save();
+  syncSaveInfo();
+});
+document.getElementById('btCode').addEventListener('click', function(){
+  var code = prompt('ひきつぎコードを貼りつけてね');
+  if (!code) return;
+  var d = parseCode(code);
+  if (d) { S = d; save(); syncSaveInfo(); alert('ひきつぎ成功！「はじめる」で続きから遊べるよ。'); }
+  else alert('コードがちがうみたい…もういちど確認してね。');
+});
+document.getElementById('finClose').addEventListener('click', function(){
+  document.getElementById('fin').classList.add('hidden');
+});
+function syncSaveInfo(){
+  var el = document.getElementById('saveInfo');
+  var p = Math.floor(totalProgress() * 100);
+  el.textContent = p > 0 ? 'セーブデータ: まちのあかり ' + p + '%（つづきから遊べるよ）' : 'はじめてのプレイ！';
+}
+
+/* ---------- 起動 ---------- */
+S = load() || newState();
+fit();
+syncSaveInfo();
+var lastT = 0;
+function loop(t){
+  var dt = Math.min(.05, (t - lastT) / 1000) || .016; lastT = t;
+  if (scene === 'play') { step(dt); drawCity(dt); }
+  else { drawCity(dt); } // タイトル裏でも街を描く（にぎやかし）
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+document.addEventListener('visibilitychange', function(){ if (document.hidden) save(); });
+addEventListener('pagehide', save);
+</script>
+</body>
+</html>

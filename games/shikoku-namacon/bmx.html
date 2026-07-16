@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BMX どこでもコンクリート！｜四国生コン GAMES</title>
+<style>
+  html,body{margin:0;padding:0;background:#1A1E24;height:100%;overflow:hidden;
+    font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  canvas{touch-action:none;display:block;}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<script>
+'use strict';
+/* =====================================================================
+   BMX どこでもコンクリート！  四国生コンクリート工業
+   コア(CORE)はDOM非依存。node環境では module.exports される。
+   ===================================================================== */
+var CORE = (function(){
+  var STEP = 6;                 // 地形サンプル間隔(px)
+  var BASE_Y = 560;             // 地表基準(ワールドY)
+  var PIT_Y  = BASE_Y + 210;    // 谷底
+  var POUR_RATE = 46;           // L/秒
+  var ACC = 240, MAXV = 168, MINV = -70, SLOPE_F = 340, FRICTION = 130;
+
+  function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;var t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+  function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+  function lerp(a,b,t){return a+(b-a)*t;}
+
+  // ステージ定義: len=全長, gaps=[{x,w,needL}], hills=[{x,w,amp}], cure=硬化秒, reqL=現場必要量, night, jet, name, area
+  var STAGES = [
+    {name:'徳島市街の歩道打設',   area:'徳島', len:2400, gaps:[{x:1100,w:120,needL:26}], hills:[{x:600,w:500,amp:40}], cure:100, reqL:40, night:false, jet:false},
+    {name:'鳴門 海沿いの犬走',    area:'鳴門', len:2600, gaps:[{x:900,w:130,needL:28},{x:1700,w:150,needL:30}], hills:[{x:1300,w:600,amp:55}], cure:100, reqL:42, night:false, jet:false},
+    {name:'勝浦の山道 段差補修',  area:'勝浦', len:2800, gaps:[{x:800,w:140,needL:30},{x:1900,w:160,needL:32}], hills:[{x:1200,w:500,amp:80},{x:2300,w:400,amp:60}], cure:95, reqL:44, night:false, jet:false},
+    {name:'祖谷 崖沿いの林道',    area:'祖谷', len:3000, gaps:[{x:700,w:150,needL:28},{x:1500,w:130,needL:26},{x:2300,w:170,needL:30}], hills:[{x:1100,w:450,amp:95}], cure:92, reqL:40, night:false, jet:false},
+    {name:'夜間 橋梁ジョイント',  area:'吉野川', len:2800, gaps:[{x:1000,w:150,needL:30},{x:1900,w:150,needL:30}], hills:[], cure:70, reqL:48, night:true, jet:true},
+    {name:'伊島 離島の桟橋前',    area:'伊島', len:3200, gaps:[{x:800,w:160,needL:30},{x:1700,w:140,needL:28},{x:2500,w:170,needL:32}], hills:[{x:1200,w:500,amp:70}], cure:88, reqL:40, night:false, jet:false},
+    {name:'高知 海岸の護岸工',    area:'高知', len:3400, gaps:[{x:900,w:170,needL:32},{x:1800,w:150,needL:28},{x:2700,w:180,needL:34}], hills:[{x:1400,w:600,amp:85}], cure:85, reqL:38, night:false, jet:false},
+    {name:'石鎚山ろく 夜間補修',  area:'愛媛', len:3200, gaps:[{x:700,w:150,needL:28},{x:1600,w:170,needL:32},{x:2400,w:150,needL:28}], hills:[{x:1100,w:450,amp:100},{x:2800,w:350,amp:70}], cure:62, reqL:44, night:true, jet:true},
+    {name:'小豆島 農道の全面打設',area:'香川', len:3600, gaps:[{x:800,w:160,needL:30},{x:1700,w:180,needL:34},{x:2600,w:160,needL:30}], hills:[{x:1200,w:500,amp:90},{x:3000,w:400,amp:75}], cure:80, reqL:40, night:false, jet:false},
+    {name:'佐田岬 風の細道',      area:'愛媛', len:3800, gaps:[{x:700,w:170,needL:28},{x:1500,w:160,needL:26},{x:2400,w:180,needL:30},{x:3200,w:150,needL:26}], hills:[{x:1900,w:500,amp:105}], cure:76, reqL:28, night:false, jet:false},
+    {name:'夜の高速 緊急補修',    area:'高速道', len:3600, gaps:[{x:900,w:180,needL:34},{x:1800,w:170,needL:32},{x:2700,w:190,needL:36}], hills:[], cure:52, reqL:36, night:true, jet:true},
+    {name:'全国出動！最終試練',   area:'全国', len:4200, gaps:[{x:700,w:170,needL:24},{x:1500,w:180,needL:26},{x:2300,w:160,needL:22},{x:3100,w:190,needL:26},{x:3800,w:150,needL:20}], hills:[{x:1100,w:450,amp:95},{x:2700,w:500,amp:110}], cure:60, reqL:24, night:true, jet:true}
+  ];
+  var TANK_L = 150;
+
+  function buildStage(idx){
+    var def = STAGES[idx];
+    var n = Math.floor(def.len/STEP)+1;
+    var hs = new Array(n);
+    var rnd = mulberry32(1000+idx*77);
+    for(var i=0;i<n;i++){
+      var x = i*STEP;
+      var h = BASE_Y;
+      for(var j=0;j<def.hills.length;j++){
+        var hl = def.hills[j];
+        if(x>hl.x && x<hl.x+hl.w) h -= hl.amp*0.5*(1-Math.cos((x-hl.x)/hl.w*Math.PI*2));
+      }
+      h += Math.sin(x*0.011+idx)*4 + (rnd()-0.5)*1.6; // 微細な起伏
+      hs[i]=h;
+    }
+    var gaps = def.gaps.map(function(g){
+      return {x0:g.x, x1:g.x+g.w, needL:g.needL, fill:0};
+    });
+    // ギャップ端の高さを平滑化
+    return {def:def, hs:hs, gaps:gaps, len:def.len, siteX:def.len-180, tank:TANK_L, cure:def.cure};
+  }
+  function groundH(st,x){ // ギャップ無視の素の地形
+    x = clamp(x,0,st.len-1);
+    var i = Math.floor(x/STEP), t=(x-i*STEP)/STEP;
+    var a=st.hs[i], b=st.hs[Math.min(i+1,st.hs.length-1)];
+    return lerp(a,b,t);
+  }
+  function gapAt(st,x){
+    for(var i=0;i<st.gaps.length;i++){var g=st.gaps[i]; if(x>=g.x0&&x<=g.x1) return g;}
+    return null;
+  }
+  function bridgeH(st,g){ return Math.max(groundH(st,g.x0-6), groundH(st,g.x1+6)); }
+  function surfaceH(st,x){ // 打設面込みの走行面。通行不可なら null
+    var g = gapAt(st,x);
+    if(!g) return groundH(st,x);
+    if(g.fill >= g.needL) return bridgeH(st,g);
+    // 部分充填: 左から progress 分だけ橋になる
+    var prog = g.fill/g.needL;
+    if(x <= g.x0 + (g.x1-g.x0)*prog) return bridgeH(st,g);
+    return null;
+  }
+  function pourTarget(st,vx){ // 車前方の未充填ギャップ
+    var best=null;
+    for(var i=0;i<st.gaps.length;i++){
+      var g=st.gaps[i];
+      if(g.fill<g.needL && g.x1>vx-10 && g.x0<vx+250){ if(!best||g.x0<best.x0) best=g; }
+    }
+    return best;
+  }
+  function pourStep(st,veh,dt){ // 戻り値: 実際に注いだL
+    if(veh.tank<=0) return 0;
+    var g = pourTarget(st,veh.x);
+    if(!g) return 0;
+    var amt = Math.min(POUR_RATE*dt, veh.tank, g.needL-g.fill);
+    g.fill += amt; veh.tank -= amt;
+    return amt;
+  }
+  var SPILL_RATE = 24; // L/秒（ギャップ外での無駄撃ち）
+  function spillStep(st,veh,dt){ // ターゲット無しで注いだ場合の浪費。戻り値=こぼしたL
+    if(veh.tank<=0) return 0;
+    if(pourTarget(st,veh.x)) return 0;
+    var amt=Math.min(SPILL_RATE*dt, veh.tank);
+    veh.tank-=amt; return amt;
+  }
+  function slopeAt(st,x){
+    var a=surfaceH(st,x-26), b=surfaceH(st,x+26);
+    if(a===null||b===null) return 0;
+    return (a-b)/52; // 正=上り(yは下向き正)
+  }
+  function vehStep(st,veh,input,dt){
+    var drive = (input.fwd?1:0)-(input.back?1:0);
+    veh.vx += drive*ACC*dt;
+    var sl = slopeAt(st,veh.x);
+    veh.vx -= sl*SLOPE_F*dt;                       // 上りで減速・下りで加速
+    if(!drive){ var f=FRICTION*dt; if(veh.vx>f)veh.vx-=f; else if(veh.vx<-f)veh.vx+=f; else veh.vx=0; }
+    veh.vx = clamp(veh.vx, MINV, MAXV);
+    veh.x = clamp(veh.x + veh.vx*dt, 30, st.len-40);
+    var s = surfaceH(st,veh.x);
+    if(s===null){ veh.falling = true; }
+    else { veh.y = s; }
+    if(veh.falling){ veh.vy = (veh.vy||0) + 900*dt; veh.y += veh.vy*dt; }
+    return veh;
+  }
+  function cureStep(veh,dt){ veh.cureLeft -= dt; return veh.cureLeft; }
+  function atSite(st,veh){ return veh.x >= st.siteX; }
+  function calcScore(cureRatio,leftL,reqL,gaugeAcc){
+    var leftRatio = clamp(leftL/ (TANK_L-reqL) ,0,1);
+    return Math.round(400 + 300*clamp(cureRatio,0,1) + 200*leftRatio + 300*clamp(gaugeAcc,0,1));
+  }
+  // ---- セーブ ----
+  var SAVE_KEY='snc_bmx_save';
+  function defaultSave(){ return {v:1, cleared:[], best:[], tut:false}; }
+  function loadSave(storage){
+    try{
+      var raw = storage.getItem(SAVE_KEY);
+      if(raw){ var s=JSON.parse(raw);
+        if(s && s.v===1 && Array.isArray(s.cleared) && Array.isArray(s.best)) return Object.assign(defaultSave(),s);
+      }
+    }catch(e){}
+    return defaultSave();
+  }
+  function saveSave(storage,s){ try{ storage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
+  function clearCount(s){ var n=0; for(var i=0;i<STAGES.length;i++) if(s.cleared[i]) n++; return n; }
+  function titleFor(n){ if(n>=12)return'伝説のオペレーター'; if(n>=8)return'どこでもコンクリート認定'; if(n>=4)return'現場デビュー'; return'見習いオペレーター'; }
+
+  return {STAGES:STAGES, TANK_L:TANK_L, STEP:STEP, BASE_Y:BASE_Y, PIT_Y:PIT_Y, POUR_RATE:POUR_RATE,
+    buildStage:buildStage, groundH:groundH, gapAt:gapAt, surfaceH:surfaceH, bridgeH:bridgeH,
+    pourTarget:pourTarget, pourStep:pourStep, spillStep:spillStep, slopeAt:slopeAt, vehStep:vehStep, cureStep:cureStep,
+    atSite:atSite, calcScore:calcScore, mulberry32:mulberry32, clamp:clamp,
+    defaultSave:defaultSave, loadSave:loadSave, saveSave:saveSave, clearCount:clearCount, titleFor:titleFor};
+})();
+if (typeof window==='undefined'){ module.exports = CORE; }
+else (function(){
+/* ===================== ブラウザ側 ===================== */
+var W=420,H=740;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var dpr=Math.min(window.devicePixelRatio||1,2);
+function fit(){
+  var vw=innerWidth,vh=innerHeight,s=Math.min(vw/W,vh/H);
+  cv.style.width=(W*s)+'px'; cv.style.height=(H*s)+'px';
+  cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+fit(); addEventListener('resize',fit);
+
+var COL={navy:'#2B3A4A',grey:'#8C9BA5',orange:'#FF7A1A',cyan:'#29C7E4',white:'#F5F2EC',dark:'#1A1E24'};
+var IMG={}; ['card_bmx.jpg','mascot.png','mascot_joy.png','mascot_sad.png','mascot_point.png'].forEach(function(n){
+  var im=new Image(); im.src='assets/'+n; IMG[n.split('.')[0]]=im;
+});
+
+/* ---- audio ---- */
+var AC=null, muted=false;
+try{ muted = localStorage.getItem('snc_mute')==='1'; }catch(e){}
+function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+function beep(f,dur,type,vol,slide){
+  if(muted)return; var a=ac(); if(!a)return;
+  var o=a.createOscillator(),g=a.createGain();
+  o.type=type||'square'; o.frequency.value=f;
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),a.currentTime+dur);
+  g.gain.value=vol||0.08; g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+  o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime+dur);
+}
+function noiseSfx(dur,vol,fc){
+  if(muted)return; var a=ac(); if(!a)return;
+  var n=a.sampleRate*dur, buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+  for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  var s=a.createBufferSource(); s.buffer=buf;
+  var f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=fc||900;
+  var g=a.createGain(); g.gain.value=vol||0.12;
+  s.connect(f).connect(g).connect(a.destination); s.start();
+}
+var engine=null;
+function engineOn(){
+  if(muted||engine)return; var a=ac(); if(!a)return;
+  var o=a.createOscillator(),g=a.createGain(),f=a.createBiquadFilter();
+  o.type='sawtooth'; o.frequency.value=52; f.type='lowpass'; f.frequency.value=260; g.gain.value=0.05;
+  o.connect(f).connect(g).connect(a.destination); o.start();
+  engine={o:o,g:g};
+}
+function engineOff(){ if(engine){ try{engine.o.stop();}catch(e){} engine=null; } }
+function engineSpeed(v){ if(engine)engine.o.frequency.value=52+Math.abs(v)*0.5; }
+function sfxPour(){ noiseSfx(0.12,0.10,700); }
+function sfxDone(){ beep(660,0.12,'sine',0.10); setTimeout(function(){beep(880,0.18,'sine',0.10);},110); }
+function sfxWarn(){ beep(1180,0.09,'square',0.07); }
+function sfxFanfare(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){beep(f,0.22,'triangle',0.12);},i*130); }); }
+function sfxFail(){ beep(180,0.4,'sawtooth',0.12,-120); }
+function sfxTap(){ beep(760,0.06,'square',0.06); }
+
+/* ---- state ---- */
+var save = CORE.loadSave(localStorage);
+var scene='title';   // title / map / play / result
+var st=null, veh=null, input={fwd:false,back:false,pour:false};
+var stageIdx=0, camX=0, shake=0, t=0, parts=[], floats=[], tutStep=-1;
+var result=null, gauge=null, warnT=0, treadPh=0;
+var btns=[];
+
+function startStage(i){
+  stageIdx=i; st=CORE.buildStage(i);
+  veh={x:60,y:CORE.BASE_Y,vx:0,vy:0,tank:st.tank,cureLeft:st.cure,falling:false};
+  input={fwd:false,back:false,pour:false}; camX=0; parts=[]; floats=[]; gauge=null; result=null;
+  tutStep = save.tut ? -1 : 0;
+  scene='play'; engineOn();
+}
+function endStage(ok,reason,gaugeAcc){
+  engineOff();
+  if(ok){
+    var sc=CORE.calcScore(veh.cureLeft/st.cure, Math.max(0,veh.tank-st.def.reqL), st.def.reqL, gaugeAcc);
+    var isBest = !save.best[stageIdx]||sc>save.best[stageIdx];
+    save.cleared[stageIdx]=true;
+    if(isBest)save.best[stageIdx]=sc;
+    CORE.saveSave(localStorage,save);
+    result={ok:true,score:sc,best:isBest,gaugeAcc:gaugeAcc};
+    sfxFanfare();
+  } else {
+    result={ok:false,reason:reason};
+    sfxFail();
+  }
+  shake=ok?4:10;
+  scene='result';
+}
+
+/* ---- particles & floats ---- */
+function puff(x,y,c,n,sp){ for(var i=0;i<(n||6);i++) parts.push({x:x,y:y,vx:(Math.random()-0.5)*(sp||90),vy:-Math.random()*(sp||90),life:0.5+Math.random()*0.4,c:c,r:2+Math.random()*3}); }
+function floatTxt(x,y,txt,c){ floats.push({x:x,y:y,txt:txt,c:c||COL.white,life:1.1}); }
+
+/* ---- input ---- */
+function P(e){ var r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H}; }
+var pointers={};
+cv.addEventListener('pointerdown',function(e){
+  e.preventDefault(); ac();
+  var p=P(e); pointers[e.pointerId]=p;
+  for(var i=0;i<btns.length;i++){ var b=btns[i];
+    if(p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h){ b.fn(e.pointerId); return; } }
+});
+cv.addEventListener('pointermove',function(e){ if(pointers[e.pointerId])pointers[e.pointerId]=P(e); });
+function releaseP(e){
+  delete pointers[e.pointerId];
+  if(held.fwd===e.pointerId){input.fwd=false;held.fwd=null;}
+  if(held.back===e.pointerId){input.back=false;held.back=null;}
+  if(held.pour===e.pointerId){input.pour=false;held.pour=null;}
+}
+cv.addEventListener('pointerup',releaseP); cv.addEventListener('pointercancel',releaseP);
+var held={fwd:null,back:null,pour:null};
+addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight')input.fwd=true;
+  if(e.key==='ArrowLeft')input.back=true;
+  if(e.key===' '){input.pour=true;e.preventDefault();}
+});
+addEventListener('keyup',function(e){
+  if(e.key==='ArrowRight')input.fwd=false;
+  if(e.key==='ArrowLeft')input.back=false;
+  if(e.key===' ')input.pour=false;
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){ CORE.saveSave(localStorage,save); paused=true; engineOff(); }
+});
+var paused=false;
+
+/* ---- drawing helpers ---- */
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function outlineText(txt,x,y,size,fill,stroke,lw){
+  ctx.font='800 '+size+'px '+'"Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4","BIZ UDGothic",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.lineWidth=lw||6; ctx.strokeStyle=stroke||COL.dark; ctx.lineJoin='round';
+  ctx.strokeText(txt,x,y); ctx.fillStyle=fill||COL.white; ctx.fillText(txt,x,y);
+}
+function button(x,y,w,h,label,fn,opt){
+  opt=opt||{};
+  var pu=opt.pulse?1+Math.sin(t*4)*0.03:1;
+  ctx.save(); ctx.translate(x+w/2,y+h/2); ctx.scale(pu,pu);
+  rr(-w/2,-h/2,w,h,14);
+  ctx.fillStyle=opt.bg||COL.orange; ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.stroke();
+  outlineText(label,0,1,opt.fs||20,COL.white,'rgba(0,0,0,0.45)',5);
+  ctx.restore();
+  btns.push({x:x,y:y,w:w,h:h,fn:fn});
+}
+function holdButton(x,y,w,h,label,key,opt){
+  opt=opt||{};
+  var active=input[key];
+  rr(x,y,w,h,16);
+  ctx.fillStyle=active?(opt.on||COL.cyan):(opt.bg||'rgba(245,242,236,0.14)');
+  ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle=active?COL.white:'rgba(245,242,236,0.4)'; ctx.stroke();
+  outlineText(label,x+w/2,y+h/2+1,opt.fs||26,COL.white,'rgba(0,0,0,0.5)',5);
+  btns.push({x:x,y:y,w:w,h:h,fn:function(pid){ input[key]=true; held[key]=pid; if(key==='pour')sfxTap(); }});
+}
+
+/* ---- scenes ---- */
+function drawTitle(){
+  var im=IMG.card_bmx;
+  if(im.complete&&im.naturalWidth){ // cover
+    var s=Math.max(W/im.width,H/im.height),iw=im.width*s,ih=im.height*s;
+    ctx.drawImage(im,(W-iw)/2,(H-ih)/2,iw,ih);
+  } else { ctx.fillStyle=COL.navy; ctx.fillRect(0,0,W,H); }
+  var g=ctx.createLinearGradient(0,H*0.45,0,H); g.addColorStop(0,'rgba(26,30,36,0)'); g.addColorStop(1,'rgba(26,30,36,0.92)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  outlineText('BMX',W/2,H*0.56,64,COL.orange,COL.dark,10);
+  outlineText('どこでもコンクリート！',W/2,H*0.56+58,30,COL.white,COL.dark,8);
+  ctx.font='600 13px sans-serif'; ctx.fillStyle=COL.cyan; ctx.textAlign='center';
+  ctx.fillText('- 道がなければ、コンクリートで作れ -',W/2,H*0.56+96);
+  button(W/2-120,H*0.78,240,60,'出動する',function(){ sfxTap(); scene='map'; },{pulse:true,fs:24});
+  ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(245,242,236,0.75)';
+  ctx.fillText('四国生コンクリート工業株式会社 モバイルミキシング事業部',W/2,H-18);
+  drawChrome();
+}
+function drawMap(){
+  ctx.fillStyle=COL.dark; ctx.fillRect(0,0,W,H);
+  // 星空
+  var rnd=CORE.mulberry32(7);
+  ctx.fillStyle='rgba(245,242,236,0.5)';
+  for(var i=0;i<40;i++)ctx.fillRect(rnd()*W,rnd()*H*0.5,1.6,1.6);
+  outlineText('四国 現場マップ',W/2,54,26,COL.white,COL.dark,7);
+  var n=CORE.clearCount(save);
+  ctx.font='700 14px sans-serif'; ctx.fillStyle=COL.cyan; ctx.textAlign='center';
+  ctx.fillText('称号: '+CORE.titleFor(n)+'（'+n+'/12現場）',W/2,84);
+  // 四国っぽいシルエット
+  ctx.save(); ctx.translate(24,120); ctx.scale(1.0,1.0);
+  ctx.beginPath();
+  ctx.moveTo(70,140); ctx.bezierCurveTo(30,90,80,30,170,40);
+  ctx.bezierCurveTo(260,20,330,50,355,95); ctx.bezierCurveTo(380,140,330,170,300,200);
+  ctx.bezierCurveTo(250,250,150,260,110,220); ctx.bezierCurveTo(80,195,95,175,70,140);
+  ctx.closePath();
+  ctx.fillStyle='#233240'; ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle='rgba(41,199,228,0.4)'; ctx.stroke();
+  ctx.restore();
+  // ノード配置(12) マップ上
+  var pos=[[300,330],[340,290],[290,260],[210,240],[250,300],[350,360],[180,330],[110,260],[240,180],[60,300],[160,190],[210,130]];
+  for(var s2=0;s2<12;s2++){
+    var p=pos[s2], unlocked = s2===0 || save.cleared[s2-1];
+    var cx2=p[0],cy2=p[1];
+    if(save.cleared[s2]){
+      var gl=6+Math.sin(t*3+s2)*2;
+      var grad=ctx.createRadialGradient(cx2,cy2,2,cx2,cy2,18+gl);
+      grad.addColorStop(0,'rgba(255,122,26,0.95)'); grad.addColorStop(1,'rgba(255,122,26,0)');
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(cx2,cy2,18+gl,0,7); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx2,cy2,13,0,7);
+    ctx.fillStyle= save.cleared[s2]?COL.orange:(unlocked?COL.cyan:'#3a4653'); ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle=COL.dark; ctx.stroke();
+    ctx.font='800 12px sans-serif'; ctx.fillStyle=COL.dark; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(s2+1),cx2,cy2+0.5);
+    (function(si,ux){ btns.push({x:cx2-20,y:cy2-20,w:40,h:40,fn:function(){ if(ux){sfxTap(); startStage(si);} else sfxWarn(); }}); })(s2,unlocked);
+  }
+  // 選択リスト補助（現在挑戦可能な現場名）
+  var next=0; while(next<12&&save.cleared[next])next++;
+  if(next<12){
+    rr(20,H-190,W-40,64,12); ctx.fillStyle='rgba(41,199,228,0.12)'; ctx.fill();
+    ctx.strokeStyle=COL.cyan; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='700 14px sans-serif'; ctx.fillStyle=COL.white; ctx.textAlign='left';
+    ctx.fillText('NEXT ▶ '+(next+1)+'. '+CORE.STAGES[next].name,36,H-165);
+    ctx.font='600 12px sans-serif'; ctx.fillStyle=COL.grey;
+    var d=CORE.STAGES[next];
+    ctx.fillText((d.jet?'超速硬(ジェット)・':'')+(d.night?'夜間・':'')+'硬化タイマー '+d.cure+'秒 / 必要 '+d.reqL+'L',36,H-143);
+    btns.push({x:20,y:H-190,w:W-40,h:64,fn:function(){sfxTap();startStage(next);}});
+  } else {
+    outlineText('全現場制覇！',W/2,H-160,24,COL.orange,COL.dark,7);
+  }
+  button(W/2-90,H-110,180,52,'タイトルへ',function(){sfxTap();scene='title';},{bg:'#3a4653',fs:18});
+  drawChrome();
+}
+function drawPlay(dt){
+  var d=st.def;
+  // 背景
+  var sky=ctx.createLinearGradient(0,0,0,H);
+  if(d.night){ sky.addColorStop(0,'#0d1420'); sky.addColorStop(0.7,'#1c2a3d'); sky.addColorStop(1,'#2B3A4A'); }
+  else { sky.addColorStop(0,'#2B3A4A'); sky.addColorStop(0.55,'#7a4a2e'); sky.addColorStop(1,'#FF7A1A'); }
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  if(d.night){ var rnd=CORE.mulberry32(3); ctx.fillStyle='rgba(245,242,236,0.6)'; for(var i=0;i<50;i++)ctx.fillRect(rnd()*W,rnd()*300,1.5,1.5); }
+  else { var sun=ctx.createRadialGradient(W-90,150,10,W-90,150,90); sun.addColorStop(0,'rgba(255,220,150,0.9)'); sun.addColorStop(1,'rgba(255,122,26,0)'); ctx.fillStyle=sun; ctx.beginPath(); ctx.arc(W-90,150,90,0,7); ctx.fill(); }
+  // 遠景シルエット
+  ctx.fillStyle='rgba(26,30,36,0.5)';
+  for(var m=0;m<6;m++){ var mx=((m*260)-(camX*0.3)%1560+1560)%1560-200; ctx.beginPath(); ctx.moveTo(mx,430); ctx.lineTo(mx+130,300+((m*53)%80)); ctx.lineTo(mx+260,430); ctx.closePath(); ctx.fill(); }
+
+  ctx.save();
+  if(shake>0){ ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake); }
+  ctx.translate(-camX,-140); // ワールド→画面(縦オフセット)
+
+  // 地形
+  var x0=camX-20,x1=camX+W+20;
+  ctx.beginPath(); ctx.moveTo(x0,CORE.PIT_Y+400);
+  for(var x=x0;x<=x1;x+=CORE.STEP){
+    var g=CORE.gapAt(st,x);
+    var yy = g? CORE.PIT_Y : CORE.groundH(st,x);
+    ctx.lineTo(x,yy);
+  }
+  ctx.lineTo(x1,CORE.PIT_Y+400); ctx.closePath();
+  ctx.fillStyle='#37475a'; ctx.fill();
+  // 地表ライン
+  ctx.beginPath();
+  var pen=false;
+  for(var x2=x0;x2<=x1;x2+=CORE.STEP){
+    var gg=CORE.gapAt(st,x2);
+    if(gg){ pen=false; continue; }
+    var y2=CORE.groundH(st,x2);
+    if(!pen){ctx.moveTo(x2,y2);pen=true;}else ctx.lineTo(x2,y2);
+  }
+  ctx.lineWidth=5; ctx.strokeStyle=COL.grey; ctx.stroke();
+
+  // ギャップ＆打設面
+  for(var gi=0;gi<st.gaps.length;gi++){
+    var G=st.gaps[gi];
+    if(G.x1<x0||G.x0>x1)continue;
+    var bh=CORE.bridgeH(st,G), prog=G.fill/G.needL, fx=G.x0+(G.x1-G.x0)*prog;
+    // 危険ゾーン縞
+    if(prog<1){
+      ctx.save(); ctx.beginPath(); ctx.rect(fx,bh-4,G.x1-fx,60); ctx.clip();
+      for(var sx=Math.floor(fx/14)*14; sx<G.x1+40; sx+=14){
+        ctx.fillStyle=(Math.floor(sx/14)%2)?'rgba(255,122,26,0.5)':'rgba(26,30,36,0.5)';
+        ctx.beginPath(); ctx.moveTo(sx,bh-4); ctx.lineTo(sx+7,bh-4); ctx.lineTo(sx-7,bh+56); ctx.lineTo(sx-14,bh+56); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+    if(prog>0){
+      // 打設済みリボン(濡れ感: 新しいほど明るい)
+      var wet = ctx.createLinearGradient(G.x0,bh,fx,bh);
+      wet.addColorStop(0,'#8C9BA5'); wet.addColorStop(1,'#b9c6ce');
+      ctx.fillStyle=wet;
+      ctx.beginPath(); ctx.rect(G.x0,bh,(fx-G.x0),16); ctx.fill();
+      ctx.fillStyle='rgba(41,199,228,0.35)'; ctx.fillRect(G.x0,bh,(fx-G.x0),3);
+      ctx.strokeStyle='rgba(26,30,36,0.4)'; ctx.lineWidth=2; ctx.strokeRect(G.x0,bh,(fx-G.x0),16);
+    }
+    // 必要量表示
+    if(prog<1){
+      outlineText(Math.ceil(G.needL-G.fill)+'L',(G.x0+G.x1)/2,bh-24,15,COL.orange,COL.dark,5);
+    }
+  }
+  // 現場(ゴール)
+  var siteY=CORE.groundH(st,st.siteX);
+  ctx.fillStyle=COL.orange; rr(st.siteX-8,siteY-70,16,70,3); ctx.fill();
+  ctx.fillStyle=COL.cyan; ctx.beginPath(); ctx.moveTo(st.siteX+8,siteY-70); ctx.lineTo(st.siteX+58,siteY-58); ctx.lineTo(st.siteX+8,siteY-46); ctx.closePath(); ctx.fill();
+  // 型枠
+  ctx.strokeStyle=COL.white; ctx.lineWidth=3; ctx.setLineDash([6,5]);
+  ctx.strokeRect(st.siteX+20,siteY-20,110,20); ctx.setLineDash([]);
+  outlineText('現場 '+d.reqL+'L',st.siteX+75,siteY-36,14,COL.white,COL.dark,5);
+
+  // ---- BMX車両 ----
+  var vx2=veh.x, vy2=veh.y;
+  var slope=CORE.slopeAt(st,vx2);
+  ctx.save(); ctx.translate(vx2,vy2-16); ctx.rotate(-Math.atan(slope)*0.8);
+  // キャタピラ
+  rr(-34,2,68,18,9); ctx.fillStyle=COL.dark; ctx.fill();
+  ctx.strokeStyle=COL.grey; ctx.lineWidth=2;
+  for(var tp=0;tp<6;tp++){ var tx=-30+((tp*12+treadPh)%64); ctx.beginPath(); ctx.moveTo(tx,3); ctx.lineTo(tx,19); ctx.stroke(); }
+  // 車体
+  rr(-30,-18,52,24,5); ctx.fillStyle=COL.orange; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=2; ctx.stroke();
+  // ミキシングバケット(回転ドラム)
+  ctx.save(); ctx.translate(30,-14);
+  ctx.rotate(t*(Math.abs(veh.vx)>4||input.pour?3:0.6));
+  ctx.beginPath(); ctx.arc(0,0,15,0,7); ctx.fillStyle=COL.grey; ctx.fill();
+  ctx.strokeStyle=COL.navy; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-13,-6); ctx.quadraticCurveTo(0,0,13,-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-13,6); ctx.quadraticCurveTo(0,0,13,6); ctx.stroke();
+  ctx.restore();
+  // キャビン窓
+  rr(-26,-14,20,12,3); ctx.fillStyle=d.night?COL.cyan:'#bfe9f2'; ctx.fill();
+  // ヘッドライト
+  if(d.night){
+    var hl=ctx.createRadialGradient(38,0,4,150,10,130);
+    hl.addColorStop(0,'rgba(255,240,190,0.5)'); hl.addColorStop(1,'rgba(255,240,190,0)');
+    ctx.fillStyle=hl; ctx.beginPath(); ctx.moveTo(24,-6); ctx.lineTo(190,26); ctx.lineTo(190,60); ctx.lineTo(24,10); ctx.closePath(); ctx.fill();
+  }
+  // 打設シュート
+  if(input.pour){
+    ctx.strokeStyle='#b9c6ce'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(36,-4); ctx.lineTo(52,8); ctx.stroke();
+  }
+  ctx.restore();
+
+  // パーティクル
+  for(var pi=parts.length-1;pi>=0;pi--){
+    var p=parts[pi]; p.life-=dt; if(p.life<=0){parts.splice(pi,1);continue;}
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=160*dt;
+    ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); ctx.globalAlpha=1;
+  }
+  // 浮きテキスト
+  for(var fi=floats.length-1;fi>=0;fi--){
+    var F=floats[fi]; F.life-=dt; if(F.life<=0){floats.splice(fi,1);continue;}
+    F.y-=34*dt; ctx.globalAlpha=Math.min(1,F.life);
+    outlineText(F.txt,F.x,F.y,16,F.c,COL.dark,5); ctx.globalAlpha=1;
+  }
+  ctx.restore(); // camera
+
+  // ---- HUD ----
+  // タンク
+  rr(14,64,190,20,10); ctx.fillStyle='rgba(26,30,36,0.6)'; ctx.fill();
+  var tr=veh.tank/CORE.TANK_L;
+  rr(14,64,190*Math.max(0.02,tr),20,10);
+  ctx.fillStyle= veh.tank>=d.reqL?COL.cyan:COL.orange; ctx.fill();
+  // 現場必要量ライン
+  var reqX=14+190*(d.reqL/CORE.TANK_L);
+  ctx.strokeStyle=COL.white; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(reqX,60); ctx.lineTo(reqX,88); ctx.stroke();
+  ctx.font='700 12px sans-serif'; ctx.fillStyle=COL.white; ctx.textAlign='left';
+  ctx.fillText('生コン '+Math.floor(veh.tank)+'L（現場に'+d.reqL+'L必要）',16,102);
+  // 硬化タイマー
+  var cr=Math.max(0,veh.cureLeft/st.cure);
+  rr(216,64,190,20,10); ctx.fillStyle='rgba(26,30,36,0.6)'; ctx.fill();
+  var blink = cr<0.2 && Math.floor(t*5)%2===0;
+  rr(216,64,190*Math.max(0.02,cr),20,10);
+  ctx.fillStyle= blink?'#ff4040':(d.jet?COL.orange:'#e8b64e'); ctx.fill();
+  ctx.textAlign='left'; ctx.fillStyle=COL.white;
+  ctx.fillText((d.jet?'ジェットコン硬化 ':'硬化タイマー ')+Math.ceil(Math.max(0,veh.cureLeft))+'秒',218,102);
+  // ステージ名・進捗
+  ctx.font='700 13px sans-serif'; ctx.fillStyle=COL.white; ctx.textAlign='center';
+  ctx.fillText((stageIdx+1)+'. '+d.name,W/2,124);
+  rr(60,132,W-120,6,3); ctx.fillStyle='rgba(245,242,236,0.2)'; ctx.fill();
+  rr(60,132,(W-120)*CORE.clamp(veh.x/st.siteX,0,1),6,3); ctx.fillStyle=COL.cyan; ctx.fill();
+
+  // 操作ボタン
+  holdButton(14,H-118,86,92,'◀','back',{fs:30});
+  holdButton(110,H-118,86,92,'▶','fwd',{fs:30});
+  holdButton(W-140,H-126,126,100,'打設！','pour',{bg:'rgba(255,122,26,0.85)',on:COL.orange,fs:26});
+  drawChrome();
+
+  // チュートリアル
+  if(tutStep>=0) drawTutorial();
+  // 仕上げゲージ
+  if(gauge) drawGauge();
+}
+function drawTutorial(){
+  var msgs=[
+    '▶ ボタンで前進！\n山道はスピードにのって登れ',
+    '道が欠けてたら【打設】！\n生コンで自分の道を作れ',
+    'ただし生コンは固まる。\nタイマーが切れる前に現場へ！'
+  ];
+  ctx.fillStyle='rgba(26,30,36,0.55)'; ctx.fillRect(0,0,W,H);
+  var im=IMG.mascot_point;
+  if(im.complete&&im.naturalWidth)ctx.drawImage(im,W/2-190,H/2-60,150,150*(im.height/im.width));
+  rr(W/2-30,H/2-90,240,120,16); ctx.fillStyle=COL.white; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W/2-30,H/2-30); ctx.lineTo(W/2-52,H/2-14); ctx.lineTo(W/2-30,H/2-8); ctx.closePath(); ctx.fillStyle=COL.white; ctx.fill();
+  var lines=msgs[tutStep].split('\n');
+  ctx.font='700 15px sans-serif'; ctx.fillStyle=COL.dark; ctx.textAlign='center';
+  lines.forEach(function(l,i){ ctx.fillText(l,W/2+90,H/2-52+i*24); });
+  ctx.font='600 12px sans-serif'; ctx.fillStyle=COL.orange;
+  ctx.fillText('タップで次へ（'+(tutStep+1)+'/3）',W/2+90,H/2+16);
+  btns.length=0;
+  btns.push({x:0,y:0,w:W,h:H,fn:function(){
+    sfxTap(); tutStep++;
+    if(tutStep>2){ tutStep=-1; save.tut=true; CORE.saveSave(localStorage,save); }
+  }});
+}
+function drawGauge(){
+  gauge.t+=gauge.dt; var pos=Math.sin(gauge.t*2.6); // -1..1
+  ctx.fillStyle='rgba(26,30,36,0.7)'; ctx.fillRect(0,0,W,H);
+  outlineText('仕上げの流し込み！',W/2,H/2-110,24,COL.white,COL.dark,7);
+  ctx.font='600 13px sans-serif'; ctx.fillStyle=COL.grey; ctx.textAlign='center';
+  ctx.fillText('グリーンゾーンでタップ！',W/2,H/2-78);
+  var bw=320,bx=W/2-bw/2,by=H/2-20;
+  rr(bx,by,bw,36,18); ctx.fillStyle='#3a4653'; ctx.fill();
+  var gz=gauge.zone*bw/2;
+  rr(W/2-gz,by,gz*2,36,10); ctx.fillStyle='rgba(80,220,120,0.85)'; ctx.fill();
+  var nx=W/2+pos*(bw/2-10);
+  ctx.fillStyle=COL.white; rr(nx-4,by-10,8,56,4); ctx.fill();
+  btns.length=0;
+  btns.push({x:0,y:0,w:W,h:H,fn:function(){
+    var acc=CORE.clamp(1-Math.abs(pos)/gauge.zone,0,1);
+    var perfect=Math.abs(pos)<gauge.zone*0.35;
+    if(perfect){ acc=1; }
+    gauge=null;
+    if(acc>0){ sfxDone(); }
+    endStage(true,null,acc);
+    if(perfect)result.perfect=true;
+  }});
+}
+function drawResult(){
+  drawPlayFrame();
+  ctx.fillStyle='rgba(26,30,36,0.78)'; ctx.fillRect(0,0,W,H);
+  var im = result.ok?IMG.mascot_joy:IMG.mascot_sad;
+  if(im.complete&&im.naturalWidth){
+    var iw=190,ih=iw*(im.height/im.width);
+    ctx.drawImage(im,W/2-iw/2,150,iw,ih);
+  }
+  if(result.ok){
+    outlineText('現場完了！',W/2,120,36,COL.orange,COL.dark,9);
+    if(result.perfect)outlineText('パーフェクト打設！',W/2,392,22,COL.cyan,COL.dark,7);
+    outlineText('SCORE '+result.score,W/2,432,30,COL.white,COL.dark,8);
+    if(result.best)outlineText('自己ベスト更新！',W/2,466,16,COL.orange,COL.dark,5);
+    var n=CORE.clearCount(save);
+    ctx.font='700 14px sans-serif'; ctx.fillStyle=COL.cyan; ctx.textAlign='center';
+    ctx.fillText('四国マップに現場が点灯（'+n+'/12）',W/2,498);
+    button(W/2-150,540,140,54,'マップへ',function(){sfxTap();scene='map';},{bg:'#3a4653',fs:18});
+    if(stageIdx<11) button(W/2+10,540,140,54,'次の現場',function(){sfxTap();startStage(stageIdx+1);},{pulse:true,fs:18});
+    else button(W/2+10,540,140,54,'もう一度',function(){sfxTap();startStage(stageIdx);},{pulse:true,fs:18});
+  } else {
+    outlineText('現場中断…',W/2,120,34,'#ff8080',COL.dark,9);
+    ctx.font='700 16px sans-serif'; ctx.fillStyle=COL.white; ctx.textAlign='center';
+    ctx.fillText(result.reason,W/2,428);
+    ctx.font='600 12px sans-serif'; ctx.fillStyle=COL.grey;
+    ctx.fillText('ヒント: 生コンの節約と、硬化タイマーの管理がカギ',W/2,456);
+    button(W/2-150,540,140,54,'マップへ',function(){sfxTap();scene='map';},{bg:'#3a4653',fs:18});
+    button(W/2+10,540,140,54,'リトライ',function(){sfxTap();startStage(stageIdx);},{pulse:true,fs:18});
+  }
+}
+var lastFrame=null;
+function drawPlayFrame(){ if(lastFrame)ctx.putImageData(lastFrame,0,0); else {ctx.fillStyle=COL.navy;ctx.fillRect(0,0,W,H);} }
+function drawChrome(){
+  // もどる・ミュート
+  rr(10,10,96,36,10); ctx.fillStyle='rgba(26,30,36,0.55)'; ctx.fill();
+  ctx.font='700 14px sans-serif'; ctx.fillStyle=COL.white; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('← もどる',58,29);
+  btns.push({x:10,y:10,w:96,h:36,fn:function(){ CORE.saveSave(localStorage,save); location.href='index.html'; }});
+  rr(W-56,10,46,36,10); ctx.fillStyle='rgba(26,30,36,0.55)'; ctx.fill();
+  ctx.fillText(muted?'消音':'♪',W-33,29);
+  btns.push({x:W-56,y:10,w:46,h:36,fn:function(){ muted=!muted; try{localStorage.setItem('snc_mute',muted?'1':'0');}catch(e){} if(muted)engineOff(); else if(scene==='play')engineOn(); }});
+}
+
+/* ---- main loop ---- */
+var prev=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  var dt=Math.min(0.05,(now-prev)/1000); prev=now;
+  if(paused){ if(!document.hidden){paused=false; if(scene==='play')engineOn();} else return; }
+  t+=dt; btns.length=0;
+  if(shake>0)shake=Math.max(0,shake-dt*24);
+
+  if(scene==='play'&&tutStep<0&&!gauge&&!result){
+    CORE.vehStep(st,veh,input,dt);
+    treadPh+=veh.vx*dt*0.7; engineSpeed(veh.vx);
+    if(input.pour){
+      var before=CORE.pourTarget(st,veh.x);
+      var amt=CORE.pourStep(st,veh,dt);
+      if(amt>0){
+        sfxPour();
+        var g=before, bh=CORE.bridgeH(st,g), fx=g.x0+(g.x1-g.x0)*(g.fill/g.needL);
+        puff(fx,bh+6,'#b9c6ce',2,60);
+        if(g.fill>=g.needL){ sfxDone(); floatTxt((g.x0+g.x1)/2,bh-40,'開通！',COL.cyan); shake=3; }
+      } else if(veh.tank<=0){ floatTxt(veh.x,veh.y-70,'生コン切れ！',COL.orange); }
+      else {
+        var sp=CORE.spillStep(st,veh,dt);
+        if(sp>0){ puff(veh.x+46,veh.y-4,'rgba(140,155,165,0.8)',2,50);
+          if(Math.random()<dt*3)floatTxt(veh.x+40,veh.y-60,'ムダ打ち！',COL.orange); }
+      }
+    }
+    CORE.cureStep(veh,dt);
+    if(veh.cureLeft<st.cure*0.2){ warnT+=dt; if(warnT>0.6){warnT=0; sfxWarn();} }
+    if(Math.abs(veh.vx)>30&&Math.random()<dt*8)puff(veh.x-30,veh.y,'rgba(140,155,165,0.7)',1,40);
+    if(veh.falling&&veh.y>CORE.PIT_Y+60) endStage(false,'谷に転落…打設で道を作ろう');
+    else if(veh.cureLeft<=0) endStage(false,'生コンが固まってしまった！');
+    else if(CORE.atSite(st,veh)){
+      if(veh.tank>=st.def.reqL){ engineOff(); gauge={t:0,dt:0,zone:0.30-stageIdx*0.008}; gauge.dt=0; sfxDone(); }
+      else endStage(false,'生コンが足りない！（'+Math.floor(veh.tank)+'L / 必要'+st.def.reqL+'L）');
+    }
+  }
+  if(gauge)gauge.dt=dt;
+
+  if(scene==='title')drawTitle();
+  else if(scene==='map')drawMap();
+  else if(scene==='play')drawPlay(dt);
+  else if(scene==='result')drawResult();
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

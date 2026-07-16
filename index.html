@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オリジナルゲーム サンプル集</title>
+<meta name="description" content="企業向けオリジナルミニゲームの制作サンプル集。各社の世界観に合わせたブラウザゲームをその場で体験できます。">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230;
+    --text:#e8edf4; --muted:#9aa7b8; --line:#28303c;
+    --accent:#5b8def;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -200px,#1a2333 0%,var(--bg) 60%);
+    color:var(--text); line-height:1.7; -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:56px 20px 80px}
+  header.hero{text-align:center;margin-bottom:44px}
+  .eyebrow{
+    display:inline-block;font-size:12px;letter-spacing:.18em;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:6px 14px;margin-bottom:18px;
+  }
+  h1{font-size:34px;line-height:1.3;margin:0 0 12px;font-weight:800}
+  .lead{color:var(--muted);font-size:15px;max-width:640px;margin:0 auto}
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:22px;margin-top:40px;
+  }
+  .card{
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    display:flex;flex-direction:column;text-decoration:none;color:inherit;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  }
+  .card:hover{transform:translateY(-4px);border-color:var(--c,#5b8def);box-shadow:0 14px 34px rgba(0,0,0,.4)}
+  .thumb{
+    height:150px;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(220px 140px at 50% 30%,color-mix(in srgb,var(--c) 34%,transparent),transparent),var(--panel);
+    border-bottom:1px solid var(--line);
+  }
+  .thumb img{max-height:118px;max-width:70%;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+  .body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .company{font-size:12px;letter-spacing:.06em;color:var(--c,#5b8def);font-weight:700}
+  .name{font-size:19px;font-weight:800;margin:0}
+  .desc{font-size:13px;color:var(--muted);margin:0;flex:1}
+  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+  .badge{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .play{
+    font-size:13px;font-weight:700;color:#fff;background:var(--c,#5b8def);
+    border-radius:10px;padding:8px 16px;display:inline-flex;align-items:center;gap:6px;
+  }
+  footer{margin-top:56px;text-align:center;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:22px}
+  @media(max-width:520px){h1{font-size:26px}.wrap{padding:40px 16px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">ORIGINAL GAME SAMPLES</span>
+    <h1>オリジナルゲーム サンプル集</h1>
+    <p class="lead">企業ごとの世界観に合わせて制作したブラウザミニゲームのサンプルです。<br>各カードをタップすると、その場で遊べます。</p>
+  </header>
+
+  <div class="grid">
+
+    <a class="card" style="--c:#2e9e6b" href="games/kobe-hikey-energy/index.html">
+      <div class="thumb"><img src="games/kobe-hikey-energy/assets/mascot.png" alt="KOBE Hikey Energy"></div>
+      <div class="body">
+        <span class="company">KOBE HIKEY ENERGY</span>
+        <p class="name">ハイキー・ゲームパーク</p>
+        <p class="desc">再生可能エネルギーをテーマにした、街づくり・バイオガス・合成の3種ミニゲーム。</p>
+        <div class="foot"><span class="badge">3種のミニゲーム</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+    <a class="card" style="--c:#6d5ae6" href="games/amazing/index.html">
+      <div class="thumb"><img src="games/amazing/assets/mascot.png" alt="株式会社Amazing"></div>
+      <div class="body">
+        <span class="company">株式会社 AMAZING</span>
+        <p class="name">AMAZING ゲームラボ</p>
+        <p class="desc">スピード感あるラッシュ系や、AIをテーマにした遊びを詰め込んだゲームラボ。</p>
+        <div class="foot"><span class="badge">3種のミニゲーム</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+    <a class="card" style="--c:#3a7bd5" href="games/shikoku-namacon/index.html">
+      <div class="thumb"><img src="games/shikoku-namacon/assets/mascot.png" alt="四国生コンクリート工業"></div>
+      <div class="body">
+        <span class="company">四国生コンクリート工業</span>
+        <p class="name">四国生コン GAMES</p>
+        <p class="desc">生コン・プラント・BMXなど、事業の世界観を落とし込んだ3種のミニゲーム。</p>
+        <div class="foot"><span class="badge">3種のミニゲーム</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+    <a class="card" style="--c:#17a2b8" href="games/japan-reef/index.html">
+      <div class="thumb"><img src="games/japan-reef/assets/mascot.png" alt="日本リーフグループ"></div>
+      <div class="body">
+        <span class="company">日本リーフグループ</span>
+        <p class="name">うみのゲームパーク</p>
+        <p class="desc">海の世界観を舞台にした、やさしい雰囲気の3種ミニゲームパーク。</p>
+        <div class="foot"><span class="badge">3種のミニゲーム</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+    <a class="card" style="--c:#4caf50" href="games/kovec/index.html">
+      <div class="thumb"><img src="games/kovec/assets/mascot_joy.png" alt="株式会社コベック"></div>
+      <div class="body">
+        <span class="company">株式会社 コベック</span>
+        <p class="name">コベック エコ・ゲームパーク</p>
+        <p class="desc">キャッチ・グリッド・プラント運営など、エコをテーマにした3種のミニゲーム。</p>
+        <div class="foot"><span class="badge">3種のミニゲーム</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+    <a class="card" style="--c:#e8721c" href="games/fujieda-5axis/index.html">
+      <div class="thumb"><img src="games/fujieda-5axis/assets/scene_orbit.png" alt="藤枝鉄工"></div>
+      <div class="body">
+        <span class="company">藤枝鉄工</span>
+        <p class="name">FUJIEDA 5AXIS GAME LAB</p>
+        <p class="desc">5軸加工の世界観をモチーフにした、特設ゲームサイト。</p>
+        <div class="foot"><span class="badge">特設ゲームサイト</span><span class="play">▶ 遊ぶ</span></div>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    オリジナルゲーム制作サンプル集 &nbsp;|&nbsp; 各ゲームはブラウザ上でそのまま動作します
+  </footer>
+</div>
+</body>
+</html>

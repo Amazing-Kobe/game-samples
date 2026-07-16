@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMAZING ゲームラボ | 株式会社Amazing 公式ミニゲーム</title>
+<style>
+:root{
+  --navy:#0a0f1e; --navy2:#141d38; --ink:#f3efe6;
+  --blue:#2f7bff; --cyan:#6ad7ff; --pink:#ff6fb1; --red:#e8342e; --gold:#ffc400;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{
+  background:var(--navy);
+  color:var(--ink);
+  font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+  overflow-x:hidden;
+}
+#bg{
+  position:fixed; inset:0; z-index:-2;
+  background:url('assets/entrance_bg.jpg') center bottom / cover no-repeat var(--navy);
+}
+#bg::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,15,30,.62) 0%, rgba(10,15,30,.30) 30%, rgba(10,15,30,.42) 68%, rgba(10,15,30,.05) 100%);
+}
+#particles{position:fixed; inset:0; z-index:-1; pointer-events:none}
+.wrap{max-width:1040px; margin:0 auto; padding:34px 18px 30px; text-align:center}
+.badge{
+  display:inline-block; padding:7px 20px; border-radius:999px;
+  background:rgba(20,29,56,.75); border:1px solid rgba(106,215,255,.45);
+  font-size:13px; letter-spacing:.12em; color:var(--cyan);
+  backdrop-filter:blur(4px);
+  animation:fadeDown .8s ease both;
+}
+h1{
+  margin-top:14px; font-size:clamp(34px,6.4vw,58px); font-weight:800; letter-spacing:.04em;
+  line-height:1.15;
+  background:linear-gradient(92deg,#f3efe6 0%,#6ad7ff 45%,#2f7bff 80%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 22px rgba(47,123,255,.55));
+  animation:fadeDown .8s .08s ease both;
+}
+.sub{
+  margin-top:10px; font-size:clamp(13px,2.2vw,16px); font-weight:700; color:var(--ink);
+  text-shadow:0 2px 10px rgba(10,15,30,.9);
+  animation:fadeDown .8s .16s ease both;
+}
+.sub b{color:var(--gold)}
+.mascot-area{margin:26px auto 8px; position:relative; width:min(210px,52vw); animation:fadeUp .9s .25s ease both}
+.mascot-area img{
+  width:100%; display:block;
+  filter:drop-shadow(0 14px 30px rgba(47,123,255,.45));
+  animation:float 3.4s ease-in-out infinite;
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.bubble{
+  display:inline-block; margin-top:6px; padding:10px 22px; border-radius:999px;
+  background:rgba(20,29,56,.88); border:1px solid rgba(106,215,255,.5);
+  font-size:14px; font-weight:700;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+  animation:fadeUp .9s .4s ease both;
+}
+.cards{
+  margin:34px auto 0; display:grid; gap:22px;
+  grid-template-columns:repeat(3,1fr);
+  animation:fadeUp 1s .5s ease both;
+}
+@media(max-width:860px){.cards{grid-template-columns:1fr; max-width:430px}}
+.card{
+  position:relative; text-align:left; border-radius:18px; overflow:hidden;
+  background:rgba(20,29,56,.82); border:1px solid rgba(106,215,255,.28);
+  box-shadow:0 10px 34px rgba(0,0,0,.45);
+  transition:transform .28s cubic-bezier(.2,.9,.3,1.4), box-shadow .28s, border-color .28s;
+  text-decoration:none; color:var(--ink); display:block;
+}
+.card:hover{
+  transform:translateY(-8px) scale(1.02);
+  border-color:rgba(106,215,255,.75);
+  box-shadow:0 18px 48px rgba(47,123,255,.4);
+}
+.card .thumb{position:relative; aspect-ratio:3/2; overflow:hidden}
+.card .thumb img{width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease}
+.card:hover .thumb img{transform:scale(1.06)}
+.card .thumb::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,15,30,0) 55%, rgba(20,29,56,.92) 100%);
+}
+.tag{
+  position:absolute; top:12px; left:12px; z-index:2;
+  padding:5px 14px; border-radius:999px; font-size:12px; font-weight:800; color:#0a0f1e;
+}
+.tag.hot{background:var(--pink); color:#fff; box-shadow:0 0 16px rgba(255,111,177,.7)}
+.tag.eye{background:var(--cyan); box-shadow:0 0 16px rgba(106,215,255,.6)}
+.tag.make{background:var(--gold); box-shadow:0 0 16px rgba(255,196,0,.6)}
+.card .body{padding:16px 16px 18px; position:relative}
+.card h2{font-size:19px; letter-spacing:.03em; margin-bottom:7px}
+.card p{font-size:13px; line-height:1.65; color:rgba(243,239,230,.86); min-height:64px}
+.play{
+  margin-top:12px; display:inline-flex; align-items:center; gap:8px;
+  padding:10px 26px; border-radius:999px; font-weight:800; font-size:15px;
+  background:linear-gradient(92deg,var(--blue),var(--cyan)); color:#fff;
+  box-shadow:0 6px 18px rgba(47,123,255,.5);
+  transition:transform .2s;
+}
+.card:hover .play{transform:scale(1.06)}
+.play::after{content:'▶'; font-size:12px}
+footer{
+  margin-top:44px; padding-bottom:26px; font-size:12.5px; line-height:2;
+  color:rgba(243,239,230,.8); text-shadow:0 2px 8px rgba(10,15,30,.9);
+  animation:fadeUp 1s .65s ease both;
+}
+footer .catch{font-size:14px; font-weight:700; color:var(--ink)}
+footer a{color:var(--gold)}
+@keyframes fadeDown{from{opacity:0; transform:translateY(-18px)}to{opacity:1; transform:none}}
+@keyframes fadeUp{from{opacity:0; transform:translateY(22px)}to{opacity:1; transform:none}}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<canvas id="particles"></canvas>
+
+<div class="wrap">
+  <span class="badge">株式会社Amazing 公式ミニゲーム</span>
+  <h1>AMAZING ゲームラボ</h1>
+  <div class="sub">あそんで体感！ <b>AIで"つくる"仕事</b> — 神戸のクリエイティブスタジオへようこそ</div>
+
+  <div class="mascot-area">
+    <img src="assets/mascot.png" alt="Amazingのマスコット">
+  </div>
+  <div class="bubble">ようこそ！ すきなゲームをえらんでね</div>
+
+  <div class="cards">
+    <a class="card" href="amazing-rush.html">
+      <div class="thumb">
+        <span class="tag hot">イチオシ！</span>
+        <img src="assets/card_rush.jpg" alt="AMAZING RUSH">
+      </div>
+      <div class="body">
+        <h2>AMAZING RUSH</h2>
+        <p>次々来る依頼を、AI生成→磨き→スピード納品でさばけ！バズれば再生数が爆発。目指せ伝説のクリエイター！</p>
+        <span class="play">あそぶ</span>
+      </div>
+    </a>
+    <a class="card" href="ai-finisher.html">
+      <div class="thumb">
+        <span class="tag eye">君の目が試される</span>
+        <img src="assets/card_finisher.jpg" alt="AIフィニッシャー">
+      </div>
+      <div class="body">
+        <h2>AIフィニッシャー</h2>
+        <p>AIが作った画像、どこか変…？指が6本、文字がぐにゃぐにゃ。破綻を見抜いて80点を100点に仕上げろ！</p>
+        <span class="play">あそぶ</span>
+      </div>
+    </a>
+    <a class="card" href="game-in-game.html">
+      <div class="thumb">
+        <span class="tag make">作って納品！</span>
+        <img src="assets/card_gameingame.jpg" alt="GAME in GAME">
+      </div>
+      <div class="body">
+        <h2>GAME in GAME</h2>
+        <p>「3営業日で直して！」壊れたゲームをパーツで修理してテストプレイ→納品。君がゲームクリエイターだ！</p>
+        <span class="play">あそぶ</span>
+      </div>
+    </a>
+  </div>
+
+  <footer>
+    <div class="catch">「想像を超える、AI映像表現。」</div>
+    <a href="https://amazing.ne.jp/" target="_blank" rel="noopener">株式会社Amazing 公式サイトはこちら</a><br>
+    (c) Amazing Inc. ／ このページはデモ版です
+  </footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var cv=document.getElementById('particles'), cx=cv.getContext('2d');
+  var W=0,H=0,ps=[],N=42;
+  function rs(){W=cv.width=innerWidth*(devicePixelRatio||1);H=cv.height=innerHeight*(devicePixelRatio||1);
+    cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';}
+  addEventListener('resize',rs); rs();
+  for(var i=0;i<N;i++)ps.push({x:Math.random()*W,y:Math.random()*H,r:(Math.random()*1.6+.5)*(devicePixelRatio||1),
+    s:Math.random()*14+6,ph:Math.random()*6.28,c:Math.random()<.25?'255,196,0':'106,215,255'});
+  var lt=0;
+  function tick(t){
+    var dt=Math.min(.05,(t-lt)/1000)||0; lt=t;
+    cx.clearRect(0,0,W,H);
+    for(var i=0;i<N;i++){var p=ps[i];
+      p.y-=p.s*dt*(devicePixelRatio||1); p.ph+=dt;
+      p.x+=Math.sin(p.ph)*.3*(devicePixelRatio||1);
+      if(p.y<-10){p.y=H+10;p.x=Math.random()*W;}
+      var a=.35+.3*Math.sin(p.ph*2);
+      cx.beginPath();cx.arc(p.x,p.y,p.r,0,6.28);
+      cx.fillStyle='rgba('+p.c+','+a.toFixed(2)+')';cx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
