@@ -65,7 +65,9 @@ h3.ph{color:var(--green);font-size:16px;margin-bottom:6px;border-left:5px solid 
 #titleOv{background:
   linear-gradient(180deg,rgba(255,255,255,.04),rgba(26,132,148,.42)),
   url('assets/card_plant.jpg') center/cover no-repeat #B4EAF1}
-#titleOv>canvas{box-shadow:0 12px 34px rgba(0,0,0,.48);border:1px solid rgba(111,220,255,.7)}
+#titleOv .title-logo{display:block;width:390px;max-width:100%;height:auto;margin:-10px auto 2px;
+  filter:drop-shadow(0 12px 18px rgba(0,26,18,.48));animation:titleDrop .65s cubic-bezier(.2,1.4,.35,1) both}
+@keyframes titleDrop{from{opacity:0;transform:translateY(-26px) scale(.72)}to{opacity:1;transform:translateY(0) scale(1)}}
 .bubble{position:relative;background:#fff;border:3px solid var(--green);border-radius:14px;
   padding:12px;font-size:14px;line-height:1.6;text-align:left;margin-top:10px;color:var(--ink)}
 .bubble:after{content:"";position:absolute;top:-14px;left:40px;border:7px solid transparent;border-bottom-color:var(--green)}
@@ -558,29 +560,11 @@ function showTitle(){
   var saved=loadRun();
   titleOv.classList.remove('hidden');
   titleOv.innerHTML='';
-  var tc=document.createElement('canvas');tc.width=340*dpr;tc.height=190*dpr;
-  tc.style.width='340px';tc.style.height='190px';tc.style.borderRadius='14px';
-  var t2=tc.getContext('2d');t2.scale(dpr,dpr);
-  var im=new Image();
-  im.onload=function(){t2.drawImage(im,0,0,340,190);deco()};
-  im.onerror=function(){
-    var g=t2.createLinearGradient(0,0,0,190);
-    g.addColorStop(0,'#8FD0EA');g.addColorStop(.7,'#2E7CB8');g.addColorStop(1,'#1D5C3C');
-    t2.fillStyle=g;t2.fillRect(0,0,340,190);
-    t2.fillStyle='rgba(255,255,255,.9)';
-    t2.beginPath();t2.arc(280,40,18,0,7);t2.fill();
-    t2.fillStyle='#1D5C3C';t2.beginPath();t2.roundRect(40,110,70,58,6);t2.fill();
-    t2.fillStyle='#DDE7EE';t2.beginPath();t2.arc(170,150,24,Math.PI,0);t2.fill();t2.fillRect(146,150,48,20);
-    t2.fillStyle='#2E7CB8';t2.beginPath();t2.roundRect(230,130,66,40,6);t2.fill();
-    deco();
-  };
-  im.src='assets/card_plant.jpg';
-  function deco(){}
-  titleOv.appendChild(tc);
+  var logo=document.createElement('img');logo.className='title-logo';
+  logo.src='assets/titles/operation-master.png';logo.alt='操業マスター 〜バイオガスKOBE〜';
+  titleOv.appendChild(logo);
   var h=document.createElement('div');
-  h.innerHTML='<div style="font-size:26px;font-weight:bold;margin:14px 0 2px;text-shadow:2px 2px 0 #123D27,-1px -1px 0 #123D27">操業マスター</div>'+
-    '<div style="font-size:14px;color:#BDEFFB;margin-bottom:4px">〜バイオガスKOBE〜</div>'+
-    '<div style="font-size:11px;color:#9FB4C2;margin-bottom:14px">食品廃棄物×メタン発酵×発電 30日経営シム<br>ベスト: '+(meta.bestMwh?meta.bestMwh.toFixed(1)+' MWh ('+meta.bestRank+')':'—')+'</div>';
+  h.innerHTML='<div style="font-size:11px;color:#DFFFFF;margin-bottom:14px;text-shadow:0 2px 5px rgba(0,40,34,.8)">食品廃棄物×メタン発酵×発電 30日経営シム<br>ベスト: '+(meta.bestMwh?meta.bestMwh.toFixed(1)+' MWh ('+meta.bestRank+')':'—')+'</div>';
   titleOv.appendChild(h);
   var bs=document.createElement('div');
   function mkb(t,cls,fn){var b=document.createElement('button');b.className='btn '+cls;b.textContent=t;

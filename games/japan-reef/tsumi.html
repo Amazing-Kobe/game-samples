@@ -145,7 +145,10 @@ muteLabel();
 
 /* ---------- images ---------- */
 function img(src){ var im=new Image(); im.src=src; return im; }
-var IM={ mas:img('assets/mascot.png'), joy:img('assets/mascot_joy.png'), sad:img('assets/mascot_sad.png') };
+var IM={
+  mas:img('assets/mascot.png'), joy:img('assets/mascot_joy.png'), sad:img('assets/mascot_sad.png'),
+  logo:img('assets/game_logo_tsumi.png')
+};
 function drawIm(im,x,y,w){ if(im.complete&&im.naturalWidth){ var h=w*im.naturalHeight/im.naturalWidth; ctx.drawImage(im,x-w/2,y-h,w,h); } }
 
 /* ---------- block types (実在製品) ---------- */
@@ -646,18 +649,23 @@ function drawTitle(){
   drawTower(0);
   btns=[];
   ctx.fillStyle='rgba(7,24,41,0.55)'; ctx.fillRect(0,0,W,H);
-  drawIm(IM.mas, 210, 300, 150);
+  drawIm(IM.mas, 210, 270, 120);
+  if(IM.logo.complete&&IM.logo.naturalWidth){
+    drawIm(IM.logo, 210, 398, 360);
+  }else{
+    ctx.textAlign='center';
+    ctx.fillStyle=SAND; ctx.font='bold 42px sans-serif';
+    ctx.strokeStyle='rgba(13,43,69,0.9)'; ctx.lineWidth=8; ctx.lineJoin='round';
+    ctx.strokeText('つみつみ魚礁',210,370); ctx.fillText('つみつみ魚礁',210,370);
+  }
   ctx.textAlign='center';
-  ctx.fillStyle=SAND; ctx.font='bold 42px sans-serif';
-  ctx.strokeStyle='rgba(13,43,69,0.9)'; ctx.lineWidth=8; ctx.lineJoin='round';
-  ctx.strokeText('つみつみ魚礁',210,370); ctx.fillText('つみつみ魚礁',210,370);
   ctx.fillStyle=AQUA; ctx.font='bold 15px sans-serif';
-  ctx.fillText('〜 海のマイホームビルダー 〜',210,400);
+  ctx.fillText('〜 海のマイホームビルダー 〜',210,420);
   ctx.fillStyle='#cfe3ef'; ctx.font='13px sans-serif';
-  ctx.fillText('魚礁ブロックを高くつんで、魚たちの',210,440);
-  ctx.fillText('マンションをつくろう。潮を読め！',210,460);
-  btn(110,500,200,54,'つみはじめる',20);
-  btn(130,572,160,42,'ずかん',16,'#8fd3e8');
+  ctx.fillText('魚礁ブロックを高くつんで、魚たちの',210,454);
+  ctx.fillText('マンションをつくろう。潮を読め！',210,474);
+  btn(110,512,200,54,'つみはじめる',20);
+  btn(130,578,160,42,'ずかん',16,'#8fd3e8');
   ctx.fillStyle='#9fc3d8'; ctx.font='12px sans-serif';
   ctx.fillText('ベスト: '+save.best+'点 ／ 最高 '+save.bestH.toFixed(1)+'m', 210, 646);
   ctx.fillText('日本リーフの実在製品ブロックが登場！', 210, 668);

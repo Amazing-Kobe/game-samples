@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>うみのゲームパーク｜日本リーフグループ こうしきミニゲーム</title>
+<title>海ではたらく未来をゲームで体験｜日本リーフグループ 採用・仕事体験</title>
 <style>
 :root{
   --navy:#0d2b45; --aqua:#35c9dd; --green:#3fae6a; --sand:#e8d5a0; --coral:#ff7f66; --white:#f4f9ff;
@@ -23,16 +23,21 @@ body{
 }
 .wrap{position:relative; z-index:1; max-width:960px; margin:0 auto; padding:34px 18px 30px; text-align:center;}
 .badge{
-  display:inline-block; padding:7px 20px; border-radius:999px;
+  display:inline-flex; align-items:center; justify-content:center; flex-wrap:wrap; max-width:100%; gap:11px; padding:9px 24px; border-radius:999px;
   background:rgba(13,43,69,.72); border:1px solid rgba(53,201,221,.55);
-  color:#bfeef6; font-size:13px; letter-spacing:.12em; backdrop-filter:blur(3px);
+  color:#bfeef6; letter-spacing:.1em; backdrop-filter:blur(3px);
+  box-shadow:0 7px 18px rgba(0,0,0,.26), inset 0 0 18px rgba(53,201,221,.07);
 }
-h1{
-  margin-top:14px; font-size:clamp(34px,7vw,58px); letter-spacing:.06em;
-  color:var(--sand); text-shadow:0 3px 14px rgba(0,0,0,.55), 0 0 34px rgba(53,201,221,.35);
+.badge strong{font-size:clamp(16px,2.3vw,19px); color:#e8fbff; letter-spacing:.08em;}
+.badge-detail{font-size:12px; font-weight:bold; color:#8edce8;}
+h1.title-image{
+  width:min(820px,100%); margin:10px auto 0; line-height:0;
 }
-h1 .aq{color:var(--aqua);}
-.sub{margin-top:8px; font-size:clamp(13px,2.6vw,16px); color:#ffe9b8; font-weight:bold; letter-spacing:.14em; text-shadow:0 2px 8px rgba(0,0,0,.6);}
+h1.title-image img{
+  display:block; width:100%; height:auto;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.42)) drop-shadow(0 0 18px rgba(53,201,221,.14));
+}
+.sub{margin-top:0; font-size:clamp(13px,2.6vw,16px); color:#ffe9b8; font-weight:bold; letter-spacing:.14em; text-shadow:0 2px 8px rgba(0,0,0,.6);}
 .mascot{margin:20px auto 0; width:min(190px,44vw); position:relative;}
 .mascot img{width:100%; filter:drop-shadow(0 14px 22px rgba(0,0,0,.45)); animation:floaty 3.4s ease-in-out infinite;}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.5deg);}50%{transform:translateY(-13px) rotate(1.5deg);}}
@@ -41,6 +46,16 @@ h1 .aq{color:var(--aqua);}
   background:rgba(13,43,69,.78); border:1px solid rgba(232,213,160,.4);
   color:var(--sand); font-size:14px; letter-spacing:.08em;
 }
+.career-points{
+  margin:16px auto 0; display:flex; justify-content:center; flex-wrap:wrap; gap:8px;
+}
+.career-point{
+  display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px;
+  background:rgba(13,43,69,.82); border:1px solid rgba(53,201,221,.38);
+  color:#d9f4f8; font-size:12px; font-weight:bold; letter-spacing:.04em;
+  box-shadow:0 5px 16px rgba(0,0,0,.22);
+}
+.career-point::before{content:'●'; color:var(--aqua); font-size:8px;}
 .cards{
   margin-top:30px; display:grid; gap:20px;
   grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
@@ -64,6 +79,54 @@ h1 .aq{color:var(--aqua);}
 }
 .tag.aqua{background:var(--aqua); color:#052733;}
 .tag.green{background:var(--green); color:#08290f; }
+.tag.gold{background:linear-gradient(180deg,#ffd27a,#f0c04a); color:#3a2400;}
+.hero{
+  margin-top:30px; text-align:left;
+  display:flex; overflow:hidden; border-radius:22px;
+  background:rgba(16,49,78,.9);
+  border:1px solid rgba(240,192,74,.6);
+  box-shadow:0 14px 34px rgba(0,0,0,.45), 0 0 26px rgba(240,192,74,.16);
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+.hero:hover{transform:translateY(-6px) scale(1.008); box-shadow:0 22px 48px rgba(0,0,0,.55), 0 0 0 2px rgba(240,192,74,.6);}
+.hero .thumb{position:relative; flex:1.3; min-height:260px; overflow:hidden;}
+.hero .thumb img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .4s ease;}
+.hero:hover .thumb img{transform:scale(1.05);}
+.hero .body{flex:1; padding:28px 28px 24px; display:flex; flex-direction:column; gap:12px;}
+.hero h2{font-size:26px; color:var(--white); letter-spacing:.04em; line-height:1.4;}
+.game-title-block{display:flex; flex-direction:column; align-items:flex-start; gap:2px;}
+.game-logo{margin:0; line-height:0;}
+.game-logo img{
+  display:block; width:auto; max-width:100%; height:auto;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.36));
+}
+.hero h2.game-logo{width:min(330px,100%);}
+.card h2.game-logo{
+  width:100%; height:82px; display:flex; align-items:center; justify-content:flex-start;
+}
+.card h2.game-logo img{max-width:100%; max-height:82px; object-fit:contain; object-position:left center;}
+.hero .lead{font-size:13px; color:#ffe9b8; font-weight:bold; letter-spacing:.08em;}
+.hero p{font-size:14px; line-height:1.85; color:#cfe3ef; flex:1;}
+.hero .play{font-size:16px; padding:12px 34px;}
+.hero .career-label{
+  display:block; margin-top:4px; color:var(--aqua); font-size:13px; letter-spacing:.05em;
+}
+.hero .meta{font-size:11px; color:#9fc3d8; letter-spacing:.04em;}
+.section-head{margin:32px 0 0; text-align:center;}
+.section-head h2{font-size:21px; color:var(--sand); letter-spacing:.06em;}
+.section-head p{margin-top:7px; color:#b9d3e2; font-size:13px;}
+@media (max-width:680px){
+  .badge{gap:7px; padding:8px 14px;}
+  .badge-detail{font-size:10px; letter-spacing:.05em;}
+  h1.title-image{width:100%; margin-top:8px;}
+  .sub{margin-top:-2px; line-height:1.65; letter-spacing:.08em;}
+  .hero{flex-direction:column;}
+  .hero .thumb{flex:none; min-height:0; aspect-ratio:16/9;}
+  .hero .body{padding:20px 18px 18px;}
+  .hero h2{font-size:21px;}
+  .career-points{max-width:360px;}
+  .career-point{font-size:11px; padding:6px 10px;}
+}
 .card .body{padding:16px 16px 18px; display:flex; flex-direction:column; gap:8px; flex:1;}
 .card h2{font-size:19px; color:var(--white); letter-spacing:.04em;}
 .card p{font-size:13px; line-height:1.65; color:#cfe3ef; flex:1;}
@@ -84,18 +147,42 @@ footer a{color:var(--aqua);}
 <body>
 <div class="bg"></div>
 <div class="wrap">
-  <span class="badge">日本リーフグループ こうしきミニゲーム</span>
-  <h1>うみの<span class="aq">ゲームパーク</span></h1>
-  <div class="sub">あそんで学ぼう！ 魚礁がつくる豊かな海・淡路島</div>
+  <span class="badge"><strong>日本リーフグループ</strong><span class="badge-detail">採用・仕事体験コンテンツ</span></span>
+  <h1 class="title-image"><img src="assets/recruit_title.png" alt="海ではたらく未来を、ゲームで体験。"></h1>
+  <div class="sub">海の未来を支える3社の仕事と、あなたの適性がわかる</div>
 
   <div class="mascot"><img src="assets/mascot.png" alt="マスコット"></div>
-  <div class="welcome">ようこそ！ すきなゲームをえらんでね</div>
+  <div class="welcome">就活中のあなたへ｜まずは10分、海の仕事を体験しよう</div>
+  <div class="career-points" aria-label="体験できる仕事分野">
+    <span class="career-point">海洋調査・データ解析</span>
+    <span class="career-point">製品開発・魚礁製造</span>
+    <span class="career-point">海洋施工・施工管理</span>
+  </div>
+
+  <div class="hero">
+    <div class="thumb"><span class="tag gold">採用メインコンテンツ</span><img src="assets/card_shigoto.jpg" alt="ウミショク！ 〜海のしごと体験＆適職診断〜"></div>
+    <div class="body">
+      <div class="lead">ゲームで仕事を知る・自分の強みを見つける</div>
+      <div class="game-title-block">
+        <h2 class="game-logo"><img src="assets/game_logo_shigoto.png" alt="ウミショク！"></h2>
+        <span class="career-label">海のしごと体験 ＆ 適職診断</span>
+      </div>
+      <p>海洋調査・魚礁の開発製造・海洋施工。日本リーフグループ3社の仕事を1日体験し、あなたの強みと向いている役割を全6タイプで診断します。海ではたらくキャリアを考える、最初の一歩に。</p>
+      <div class="meta">約5〜10分｜スマホで体験｜診断タイプ全6種</div>
+      <a class="play" href="shigoto.html">仕事体験をはじめる <span class="tri"></span></a>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>もっと知ろう、海を支える仕事</h2>
+    <p>日本リーフグループの事業を、3つのミニゲームでも体験できます。</p>
+  </div>
 
   <div class="cards">
     <div class="card">
       <div class="thumb"><span class="tag">イチオシ！</span><img src="assets/card_tsumi.jpg" alt="つみつみ魚礁"></div>
       <div class="body">
-        <h2>つみつみ魚礁</h2>
+        <h2 class="game-logo"><img src="assets/game_logo_tsumi.png" alt="つみつみ魚礁"></h2>
         <p>魚礁ブロックを海底に高くつもう！ 潮を読んで、すき間に魚を住まわせろ。タコの吸盤が塔を守り、ときどきヌシがやってくる──。</p>
         <a class="play" href="tsumi.html">あそぶ <span class="tri"></span></a>
       </div>
@@ -103,7 +190,7 @@ footer a{color:var(--aqua);}
     <div class="card">
       <div class="thumb"><span class="tag aqua">まったり系</span><img src="assets/card_tako.jpg" alt="タコツボ横丁"></div>
       <div class="body">
-        <h2>タコツボ横丁</h2>
+        <h2 class="game-logo"><img src="assets/game_logo_tako.png" alt="タコツボ横丁"></h2>
         <p>大阪湾の海底にタコツボをならべて、自分だけの横丁づくり。個性ゆたかなタコたちが、ぞくぞく入居中。産卵イベントも！</p>
         <a class="play" href="tako.html">あそぶ <span class="tri"></span></a>
       </div>
@@ -111,7 +198,7 @@ footer a{color:var(--aqua);}
     <div class="card">
       <div class="thumb"><span class="tag green">ものがたり</span><img src="assets/card_kuni.jpg" alt="国生みの海タイクーン"></div>
       <div class="body">
-        <h2>国生みの海タイクーン</h2>
+        <h2 class="game-logo"><img src="assets/game_logo_kuni.png" alt="国生みの海タイクーン"></h2>
         <p>調査→製造→施工、3社の力でやせた海をよみがえらせよう。淡路島のまわりに魚があふれる、再生タイクーン。</p>
         <a class="play" href="kuni.html">あそぶ <span class="tri"></span></a>
       </div>
@@ -119,9 +206,9 @@ footer a{color:var(--aqua);}
   </div>
 
   <footer>
-    <div class="copy">「海に学び、海を守り支える」</div>
-    <div><a href="https://www.japanreef.net/" target="_blank" rel="noopener">日本リーフグループ 公式サイトはこちら</a></div>
-    <div>(c) 日本リーフグループ（日本リーフ・マルイチ・オリエンタルテクノ） ／ このページはデモ版です</div>
+    <div class="copy">「海ではたらく未来を、ここから。」</div>
+    <div><a href="https://www.japanreef.net/" target="_blank" rel="noopener">日本リーフグループの会社・事業を知る</a></div>
+    <div>(c) 日本リーフグループ（日本リーフ・マルイチ・オリエンタルテクノ） ／ 採用・仕事体験デモ</div>
   </footer>
 </div>
 </body>

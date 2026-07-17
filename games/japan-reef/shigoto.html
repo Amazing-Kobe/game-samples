@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ウミショク！〜海のしごと体験＆適職診断〜｜日本リーフグループ</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+  background:#071829; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  touch-action:none; -webkit-user-select:none; user-select:none;
+}
+canvas{display:block; touch-action:none;}
+.uibtn{
+  position:fixed; top:calc(10px + env(safe-area-inset-top)); z-index:10;
+  padding:8px 16px; border-radius:999px; font-size:13px; font-weight:bold;
+  background:rgba(13,43,69,.82); color:#f4f9ff;
+  border:1px solid rgba(53,201,221,.5); text-decoration:none;
+  font-family:inherit; cursor:pointer;
+}
+.uibtn:active{background:#35c9dd; color:#0d2b45;}
+#backBtn{left:10px;}
+#muteBtn{right:10px;}
+#toast{
+  position:fixed; left:50%; bottom:40px; transform:translateX(-50%);
+  background:rgba(13,43,69,.92); color:#e8d5a0; border:1px solid rgba(232,213,160,.5);
+  padding:10px 22px; border-radius:999px; font-size:13px; z-index:20;
+  opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap;
+}
+</style>
+</head>
+<body>
+<a id="backBtn" class="uibtn" href="index.html">&#8592; もどる</a>
+<button id="muteBtn" class="uibtn" type="button">&#9834; ON</button>
+<div id="toast"></div>
+<canvas id="cv"></canvas>
+<script>
+/* =========================================================
+   ウミショク！ 〜海のしごと体験＆適職診断〜
+   日本リーフグループ（日本リーフ・マルイチ・オリエンタルテクノ）
+   採用ツール向けメインゲーム / 単一ファイル・オフライン動作
+   ========================================================= */
+'use strict';
+
+/* ---------- 基本セットアップ ---------- */
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var W=420, H=740, VS=1;
+var FONT="'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif";
+function fit(){
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  VS=Math.min(window.innerWidth/W, window.innerHeight/H);
+  cv.style.width=(W*VS)+'px'; cv.style.height=(H*VS)+'px';
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize',fit); fit();
+
+var COL={
+  navy:'#0d2b45', deep:'#071829', aqua:'#35c9dd', green:'#3fae6a',
+  sand:'#e8d5a0', coral:'#ff7f66', white:'#f4f9ff', gold:'#f0c04a',
+  ink:'#0a2236', blue2:'#16456b'
+};
+
+/* ---------- 画像（無くても動くフォールバック前提） ---------- */
+var IMG={};
+function LD(k,src){ var im=new Image(); im.src=src; IMG[k]=im; }
+try{
+  LD('mascot','assets/mascot.png');
+  LD('joy','assets/mascot_joy.png');
+  LD('sad','assets/mascot_sad.png');
+  LD('bg','assets/shigoto_bg.jpg');
+  LD('logo','assets/game_logo_shigoto.png');
+  LD('scene_ot','assets/scene_chosa.jpg');
+  LD('scene_nr','assets/scene_seizo.jpg');
+  LD('scene_mi','assets/scene_seko.jpg');
+  LD('b_data','assets/badge_data.png');
+  LD('b_field','assets/badge_field.png');
+  LD('b_meister','assets/badge_meister.png');
+  LD('b_creator','assets/badge_creator.png');
+  LD('b_commander','assets/badge_commander.png');
+  LD('b_operator','assets/badge_operator.png');
+}catch(e){}
+function imOK(k){ var im=IMG[k]; return im && im.complete && im.naturalWidth>0; }
+function drawIm(k,x,y,w,h){
+  if(!imOK(k)) return false;
+  var im=IMG[k];
+  if(h===undefined) h=w*im.naturalHeight/im.naturalWidth;
+  ctx.drawImage(im,x,y,w,h); return true;
+}
+
+/* ---------- サウンド（WebAudio合成／音声ファイル不使用） ---------- */
+var AC=null, master=null, muted=false;
+function ensureAudio(){
+  if(AC) { if(AC.state==='suspended'){ try{AC.resume();}catch(e){} } return; }
+  try{
+    var C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    AC=new C(); master=AC.createGain(); master.gain.value=0.55; master.connect(AC.destination);
+    bgmStart();
+  }catch(e){}
+}
+function tone(f,dur,type,vol,slide){
+  if(!AC||muted) return;
+  try{
+    var o=AC.createOscillator(), g=AC.createGain(), t=AC.currentTime;
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,slide),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.18,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+function noiseBurst(dur,vol,freq){
+  if(!AC||muted) return;
+  try{
+    var t=AC.currentTime, len=Math.floor(AC.sampleRate*dur);
+    var buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+    for(var i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    var s=AC.createBufferSource(); s.buffer=buf;
+    var f=AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq||900;
+    var g=AC.createGain(); g.gain.value=vol||0.2;
+    s.connect(f); f.connect(g); g.connect(master); s.start(t);
+  }catch(e){}
+}
+var sfx={
+  tap:function(){ tone(660,0.07,'triangle',0.12); },
+  ping:function(){ tone(1200,0.35,'sine',0.14,400); },
+  good:function(){ tone(700,0.09,'triangle',0.16); tone(1050,0.16,'triangle',0.14); },
+  perfect:function(){ tone(780,0.08,'triangle',0.16); tone(1170,0.1,'triangle',0.15); tone(1560,0.22,'triangle',0.14); },
+  miss:function(){ tone(220,0.22,'sawtooth',0.1,110); },
+  splash:function(){ noiseBurst(0.3,0.22,700); },
+  drop:function(){ tone(300,0.25,'sine',0.15,80); },
+  fanfare:function(){
+    var seq=[523,659,784,1047]; for(var i=0;i<seq.length;i++)(function(f,d){ setTimeout(function(){ tone(f,0.28,'triangle',0.17); },d); })(seq[i],i*130);
+  },
+  chime:function(){ tone(880,0.3,'sine',0.12); tone(1320,0.4,'sine',0.08); }
+};
+/* かんたんBGM（8ステップループ） */
+var bgmTimer=null, bgmStep=0;
+var BGM_BASS=[131,131,98,98,110,110,123,123];
+var BGM_MEL=[523,0,659,784,0,659,587,0];
+function bgmStart(){
+  if(bgmTimer) return;
+  bgmTimer=setInterval(function(){
+    if(!AC||muted) return;
+    var s=bgmStep%8;
+    tone(BGM_BASS[s],0.32,'triangle',0.05);
+    if(BGM_MEL[s]) tone(BGM_MEL[s],0.24,'sine',0.035);
+    if(s%2===0) noiseBurst(0.03,0.015,4000);
+    bgmStep++;
+  },340);
+}
+var muteBtn=document.getElementById('muteBtn');
+muteBtn.addEventListener('click',function(){
+  muted=!muted; muteBtn.innerHTML=muted?'&#9834; OFF':'&#9834; ON';
+  if(!muted) ensureAudio();
+  persist();
+});
+
+/* ---------- セーブ ---------- */
+var SKEY='reef_shigoto';
+var save={plays:0, best:null, mute:false};
+try{
+  var s0=localStorage.getItem(SKEY);
+  if(s0){ var p=JSON.parse(s0); if(p&&typeof p==='object') save=p; }
+  if(save.mute){ muted=true; muteBtn.innerHTML='&#9834; OFF'; }
+}catch(e){}
+function persist(){ save.mute=muted; try{ localStorage.setItem(SKEY,JSON.stringify(save)); }catch(e){} }
+
+/* ---------- 描画ヘルパー ---------- */
+function rr(x,y,w,h,r){
+  if(r>w/2) r=w/2; if(r>h/2) r=h/2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function T(t,x,y,s,c,al,b){
+  ctx.font=(b?'bold ':'')+s+'px '+FONT;
+  ctx.fillStyle=c||COL.white;
+  ctx.textAlign=al||'center';
+  ctx.textBaseline='middle';
+  ctx.fillText(t,x,y);
+}
+function wrap(t,maxW,s,b){
+  ctx.font=(b?'bold ':'')+s+'px '+FONT;
+  var out=[],line='';
+  for(var i=0;i<t.length;i++){
+    var ch=t[i];
+    if(ch==='\n'){ out.push(line); line=''; continue; }
+    if(ctx.measureText(line+ch).width>maxW){ out.push(line); line=ch; }
+    else line+=ch;
+  }
+  if(line) out.push(line);
+  return out;
+}
+function pText(t,x,y,maxW,s,c,lh,al,b){
+  var ls=wrap(t,maxW,s,b);
+  for(var i=0;i<ls.length;i++) T(ls[i],x,y+i*(lh||s*1.55),s,c,al||'left',b);
+  return ls.length*(lh||s*1.55);
+}
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+/* ---------- ヒットテスト ---------- */
+var HITS=[];
+function addHit(x,y,w,h,fn){ HITS.push({x:x,y:y,w:w,h:h,fn:fn}); }
+cv.addEventListener('pointerdown',function(e){
+  e.preventDefault(); ensureAudio();
+  var r=cv.getBoundingClientRect();
+  var x=(e.clientX-r.left)/VS, y=(e.clientY-r.top)/VS;
+  for(var i=HITS.length-1;i>=0;i--){
+    var h=HITS[i];
+    if(x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h){ h.fn(x,y); return; }
+  }
+},{passive:false});
+
+/* ---------- ボタン描画 ---------- */
+function drawBtn(x,y,w,h,label,fn,style){
+  var press=0;
+  ctx.save();
+  if(style==='ghost'){
+    rr(x,y,w,h,h/2); ctx.fillStyle='rgba(13,43,69,.7)'; ctx.fill();
+    ctx.strokeStyle='rgba(53,201,221,.6)'; ctx.lineWidth=1.5; ctx.stroke();
+    T(label,x+w/2,y+h/2+1,15,'#bfeef6','center',true);
+  }else{
+    var g=ctx.createLinearGradient(0,y,0,y+h);
+    if(style==='green'){ g.addColorStop(0,'#7fd89a'); g.addColorStop(1,'#3fae6a'); }
+    else { g.addColorStop(0,'#ffd27a'); g.addColorStop(1,'#f7a83a'); }
+    ctx.fillStyle=(style==='green')?'#1d5c36':'#b06f14';
+    rr(x,y+4,w,h,h/2); ctx.fill();
+    rr(x,y,w,h,h/2); ctx.fillStyle=g; ctx.fill();
+    T(label,x+w/2,y+h/2+1,17,(style==='green')?'#08290f':'#3a2400','center',true);
+  }
+  ctx.restore();
+  addHit(x,y-4,w,h+10,fn);
+}
+
+/* ---------- ゲームデータ ---------- */
+var JOBS=[
+  {key:'ot', comp:'オリエンタルテクノ', role:'海洋調査のプロ', scene:'scene_ot',
+   icon:'sonar', color:COL.aqua,
+   about:'調査船やソナー、水中ドローンで海の中を「見える化」する会社。魚礁をどこに置くかは、まず調査で決まる！',
+   mission:'ソナーで海底をしらべて、かくれた魚の群れを4つ見つけよう。反応の色をヒントに、むだ打ちせずに探せるかな？'},
+  {key:'nr', comp:'日本リーフ', role:'魚礁づくりのプロ', scene:'scene_nr',
+   icon:'factory', color:COL.green,
+   about:'魚礁ブロックの開発・製造を手がける会社。多孔質セラミック「カルセラ」の無数の穴は、稚魚たちのマンションになるんだ。',
+   mission:'ゲージが真ん中にきた瞬間にタップして、型に材料を流しこもう。5つの製品づくりに連続チャレンジ！'},
+  {key:'mi', comp:'マルイチ', role:'海洋施工のプロ', scene:'scene_mi',
+   icon:'crane', color:COL.coral,
+   about:'クレーン台船で魚礁を海底へ沈める総合建設会社。潮を読み、巨大なブロックを一発で決める集中力が武器！',
+   mission:'ゆれるクレーンからタイミングよくブロックを切りはなし、海底のまとに沈めよう。潮の流れに要注意！'}
+];
+var QUESTIONS=[
+  {q:'新しいことを始めるとき、\nきみはどっちのタイプ？',
+   a:{t:'まず調べて、じっくり作戦を立てる', st:{ana:2}, cp:{ot:4}},
+   b:{t:'まず動く！ 考えるのはそれから', st:{dec:2}, cp:{mi:4}}},
+  {q:'「いいものづくり」に\n一番大事なのはどっち？',
+   a:{t:'ミリ単位の正確さと、妥協しない心', st:{pre:2}, cp:{nr:4}},
+   b:{t:'仲間との連携。ひとりでは作れない', st:{team:2}, cp:{nr:2,mi:2}}},
+  {q:'海のしごとで一番\nワクワクしそうなのは？',
+   a:{t:'誰も見たことのない海中の風景', st:{obs:2}, cp:{ot:4}},
+   b:{t:'巨大な魚礁が沈む大迫力の瞬間', st:{dec:1}, cp:{mi:4}}}
+];
+var TYPES={
+  data:{name:'海のデータ探偵', comp:'オリエンタルテクノ', job:'海洋調査・データ解析',
+    catch:'ひらめきは、データの海から。', badge:'b_data', color:COL.aqua,
+    desc:'集めた情報から真実を見抜く分析派。調査船やドローンのデータから海の変化を読み解き、魚礁計画の土台をつくるしごとが向いてるよ。'},
+  field:{name:'海のフィールド探検家', comp:'オリエンタルテクノ', job:'海洋調査・現地調査',
+    catch:'現場の海が、きみを呼んでいる。', badge:'b_field', color:COL.aqua,
+    desc:'自分の目で確かめないと気がすまない行動派。調査船オリテク号に乗りこんで、海の「いま」を最前線でキャッチするしごとが向いてるよ。'},
+  meister:{name:'ものづくりマイスター', comp:'日本リーフ', job:'魚礁ブロックの設計・製造',
+    catch:'その1ミリが、魚の家になる。', badge:'b_meister', color:COL.green,
+    desc:'コツコツと質を高める職人タイプ。魚たちのマンション「カルセラリーフ」のような製品を、確かな腕でつくるしごとが向いてるよ。'},
+  creator:{name:'海の環境クリエイター', comp:'日本リーフ', job:'製品開発・環境づくり',
+    catch:'つくるのはブロックじゃない、未来だ。', badge:'b_creator', color:COL.green,
+    desc:'チームで新しい価値を生みだす発想タイプ。藻場を取りもどす「セラポラ」のような、海を元気にする製品づくりが向いてるよ。'},
+  commander:{name:'現場の司令塔', comp:'マルイチ', job:'海洋工事の施工管理',
+    catch:'海の上の現場は、きみが動かす。', badge:'b_commander', color:COL.coral,
+    desc:'決断力とリーダーシップが光るタイプ。天候・潮・チームをまとめあげて工事をやりきる、施工管理のしごとが向いてるよ。'},
+  operator:{name:'海上の大仕事人', comp:'マルイチ', job:'クレーン台船の操縦',
+    catch:'一発で決める。それがプロ。', badge:'b_operator', color:COL.coral,
+    desc:'ここぞの集中力で大物を動かす豪快タイプ。巨大クレーンで魚礁を海底へ据えつける、迫力満点のしごとが向いてるよ。'}
+};
+var PRODUCTS=[
+  {name:'カルセラリーフ', note:'稚魚のマンション'},
+  {name:'セラポラ', note:'藻場をとりもどす'},
+  {name:'産卵用タコツボ', note:'土に還る産卵ハウス'},
+  {name:'ネットブルリーフ', note:'漁網にやさしい丸み'},
+  {name:'ドームタワー型カルセラ', note:'大型魚のかくれ家'}
+];
+
+/* ---------- 進行状態 ---------- */
+var S={
+  scene:'title', flowIdx:-1,
+  stats:{obs:0,ana:0,pre:0,dec:0,team:0},   // レーダー表示用（体験成績も反映）
+  qst:{obs:0,ana:0,pre:0,dec:0,team:0},     // 質問回答のみ（タイプ分岐用）
+  comp:{ot:0,nr:0,mi:0},
+  mg:{sonar:0,factory:0,crane:0},   // 各0〜10
+  result:null
+};
+var FLOW=[
+  {t:'dialog', lines:[
+    {m:'joy', t:'ようこそ！ ぼくはリーフくん。ここは日本リーフグループの「海のしごと体験センター」だよ。'},
+    {m:'mascot', t:'ぼくらの合言葉は「調査→製造→施工」。3つのしごとを1日体験して、きみにピッタリの海職（うみしょく）を診断しよう！'},
+    {m:'joy', t:'ときどき質問もするから、直感で答えてね。それじゃあ、しゅっぱ〜つ！'}
+  ]},
+  {t:'q', q:0},
+  {t:'brief', job:0},
+  {t:'mg', mg:'sonar'},
+  {t:'q', q:1},
+  {t:'brief', job:1},
+  {t:'mg', mg:'factory'},
+  {t:'q', q:2},
+  {t:'brief', job:2},
+  {t:'mg', mg:'crane'},
+  {t:'calc'},
+  {t:'result'}
+];
+function resetRun(){
+  S.stats={obs:0,ana:0,pre:0,dec:0,team:0};
+  S.qst={obs:0,ana:0,pre:0,dec:0,team:0};
+  S.comp={ot:0,nr:0,mi:0};
+  S.mg={sonar:0,factory:0,crane:0};
+  S.result=null; S.flowIdx=-1;
+}
+function stageInfo(){ // done=完了したしごと数, cur=挑戦中のしごと(1-3, なければ0)
+  var i=S.flowIdx, done=0, f=FLOW[i]||{};
+  for(var k=0;k<i&&k<FLOW.length;k++) if(FLOW[k].t==='mg') done++;
+  var cur=(f.t==='mg'||f.t==='brief')?done+1:0;
+  return {done:done, cur:clamp(cur,0,3)};
+}
+function next(){
+  S.flowIdx++;
+  if(S.flowIdx>=FLOW.length){ S.scene='result'; return; }
+  var f=FLOW[S.flowIdx];
+  if(f.t==='dialog'){ startDialog(f.lines); }
+  else if(f.t==='q'){ S.scene='q'; }
+  else if(f.t==='brief'){ S.scene='brief'; }
+  else if(f.t==='mg'){
+    if(f.mg==='sonar') startSonar();
+    else if(f.mg==='factory') startFactory();
+    else startCrane();
+  }
+  else if(f.t==='calc'){ startCalc(); }
+  else if(f.t==='result'){ computeResult(); S.scene='result'; sfx.fanfare(); }
+}
+
+/* ---------- 背景 ---------- */
+var bubbles=[];
+for(var bi=0;bi<24;bi++) bubbles.push({x:Math.random()*W, y:Math.random()*H, r:1.5+Math.random()*3.5, v:12+Math.random()*26, ph:Math.random()*6.28});
+function drawSea(t,topY){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#12507a'); g.addColorStop(0.5,'#0d3a5e'); g.addColorStop(1,'#071829');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // 光のすじ
+  ctx.save(); ctx.globalAlpha=0.07; ctx.fillStyle='#bfeef6';
+  for(var i=0;i<3;i++){
+    var x0=70+i*130+Math.sin(t*0.4+i)*18;
+    ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0+46,0); ctx.lineTo(x0-40,H*0.7); ctx.lineTo(x0-70,H*0.7); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // 泡
+  ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle='#cfeef8';
+  for(var j=0;j<bubbles.length;j++){
+    var b=bubbles[j];
+    var y=b.y - (t*b.v)%(H+40);
+    if(y<-20) y+=H+40;
+    var x=b.x+Math.sin(t*1.3+b.ph)*6;
+    ctx.beginPath(); ctx.arc(x,y,b.r,0,6.28); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawHeader(title,sub){
+  ctx.save();
+  rr(14,52,W-28,54,16); ctx.fillStyle='rgba(13,43,69,.82)'; ctx.fill();
+  ctx.strokeStyle='rgba(53,201,221,.4)'; ctx.lineWidth=1; ctx.stroke();
+  T(title,W/2,72,17,COL.sand,'center',true);
+  if(sub) T(sub,W/2,93,11.5,'#9fc3d8','center');
+  ctx.restore();
+}
+function drawSteps(){
+  var labels=['調査','製造','施工'], st=stageInfo();
+  var cx=W/2-86;
+  for(var i=0;i<3;i++){
+    var x=cx+i*86, on=(i+1)<=st.done, now=(i+1)===st.cur;
+    ctx.save();
+    rr(x-34,116,68,24,12);
+    ctx.fillStyle=now?'rgba(240,192,74,.9)':(on?'rgba(53,201,221,.85)':'rgba(13,43,69,.7)');
+    ctx.fill();
+    T((i+1)+' '+labels[i],x,128,12,now?'#3a2400':(on?'#052733':'#7fa5bd'),'center',true);
+    ctx.restore();
+  }
+}
+
+/* ---------- マスコット ---------- */
+function drawMascot(mood,x,y,w,t){
+  var bob=Math.sin((t||0)*2.2)*4;
+  var key=(mood==='joy')?'joy':(mood==='sad'?'sad':'mascot');
+  if(!drawIm(key,x,y+bob,w)){
+    // フォールバック：水色まる
+    ctx.save();
+    ctx.fillStyle=COL.aqua;
+    ctx.beginPath(); ctx.arc(x+w/2,y+w/2+bob,w/2,0,6.28); ctx.fill();
+    ctx.fillStyle=COL.ink;
+    ctx.beginPath(); ctx.arc(x+w*0.36,y+w*0.42+bob,w*0.05,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+w*0.64,y+w*0.42+bob,w*0.05,0,6.28); ctx.fill();
+    ctx.strokeStyle=COL.ink; ctx.lineWidth=2;
+    ctx.beginPath();
+    if(mood==='sad') ctx.arc(x+w/2,y+w*0.72+bob,w*0.12,Math.PI*1.15,Math.PI*1.85);
+    else ctx.arc(x+w/2,y+w*0.58+bob,w*0.14,Math.PI*0.15,Math.PI*0.85);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ---------- ダイアログ ---------- */
+var dlg={lines:[],idx:0,chars:0};
+function startDialog(lines){ dlg.lines=lines; dlg.idx=0; dlg.chars=0; S.scene='dialog'; }
+function drawDialog(t){
+  drawSea(t);
+  drawHeader('ウミショク！','海のしごと体験＆適職診断');
+  var L=dlg.lines[dlg.idx];
+  drawMascot(L.m,W/2-70,200,140,t);
+  var px=20,py=390,pw=W-40,ph=210;
+  rr(px,py,pw,ph,18); ctx.fillStyle='rgba(13,43,69,.9)'; ctx.fill();
+  ctx.strokeStyle='rgba(53,201,221,.5)'; ctx.lineWidth=1.5; ctx.stroke();
+  T('リーフくん',px+64,py+24,13,COL.aqua,'center',true);
+  dlg.chars+=0.9;
+  var shown=L.t.substring(0,Math.floor(dlg.chars));
+  pText(shown,px+22,py+58,pw-44,15,COL.white,25);
+  if(Math.floor(dlg.chars)>=L.t.length){
+    var blink=Math.sin(t*5)>0;
+    if(blink) T('▼ タップですすむ',W/2,py+ph-20,12,COL.sand,'center');
+  }
+  addHit(0,0,W,H,function(){
+    if(Math.floor(dlg.chars)<L.t.length){ dlg.chars=L.t.length; return; }
+    sfx.tap();
+    dlg.idx++;
+    if(dlg.idx>=dlg.lines.length) next();
+    else dlg.chars=0;
+  });
+}
+
+/* ---------- タイトル ---------- */
+function drawTitle(t){
+  if(imOK('bg')){
+    var im=IMG.bg, sc=Math.max(W/im.naturalWidth,H/im.naturalHeight);
+    ctx.drawImage(im,(W-im.naturalWidth*sc)/2,(H-im.naturalHeight*sc)/2,im.naturalWidth*sc,im.naturalHeight*sc);
+    ctx.fillStyle='rgba(7,24,41,.35)'; ctx.fillRect(0,0,W,H);
+  }else{
+    drawSea(t);
+  }
+  // 入口画面と共通のタイトルロゴ
+  T('日本リーフグループ 採用・仕事体験コンテンツ',W/2,106,15,'#dff9ff','center',true);
+  if(!drawIm('logo',40,126,340)){
+    ctx.save();
+    ctx.font='bold 54px '+FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=10; ctx.strokeStyle='rgba(7,24,41,.85)';
+    ctx.strokeText('ウミショク！',W/2,180);
+    var lg=ctx.createLinearGradient(0,150,0,210);
+    lg.addColorStop(0,'#ffe9b8'); lg.addColorStop(1,COL.gold);
+    ctx.fillStyle=lg; ctx.fillText('ウミショク！',W/2,180);
+    ctx.restore();
+  }
+  rr(W/2-150,232,300,30,15); ctx.fillStyle='rgba(13,43,69,.8)'; ctx.fill();
+  T('3社のしごと体験 ＆ あなたの適職診断',W/2,247,14,COL.sand,'center',true);
+
+  drawMascot('joy',W/2-80,286,160,t);
+
+  // 説明チップ
+  var chips=['3社の仕事をゲームで体験','質問＋体験結果で適性診断','自分の強みを全6タイプで発見'];
+  for(var i=0;i<chips.length;i++){
+    var cw=250,cx=W/2-cw/2,cy=456+i*34;
+    rr(cx,cy,cw,26,13); ctx.fillStyle='rgba(13,43,69,.75)'; ctx.fill();
+    ctx.strokeStyle='rgba(53,201,221,.35)'; ctx.stroke();
+    T(chips[i],W/2,cy+13,12.5,'#cfe3ef','center');
+  }
+  if(save.best){
+    T('前回の診断：'+save.best.type+'（ランク'+save.best.rank+'）',W/2,568,12,COL.sand,'center');
+    var tn=(save.types||[]).length;
+    T('発見した海職タイプ '+tn+'／6'+(tn<6?'　ぜんぶ見つかるかな？':'　コンプリート！'),W/2,586,11,'#9fc3d8','center');
+  }
+  drawBtn(W/2-120,602,240,56,'仕事体験をはじめる',function(){
+    sfx.chime(); resetRun(); next();
+  });
+  T('約5〜10分 ／ 就活・キャリア研究に ／ 音が出ます',W/2,684,11,'#9fc3d8','center');
+}
+
+/* ---------- 質問 ---------- */
+function drawQ(t){
+  drawSea(t);
+  var f=FLOW[S.flowIdx], Q=QUESTIONS[f.q];
+  drawHeader('リーフくんの質問 '+(f.q+1)+'／3');
+  drawSteps();
+  drawMascot('mascot',W/2-60,170,120,t);
+  var py=320;
+  rr(24,py,W-48,120,18); ctx.fillStyle='rgba(13,43,69,.9)'; ctx.fill();
+  ctx.strokeStyle='rgba(240,192,74,.5)'; ctx.lineWidth=1.5; ctx.stroke();
+  var qls=Q.q.split('\n');
+  for(var i=0;i<qls.length;i++) T(qls[i],W/2,py+42+i*30,17,COL.sand,'center',true);
+  function opt(o,y,label){
+    rr(30,y,W-60,74,16);
+    ctx.fillStyle='rgba(22,69,107,.92)'; ctx.fill();
+    ctx.strokeStyle='rgba(53,201,221,.55)'; ctx.lineWidth=1.5; ctx.stroke();
+    T(label,52,y+37,20,COL.gold,'center',true);
+    pText(o.t,76,y+(wrap(o.t,W-150,14.5,true).length>1?26:37),W-150,14.5,COL.white,22,'left',true);
+    addHit(30,y,W-60,74,function(){
+      sfx.good();
+      applyPts(o.st,o.cp);
+      next();
+    });
+  }
+  opt(Q.a,470,'A');
+  opt(Q.b,560,'B');
+  T('直感でえらんでOK！',W/2,668,12,'#9fc3d8','center');
+}
+function applyPts(st,cp){
+  var k;
+  for(k in st){ S.stats[k]+=st[k]; S.qst[k]+=st[k]; }
+  for(k in cp) S.comp[k]+=cp[k];
+}
+
+/* ---------- 会社ブリーフィング ---------- */
+function drawJobIcon(kind,x,y,w,t){
+  ctx.save();
+  if(kind==='sonar'){
+    ctx.strokeStyle=COL.aqua; ctx.lineWidth=3;
+    for(var i=0;i<3;i++){
+      var r=w*0.16+((t*30+i*w*0.14)%(w*0.42));
+      ctx.globalAlpha=1-r/(w*0.45);
+      ctx.beginPath(); ctx.arc(x+w/2,y+w/2,r,0,6.28); ctx.stroke();
+    }
+    ctx.globalAlpha=1; ctx.fillStyle=COL.sand;
+    ctx.beginPath(); ctx.arc(x+w/2,y+w/2,w*0.09,0,6.28); ctx.fill();
+  }else if(kind==='factory'){
+    ctx.fillStyle=COL.green;
+    rr(x+w*0.15,y+w*0.4,w*0.7,w*0.4,6); ctx.fill();
+    ctx.fillStyle=COL.sand;
+    rr(x+w*0.2,y+w*0.18,w*0.14,w*0.26,3); ctx.fill();
+    ctx.fillStyle='#cfe3ef';
+    for(var j=0;j<3;j++){ ctx.beginPath(); ctx.arc(x+w*0.28+Math.sin(t*2+j)*3, y+w*0.12-j*8,4+j,0,6.28); ctx.fill(); }
+  }else{
+    ctx.strokeStyle=COL.coral; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(x+w*0.3,y+w*0.8); ctx.lineTo(x+w*0.3,y+w*0.2); ctx.lineTo(x+w*0.75,y+w*0.35); ctx.stroke();
+    ctx.strokeStyle='#cfe3ef'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x+w*0.75,y+w*0.35); ctx.lineTo(x+w*0.75,y+w*0.6+Math.sin(t*2)*4); ctx.stroke();
+    ctx.fillStyle=COL.sand;
+    rr(x+w*0.66,y+w*0.6+Math.sin(t*2)*4,w*0.18,w*0.16,3); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBrief(t){
+  drawSea(t);
+  var f=FLOW[S.flowIdx], J=JOBS[f.job];
+  drawHeader('しごと体験 '+(f.job+1)+'／3');
+  drawSteps();
+  // シーンカード
+  var sx=24,sy=158,sw=W-48,sh=180;
+  rr(sx,sy,sw,sh,18);
+  ctx.save(); ctx.clip();
+  if(imOK(J.scene)){
+    var im=IMG[J.scene], sc=Math.max(sw/im.naturalWidth,sh/im.naturalHeight);
+    ctx.drawImage(im,sx+(sw-im.naturalWidth*sc)/2,sy+(sh-im.naturalHeight*sc)/2,im.naturalWidth*sc,im.naturalHeight*sc);
+  }else{
+    ctx.fillStyle=COL.blue2; ctx.fillRect(sx,sy,sw,sh);
+    drawJobIcon(J.icon,sx+sw/2-55,sy+sh/2-55,110,t);
+  }
+  ctx.restore();
+  rr(sx,sy,sw,sh,18); ctx.strokeStyle='rgba(53,201,221,.5)'; ctx.lineWidth=1.5; ctx.stroke();
+  // 会社名タグ
+  rr(sx+10,sy+10,158,26,13); ctx.fillStyle=J.color; ctx.fill();
+  T(J.comp,sx+89,sy+23,12.5,'#052733','center',true);
+
+  var y1=360;
+  T(J.role,W/2,y1,20,COL.sand,'center',true);
+  rr(24,y1+20,W-48,104,14); ctx.fillStyle='rgba(13,43,69,.85)'; ctx.fill();
+  pText(J.about,40,y1+48,W-80,13.5,'#cfe3ef',22);
+
+  rr(24,y1+140,W-48,110,14); ctx.fillStyle='rgba(240,192,74,.14)'; ctx.fill();
+  ctx.strokeStyle='rgba(240,192,74,.55)'; ctx.stroke();
+  T('▼ きみのミッション',W/2,y1+162,13,COL.gold,'center',true);
+  pText(J.mission,40,y1+190,W-80,13.5,COL.white,22);
+
+  drawBtn(W/2-110,636,220,54,'体験スタート！',function(){ sfx.chime(); next(); });
+}
+
+/* =========================================================
+   ミニゲーム1：ソナー調査（オリエンタルテクノ）
+   ========================================================= */
+var SN={};
+function startSonar(){
+  var cells=[];
+  var CXN=5, CYN=6;
+  for(var i=0;i<CXN*CYN;i++) cells.push({rev:false, fish:false, rt:0, heat:0});
+  // 魚群4つをランダム配置（重複なし）
+  var idxs=[];
+  while(idxs.length<4){
+    var r=Math.floor(Math.random()*CXN*CYN);
+    if(idxs.indexOf(r)<0) idxs.push(r);
+  }
+  for(var k=0;k<idxs.length;k++) cells[idxs[k]].fish=true;
+  SN={cells:cells, cxn:CXN, cyn:CYN, pings:10, found:0, done:false, doneT:0, fx:[]};
+  S.scene='sonar';
+}
+function sonarCellPos(i){
+  var gx=30, gy=180, cw=(W-60)/SN.cxn, ch=68;
+  var cx=i%SN.cxn, cy=Math.floor(i/SN.cxn);
+  return {x:gx+cx*cw, y:gy+cy*ch, w:cw, h:ch};
+}
+function sonarHeat(i){
+  // 未発見の魚群までのチェビシェフ距離
+  var cx=i%SN.cxn, cy=Math.floor(i/SN.cxn), best=99;
+  for(var j=0;j<SN.cells.length;j++){
+    var c=SN.cells[j];
+    if(c.fish&&!c.rev){
+      var d=Math.max(Math.abs(cx-j%SN.cxn),Math.abs(cy-Math.floor(j/SN.cxn)));
+      if(d<best) best=d;
+    }
+  }
+  return best;
+}
+function sonarEnd(){
+  if(SN.done) return;
+  SN.done=true; SN.doneT=0;
+  var sc=(SN.found*20+SN.pings*5)/11; // 最大(80+30)/11=10
+  S.mg.sonar=clamp(sc,0,10);
+  S.comp.ot+=S.mg.sonar;
+  S.stats.obs+=SN.found*1.3;
+  S.stats.ana+=SN.pings*0.55;
+  if(SN.found>=4) sfx.fanfare(); else sfx.chime();
+}
+function drawSonar(t,dt){
+  drawSea(t);
+  drawHeader('ソナー調査｜オリエンタルテクノ','タップした場所にピンを打つ');
+  drawSteps();
+  // グリッド
+  for(var i=0;i<SN.cells.length;i++){
+    var p=sonarCellPos(i), c=SN.cells[i];
+    ctx.save();
+    rr(p.x+3,p.y+3,p.w-6,p.h-6,10);
+    if(!c.rev){
+      ctx.fillStyle='rgba(22,69,107,.85)'; ctx.fill();
+      ctx.strokeStyle='rgba(53,201,221,.25)'; ctx.stroke();
+      T('？',p.x+p.w/2,p.y+p.h/2,16,'rgba(159,195,216,.5)','center',true);
+    }else{
+      c.rt+=dt;
+      if(c.fish){
+        ctx.fillStyle='rgba(63,174,106,.4)'; ctx.fill();
+        ctx.strokeStyle=COL.green; ctx.lineWidth=2; ctx.stroke();
+        // 魚アイコン
+        var fx=p.x+p.w/2, fy=p.y+p.h/2+Math.sin(t*3+i)*2;
+        ctx.fillStyle=COL.sand;
+        ctx.beginPath(); ctx.ellipse(fx-2,fy,11,6.5,0,0,6.28); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(fx+8,fy); ctx.lineTo(fx+15,fy-6); ctx.lineTo(fx+15,fy+6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle=COL.ink; ctx.beginPath(); ctx.arc(fx-7,fy-1.5,1.5,0,6.28); ctx.fill();
+        T('発見!',p.x+p.w/2,p.y+p.h-11,10,COL.green,'center',true);
+      }else{
+        var hcol, htxt;
+        if(c.heat<=1){ hcol=COL.coral; htxt='ちかい!'; }
+        else if(c.heat===2){ hcol=COL.gold; htxt='まあまあ'; }
+        else { hcol='#5b87a6'; htxt='とおい…'; }
+        ctx.fillStyle='rgba(13,43,69,.75)'; ctx.fill();
+        ctx.strokeStyle=hcol; ctx.lineWidth=2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x+p.w/2,p.y+p.h/2-6,5,0,6.28); ctx.fillStyle=hcol; ctx.fill();
+        T(htxt,p.x+p.w/2,p.y+p.h-16,10.5,hcol,'center',true);
+      }
+      // 波紋
+      if(c.rt<0.6){
+        ctx.strokeStyle='rgba(53,201,221,'+(1-c.rt/0.6)+')'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(p.x+p.w/2,p.y+p.h/2,c.rt*60,0,6.28); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  // グリッド全体でひとつのヒット領域（タップ位置からセルを算出）
+  if(!SN.done&&!SN.lock){
+    addHit(30,180,W-60,SN.cyn*68,function(x,y){
+      var cw=(W-60)/SN.cxn;
+      var gx2=Math.floor((x-30)/cw), gy2=Math.floor((y-180)/68);
+      if(gx2<0||gx2>=SN.cxn||gy2<0||gy2>=SN.cyn) return;
+      var idx=gy2*SN.cxn+gx2, cc=SN.cells[idx];
+      if(cc.rev||SN.done||SN.lock) return;
+      SN.pings--;
+      cc.rev=true; cc.rt=0;
+      if(cc.fish){ SN.found++; sfx.good(); sfx.splash(); }
+      else { cc.heat=sonarHeat(idx); sfx.ping(); }
+      if(SN.found>=4||SN.pings<=0){ SN.lock=true; setTimeout(sonarEnd,650); }
+    });
+  }
+  // 色ヒントの凡例
+  (function(){
+    var items=[[COL.coral,'ちかい'],[COL.gold,'まあまあ'],['#5b87a6','とおい']];
+    var lx=W/2-118;
+    T('反応の色：',lx-10,163,11,'#9fc3d8','right');
+    for(var li=0;li<3;li++){
+      ctx.beginPath(); ctx.arc(lx+li*82,163,5,0,6.28); ctx.fillStyle=items[li][0]; ctx.fill();
+      T(items[li][1],lx+li*82+10,163,11,items[li][0],'left',true);
+    }
+  })();
+  // HUD
+  var hy=606;
+  rr(24,hy,W-48,54,14); ctx.fillStyle='rgba(13,43,69,.85)'; ctx.fill();
+  T('のこりピン',86,hy+18,11,'#9fc3d8','center');
+  for(var pi=0;pi<10;pi++){
+    ctx.beginPath(); ctx.arc(38+pi*11,hy+36,4,0,6.28);
+    ctx.fillStyle=pi<SN.pings?COL.aqua:'rgba(255,255,255,.15)'; ctx.fill();
+  }
+  T('見つけた魚群',W-120,hy+18,11,'#9fc3d8','center');
+  T(SN.found+'／4',W-120,hy+38,17,COL.sand,'center',true);
+  T('ヒント：はずれの色は「魚群までの近さ」だよ',W/2,684,11.5,'#9fc3d8','center');
+
+  if(SN.done){
+    SN.doneT+=dt;
+    if(SN.doneT>0.4) drawMgResult('調査完了！', SN.found+'つの魚群を発見（のこりピン '+SN.pings+'）', S.mg.sonar,
+      SN.found>=4?'完ぺきな調査！オリテク号のエースになれるかも。':(SN.found>=2?'いい観察眼！データの読みがさえてるね。':'海は広い！次のしごとで挽回だ！'));
+  }
+}
+
+/* ---------- ミニゲーム共通リザルト ---------- */
+function drawMgResult(title,detail,score10,comment){
+  ctx.fillStyle='rgba(7,24,41,.72)'; ctx.fillRect(0,0,W,H);
+  var px=30,py=200,pw=W-60,ph=330;
+  rr(px,py,pw,ph,20); ctx.fillStyle='rgba(13,43,69,.96)'; ctx.fill();
+  ctx.strokeStyle=COL.gold; ctx.lineWidth=2; ctx.stroke();
+  T(title,W/2,py+40,22,COL.sand,'center',true);
+  T(detail,W/2,py+74,13,'#cfe3ef','center');
+  // 星（5段階）
+  var stars=Math.round(score10/2);
+  for(var i=0;i<5;i++){
+    drawStar(W/2-70+i*35,py+120,13,i<stars?COL.gold:'rgba(255,255,255,.15)');
+  }
+  T('スコア '+score10.toFixed(1)+'／10',W/2,py+158,14,COL.aqua,'center',true);
+  pText(comment,px+30,py+195,pw-60,13.5,COL.white,22);
+  drawBtn(W/2-100,py+ph-70,200,50,'つぎへ',function(){ sfx.tap(); next(); });
+}
+function drawStar(cx,cy,r,col){
+  ctx.save(); ctx.fillStyle=col; ctx.beginPath();
+  for(var i=0;i<10;i++){
+    var ang=-Math.PI/2+i*Math.PI/5, rr2=(i%2===0)?r:r*0.45;
+    var x=cx+Math.cos(ang)*rr2, y=cy+Math.sin(ang)*rr2;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+/* =========================================================
+   ミニゲーム2：製造ライン（日本リーフ）
+   ========================================================= */
+var FC={};
+function startFactory(){
+  FC={round:0, phase:'aim', t:0, needle:0, speed:1.6, score:0,
+      perfect:0, good:0, results:[], pour:0, done:false, doneT:0};
+  S.scene='factory';
+}
+function factoryEnd(){
+  if(FC.done) return;
+  FC.done=true; FC.doneT=0; FC.phase='end';
+  S.mg.factory=clamp(FC.score/10,0,10);
+  S.comp.nr+=S.mg.factory;
+  S.stats.pre+=FC.perfect*1.2+FC.good*0.6;
+  if(FC.perfect>=4) sfx.fanfare(); else sfx.chime();
+}
+function drawFactory(t,dt){
+  drawSea(t);
+  drawHeader('製造ライン｜日本リーフ','ゲージ中央でタップ！');
+  drawSteps();
+  var prod=PRODUCTS[Math.min(FC.round,4)];
+  // 製品表示
+  rr(24,158,W-48,60,14); ctx.fillStyle='rgba(13,43,69,.85)'; ctx.fill();
+  T('製造中の製品 '+(Math.min(FC.round,4)+1)+'／5',W/2,176,11,'#9fc3d8','center');
+  T(prod.name+'（'+prod.note+'）',W/2,198,15,COL.sand,'center',true);
+
+  // 工場ライン絵
+  var my=250;
+  ctx.fillStyle='#123a58'; ctx.fillRect(0,my+190,W,26); // ベルト
+  ctx.fillStyle='#0e2f49';
+  for(var i=0;i<7;i++){ ctx.beginPath(); ctx.arc(30+i*60,my+216,9,0,6.28); ctx.fill(); }
+  // ホッパー
+  ctx.fillStyle='#89a7bc';
+  ctx.beginPath(); ctx.moveTo(W/2-52,my); ctx.lineTo(W/2+52,my); ctx.lineTo(W/2+20,my+64); ctx.lineTo(W/2-20,my+64); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#6c8ba1'; ctx.fillRect(W/2-20,my+64,40,16);
+  // 注入アニメ
+  if(FC.phase==='pour'){
+    FC.pour+=dt;
+    ctx.fillStyle='#d7c9a3';
+    var pw2=14+Math.sin(t*20)*2;
+    ctx.fillRect(W/2-pw2/2,my+80,pw2,86-Math.min(FC.pour*120,60));
+    if(FC.pour>0.55){
+      FC.phase='judge'; FC.pour=0;
+    }
+  }
+  // 型枠
+  ctx.strokeStyle=COL.sand; ctx.lineWidth=3;
+  ctx.strokeRect(W/2-44,my+128,88,62);
+  if(FC.phase==='judge'||FC.phase==='next'){
+    ctx.fillStyle='#cbb886'; ctx.fillRect(W/2-41,my+134,82,53);
+    // 穴（カルセラ風）
+    ctx.fillStyle='rgba(13,43,69,.4)';
+    for(var hx=0;hx<4;hx++)for(var hy=0;hy<3;hy++){
+      ctx.beginPath(); ctx.arc(W/2-28+hx*19,my+144+hy*17,3.5,0,6.28); ctx.fill();
+    }
+  }
+  // 判定表示
+  if(FC.phase==='judge'){
+    FC.t+=dt;
+    var res=FC.results[FC.results.length-1];
+    var col=res.r==='perfect'?COL.gold:(res.r==='good'?COL.green:(res.r==='ok'?COL.aqua:COL.coral));
+    T(res.label,W/2,my+100,26,col,'center',true);
+    if(FC.t>0.9){
+      FC.t=0; FC.round++;
+      if(FC.round>=5) factoryEnd();
+      else { FC.phase='aim'; FC.speed=1.6+FC.round*0.45; FC.needle=Math.random()*6.28; }
+    }
+  }
+  // ゲージ
+  var gy=530, gx=40, gw=W-80;
+  rr(gx,gy,gw,34,17); ctx.fillStyle='rgba(13,43,69,.9)'; ctx.fill();
+  // ゾーン
+  var cx=gx+gw/2;
+  ctx.save();
+  rr(gx,gy,gw,34,17); ctx.clip();
+  ctx.fillStyle='rgba(53,201,221,.25)'; ctx.fillRect(cx-58,gy,116,34);
+  ctx.fillStyle='rgba(63,174,106,.45)'; ctx.fillRect(cx-30,gy,60,34);
+  ctx.fillStyle='rgba(240,192,74,.75)'; ctx.fillRect(cx-11,gy,22,34);
+  ctx.restore();
+  rr(gx,gy,gw,34,17); ctx.strokeStyle='rgba(53,201,221,.5)'; ctx.stroke();
+  // 針
+  if(FC.phase==='aim'&&!FC.done){
+    FC.needle+=dt*FC.speed;
+    var np=cx+Math.sin(FC.needle)*(gw/2-14);
+    ctx.fillStyle=COL.white;
+    ctx.beginPath(); ctx.moveTo(np,gy-10); ctx.lineTo(np-7,gy-22); ctx.lineTo(np+7,gy-22); ctx.closePath(); ctx.fill();
+    ctx.fillRect(np-2,gy-8,4,50);
+  }
+  T('まんなかの金色ゾーンで「注入」！',W/2,596,12,'#9fc3d8','center');
+  // スコア
+  rr(24,620,W-48,44,12); ctx.fillStyle='rgba(13,43,69,.85)'; ctx.fill();
+  T('品質スコア',90,642,12,'#9fc3d8','center');
+  T(FC.score+' 点',W-100,642,17,COL.sand,'center',true);
+
+  if(FC.phase==='aim'&&!FC.done){
+    drawBtn(W/2-90,668,180,46,'注入！',function(){
+      var pos=Math.abs(Math.sin(FC.needle))*(gw/2-14); // 中央からの距離px
+      var r,label,pts;
+      if(pos<=11){ r='perfect'; label='極上！ +20'; pts=20; FC.perfect++; sfx.perfect(); }
+      else if(pos<=30){ r='good'; label='良品！ +12'; pts=12; FC.good++; sfx.good(); }
+      else if(pos<=58){ r='ok'; label='合格 +6'; pts=6; sfx.tap(); }
+      else { r='miss'; label='やりなおし…'; pts=0; sfx.miss(); }
+      FC.score+=pts;
+      FC.results.push({r:r,label:label});
+      FC.phase='pour'; FC.pour=0; FC.t=0;
+      sfx.splash();
+    });
+  }
+  if(FC.done){
+    FC.doneT+=dt;
+    if(FC.doneT>0.4) drawMgResult('製造完了！','極上 '+FC.perfect+'個／良品 '+FC.good+'個（'+FC.score+'点）',S.mg.factory,
+      FC.perfect>=4?'神ワザ級の正確さ！マイスターの素質十分！':(FC.score>=50?'安定した腕前！ものづくりに向いてるよ。':'魚たちのおうちづくりはむずかしい！でも経験がいちばんの先生だよ。'));
+  }
+}
+
+/* =========================================================
+   ミニゲーム3：クレーン施工（マルイチ）
+   ========================================================= */
+var CR={};
+function startCrane(){
+  CR={round:0, phase:'swing', t:0, ang:0, sw:1.7,
+      bx:0,by:0,vx:0,vy:0, cur:0, target:{x:0,w:120},
+      score:0, results:[], fish:[], done:false, doneT:0, msg:'', msgT:0};
+  craneSetup();
+  S.scene='crane';
+}
+function craneSetup(){
+  var conf=[
+    {w:130, cur:0},
+    {w:100, cur:0.55*(Math.random()<0.5?1:-1)},
+    {w:72, cur:0.85*(Math.random()<0.5?1:-1)}
+  ][CR.round];
+  CR.target={x:90+Math.random()*(W-180), w:conf.w};
+  CR.cur=conf.cur;
+  CR.phase='swing'; CR.ang=Math.random()*6.28; CR.t=0;
+}
+function craneEnd(){
+  if(CR.done) return;
+  CR.done=true; CR.doneT=0; CR.phase='end';
+  S.mg.crane=clamp(CR.score/10,0,10);
+  S.comp.mi+=S.mg.crane;
+  S.stats.dec+=S.mg.crane*0.9;
+  S.stats.team+=2;
+  if(CR.score>=90) sfx.fanfare(); else sfx.chime();
+}
+function drawCrane(t,dt){
+  drawSea(t);
+  drawHeader('クレーン施工｜マルイチ','タップでブロックを切りはなす');
+  drawSteps();
+  var seaY=200, botY=600;
+  // 海面
+  ctx.strokeStyle='rgba(191,238,246,.5)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var x=0;x<=W;x+=8) ctx.lineTo(x,seaY+Math.sin(t*2+x*0.05)*3);
+  ctx.stroke();
+  // 台船
+  ctx.fillStyle='#c9553d';
+  ctx.beginPath(); ctx.moveTo(W/2-95,seaY-8); ctx.lineTo(W/2+95,seaY-8); ctx.lineTo(W/2+78,seaY+14); ctx.lineTo(W/2-78,seaY+14); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#e8e2d4'; rr(W/2-70,seaY-34,60,26,4); ctx.fill();
+  // クレーンアーム
+  var pivX=W/2+30, pivY=seaY-50; // ステップ表示(〜y140)と重ならない高さ
+  ctx.strokeStyle='#e8d5a0'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(W/2+8,seaY-8); ctx.lineTo(pivX,pivY); ctx.stroke();
+  ctx.strokeStyle='#b09b6a'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2+40,seaY-8); ctx.lineTo(pivX,pivY); ctx.stroke();
+  // 海底
+  ctx.fillStyle='#153450'; ctx.beginPath();
+  ctx.moveTo(0,botY+22);
+  for(var bx2=0;bx2<=W;bx2+=20) ctx.lineTo(bx2,botY+22+Math.sin(bx2*0.08)*5);
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+  // まと
+  var tw=CR.target.w, tx=CR.target.x;
+  ctx.fillStyle='rgba(240,192,74,.25)'; ctx.fillRect(tx-tw/2,botY-6,tw,30);
+  ctx.strokeStyle=COL.gold; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+  ctx.strokeRect(tx-tw/2,botY-6,tw,30); ctx.setLineDash([]);
+  T('▼ ここに沈めよう',tx,botY-22,11.5,COL.gold,'center',true);
+  // 潮流表示
+  if(Math.abs(CR.cur)>0.01){
+    var dir=CR.cur>0?1:-1;
+    rr(W/2-88,236,176,30,15); ctx.fillStyle='rgba(13,43,69,.8)'; ctx.fill();
+    var ar=(t*40%36);
+    ctx.fillStyle=COL.aqua;
+    for(var a2=0;a2<3;a2++){
+      var ax=W/2-40+a2*36+ar*dir;
+      if(ax>W/2-62&&ax<W/2+62){
+        ctx.beginPath();
+        ctx.moveTo(ax+8*dir,251); ctx.lineTo(ax-4*dir,244); ctx.lineTo(ax-4*dir,258); ctx.closePath(); ctx.fill();
+      }
+    }
+    T('潮流 '+(Math.abs(CR.cur)>0.7?'強':'中'),W/2,283,11.5,COL.aqua,'center',true);
+  }else{
+    rr(W/2-70,236,140,30,15); ctx.fillStyle='rgba(13,43,69,.8)'; ctx.fill();
+    T('潮流 なし（べた凪）',W/2,251,11.5,'#9fc3d8','center',true);
+  }
+  // ブロック
+  var blockW=46;
+  function drawBlock(x,y){
+    ctx.fillStyle='#cbb886';
+    rr(x-blockW/2,y-blockW/2,blockW,blockW,6); ctx.fill();
+    ctx.fillStyle='rgba(13,43,69,.4)';
+    for(var hx=0;hx<2;hx++)for(var hy=0;hy<2;hy++){
+      ctx.beginPath(); ctx.arc(x-10+hx*20,y-9+hy*19,4.5,0,6.28); ctx.fill();
+    }
+  }
+  if(CR.phase==='swing'){
+    CR.ang+=dt*CR.sw;
+    var swx=pivX+Math.sin(CR.ang)*95, swy=pivY+58+Math.abs(Math.cos(CR.ang))*8;
+    ctx.strokeStyle='#cfe3ef'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(pivX,pivY); ctx.lineTo(swx,swy-blockW/2); ctx.stroke();
+    drawBlock(swx,swy);
+    addHit(0,150,W,H-150,function(){
+      if(CR.phase!=='swing') return;
+      CR.phase='fall';
+      CR.bx=swx; CR.by=swy;
+      CR.vx=Math.cos(CR.ang)*CR.sw*52; CR.vy=0;
+      sfx.drop();
+    });
+  }else if(CR.phase==='fall'){
+    CR.vy+=dt*260;
+    if(CR.by>seaY){ CR.vy=Math.min(CR.vy,120); CR.vx*=0.985; CR.bx+=CR.cur*dt*118; }
+    CR.bx+=CR.vx*dt; CR.by+=CR.vy*dt;
+    if(CR.by>seaY-6&&CR.by<seaY+16) { /* 着水しぶき */ }
+    drawBlock(CR.bx,CR.by);
+    if(CR.by>=botY+6){
+      CR.phase='land'; CR.t=0;
+      var dx=Math.abs(CR.bx-CR.target.x), half=CR.target.w/2;
+      var res;
+      if(dx<=half*0.3){ res={pts:34,label:'ドンピシャ！ +34'}; sfx.perfect(); }
+      else if(dx<=half){ res={pts:22,label:'いいぞ！ +22'}; sfx.good(); }
+      else if(dx<=half+40){ res={pts:10,label:'おしい！ +10'}; sfx.tap(); }
+      else { res={pts:0,label:'流された〜！'}; sfx.miss(); }
+      sfx.splash();
+      CR.score+=res.pts; CR.results.push(res); CR.msg=res.label; CR.msgT=0;
+      // 魚が寄ってくる演出
+      if(res.pts>0){
+        for(var fi2=0;fi2<res.pts/4;fi2++)
+          CR.fish.push({x:CR.bx+(Math.random()*160-80), y:botY-10-Math.random()*60, tx:CR.bx+(Math.random()*70-35), ty:botY-14-Math.random()*36, ph:Math.random()*6.28});
+      }
+    }
+  }else if(CR.phase==='land'){
+    CR.t+=dt;
+    drawBlock(CR.bx,botY+6);
+    if(CR.t>1.3){
+      CR.round++;
+      if(CR.round>=3) craneEnd();
+      else craneSetup();
+    }
+  }
+  // 魚群
+  for(var fi=0;fi<CR.fish.length;fi++){
+    var f=CR.fish[fi];
+    f.x=lerp(f.x,f.tx,dt*2); f.y=lerp(f.y,f.ty,dt*2);
+    var fx2=f.x+Math.sin(t*3+f.ph)*4, fy2=f.y+Math.cos(t*2.5+f.ph)*3;
+    ctx.fillStyle='rgba(232,213,160,.9)';
+    ctx.beginPath(); ctx.ellipse(fx2,fy2,7,4,0,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(fx2+5,fy2); ctx.lineTo(fx2+10,fy2-4); ctx.lineTo(fx2+10,fy2+4); ctx.closePath(); ctx.fill();
+  }
+  // メッセージ
+  if(CR.msg&&CR.phase==='land'){
+    T(CR.msg,W/2,340,24,COL.gold,'center',true);
+  }
+  // HUD
+  rr(24,634,W-48,44,12); ctx.fillStyle='rgba(13,43,69,.85)'; ctx.fill();
+  T('沈設 '+Math.min(CR.round+1,3)+'／3',90,656,13,'#9fc3d8','center');
+  T(CR.score+' 点',W-100,656,17,COL.sand,'center',true);
+  T('潮に流されるぶんを予測しよう！',W/2,700,11.5,'#9fc3d8','center');
+
+  if(CR.done){
+    CR.doneT+=dt;
+    if(CR.doneT>0.4) drawMgResult('施工完了！','3回の沈設で '+CR.score+'点',S.mg.crane,
+      CR.score>=90?'潮を完全に読みきった！現場の主役になれる腕前！':(CR.score>=50?'なかなかの操縦センス！現場で頼られるタイプだね！':'海の現場は手ごわい！この悔しさが成長のもと！'));
+  }
+}
+
+/* ---------- 診断中 ---------- */
+var CALC={t:0};
+function startCalc(){ CALC.t=0; S.scene='calc'; }
+function drawCalc(t,dt){
+  drawSea(t);
+  CALC.t+=dt;
+  T('診断中…',W/2,240,26,COL.sand,'center',true);
+  // ぐるぐるレーダー
+  var cx=W/2, cy=400, R=90;
+  ctx.save();
+  ctx.strokeStyle='rgba(53,201,221,.4)';
+  for(var i=1;i<=3;i++){ ctx.beginPath(); ctx.arc(cx,cy,R*i/3,0,6.28); ctx.stroke(); }
+  var ang=CALC.t*3;
+  ctx.fillStyle='rgba(53,201,221,.3)';
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,R,ang,ang+0.8); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle=COL.aqua; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang+0.8)*R,cy+Math.sin(ang+0.8)*R); ctx.stroke();
+  ctx.restore();
+  var msgs=['体験データを解析中…','質問の回答を分析中…','きみの海職タイプを特定中…'];
+  T(msgs[Math.min(Math.floor(CALC.t/0.9),2)],W/2,540,14,'#cfe3ef','center');
+  T('※3つの体験の成績と、質問の回答から診断するよ',W/2,585,11,'#9fc3d8','center');
+  if(CALC.t>2.8) next();
+}
+
+/* ---------- 診断結果 ---------- */
+var confetti=[];
+function computeResult(){
+  // 表示用ステータス(1〜10)
+  var st=S.stats;
+  var disp={
+    obs:clamp(2+st.obs,1.5,10), ana:clamp(2+st.ana,1.5,10),
+    pre:clamp(2+st.pre,1.5,10), dec:clamp(2+st.dec,1.5,10),
+    team:clamp(3+st.team,1.5,10)
+  };
+  // タイプ決定（会社=質問＋体験成績、サブタイプ=質問回答のみで決める。
+  //   体験が下手だった人に特定タイプを押し付けないための設計）
+  var c=S.comp, top='ot';
+  if(c.nr>c.ot) top='nr';
+  if(c.mi>c[top]) top='mi';
+  var q=S.qst, key;
+  if(top==='ot'){
+    if(q.ana!==q.obs) key=(q.ana>q.obs)?'data':'field';
+    else key=(disp.ana>=disp.obs)?'data':'field';
+  }else if(top==='nr'){
+    if(q.pre!==q.team) key=(q.pre>q.team)?'meister':'creator';
+    else key=(disp.pre>=disp.team)?'meister':'creator';
+  }else{
+    if(q.team!==q.dec) key=(q.team>q.dec)?'commander':'operator';
+    else key=(disp.team>=disp.dec)?'commander':'operator';
+  }
+  // ランク
+  var total=S.mg.sonar+S.mg.factory+S.mg.crane;
+  var rank= total>=24?'S': total>=18?'A': total>=11?'B':'C';
+  var rankMsg={S:'海のエリート新人!!',A:'即戦力ルーキー！',B:'期待の新人！',C:'のびしろ∞！'}[rank];
+  S.result={key:key, type:TYPES[key], disp:disp, rank:rank, rankMsg:rankMsg, total:total};
+  resultT=0;
+  save.plays=(save.plays||0)+1;
+  save.best={type:TYPES[key].name, rank:rank, total:Math.round(total*10)/10};
+  if(!save.types) save.types=[];
+  if(save.types.indexOf(key)<0) save.types.push(key);
+  persist();
+  confetti=[];
+  for(var i=0;i<60;i++) confetti.push({x:Math.random()*W,y:-20-Math.random()*400,v:60+Math.random()*90,ph:Math.random()*6.28,c:[COL.aqua,COL.gold,COL.coral,COL.green,COL.sand][i%5]});
+}
+function drawRadar(cx,cy,R,disp,t){
+  var axes=[
+    {k:'obs',l:'観察力'},{k:'ana',l:'分析力'},{k:'pre',l:'正確さ'},
+    {k:'dec',l:'決断力'},{k:'team',l:'チーム力'}
+  ];
+  var n=axes.length;
+  ctx.save();
+  // グリッド
+  ctx.strokeStyle='rgba(159,195,216,.35)'; ctx.lineWidth=1;
+  for(var g=1;g<=3;g++){
+    ctx.beginPath();
+    for(var i=0;i<=n;i++){
+      var a=-Math.PI/2+i*6.283/n, r=R*g/3;
+      var x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  for(var i2=0;i2<n;i2++){
+    var a2=-Math.PI/2+i2*6.283/n;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a2)*R,cy+Math.sin(a2)*R); ctx.stroke();
+  }
+  // 値（じわっと伸びる）
+  var grow=clamp(t*0.8,0,1);
+  ctx.beginPath();
+  for(var i3=0;i3<=n;i3++){
+    var ax=axes[i3%n], a3=-Math.PI/2+(i3%n)*6.283/n;
+    var val=disp[ax.k]/10*grow;
+    var x3=cx+Math.cos(a3)*R*val, y3=cy+Math.sin(a3)*R*val;
+    if(i3===0) ctx.moveTo(x3,y3); else ctx.lineTo(x3,y3);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(53,201,221,.35)'; ctx.fill();
+  ctx.strokeStyle=COL.aqua; ctx.lineWidth=2; ctx.stroke();
+  // ラベル
+  for(var i4=0;i4<n;i4++){
+    var a4=-Math.PI/2+i4*6.283/n;
+    var lx=cx+Math.cos(a4)*(R+18), ly=cy+Math.sin(a4)*(R+15);
+    if(lx>cx) lx=Math.min(lx,cx+R+4); // 右側ラベルが隣の枠に触れないよう抑制
+    T(axes[i4].l,lx,ly,10.5,COL.sand,'center',true);
+  }
+  ctx.restore();
+}
+var resultT=0;
+function drawResult(t,dt){
+  drawSea(t);
+  resultT+=dt;
+  var R=S.result; if(!R){ computeResult(); R=S.result; }
+  var TY=R.type;
+  // 紙吹雪
+  for(var ci=0;ci<confetti.length;ci++){
+    var c=confetti[ci];
+    c.y+=c.v*dt; c.x+=Math.sin(t*3+c.ph)*0.8;
+    if(c.y>H+20){ c.y=-20; c.x=Math.random()*W; }
+    ctx.fillStyle=c.c; ctx.globalAlpha=0.8;
+    ctx.fillRect(c.x,c.y,5,8);
+    ctx.globalAlpha=1;
+  }
+  T('診断結果',W/2,40,15,'#bfeef6','center',true);
+  // タイプカード
+  var px=20,py=58,pw=W-40;
+  rr(px,py,pw,232,20); ctx.fillStyle='rgba(13,43,69,.94)'; ctx.fill();
+  ctx.strokeStyle=TY.color; ctx.lineWidth=2.5; ctx.stroke();
+  // バッジ
+  var bw=86;
+  if(!drawIm(TY.badge,W/2-bw/2,py+14,bw,bw)){
+    ctx.save();
+    ctx.fillStyle=TY.color;
+    ctx.beginPath(); ctx.arc(W/2,py+14+bw/2,bw/2,0,6.28); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.9)';
+    T('★',W/2,py+16+bw/2,34,'rgba(13,43,69,.85)','center',true);
+    ctx.restore();
+  }
+  T('きみは…',W/2,py+118,12,'#9fc3d8','center');
+  T('「'+TY.name+'」タイプ！',W/2,py+143,21,COL.sand,'center',true);
+  T(TY.catch,W/2,py+170,13,TY.color,'center',true);
+  // ランク
+  rr(W/2-104,py+188,208,30,15); ctx.fillStyle='rgba(240,192,74,.16)'; ctx.fill();
+  ctx.strokeStyle='rgba(240,192,74,.6)'; ctx.stroke();
+  T('体験ランク '+R.rank+'｜'+R.rankMsg,W/2,py+203,13,COL.gold,'center',true);
+
+  // レーダー
+  drawRadar(110,392,64,R.disp,resultT);
+  // 向いてるしごと
+  var jx=210,jy=310,jw=W-230;
+  rr(jx,jy,jw,164,14); ctx.fillStyle='rgba(13,43,69,.88)'; ctx.fill();
+  ctx.strokeStyle='rgba(53,201,221,.4)'; ctx.stroke();
+  T('向いているしごと',jx+jw/2,jy+20,12,COL.aqua,'center',true);
+  pText(TY.job,jx+14,jy+44,jw-28,13.5,COL.sand,20,'left',true);
+  T('▼ グループでの活躍先',jx+jw/2,jy+92,11,'#9fc3d8','center');
+  T(TY.comp,jx+jw/2,jy+114,15,COL.white,'center',true);
+  T('で待ってるよ！',jx+jw/2,jy+138,11.5,'#9fc3d8','center');
+
+  // 解説
+  rr(20,486,W-40,96,14); ctx.fillStyle='rgba(13,43,69,.88)'; ctx.fill();
+  pText(TY.desc,36,512,W-72,13,'#e6f2f8',21);
+
+  // ボタン
+  drawBtn(28,600,175,48,'もう一度診断',function(){
+    sfx.tap(); resultT=0; resetRun(); S.scene='title';
+  },'ghost');
+  drawBtn(217,600,175,48,'結果をコピー',function(){ copyResult(); });
+  drawBtn(W/2-140,660,280,44,'日本リーフグループを見てみる',function(){
+    try{ window.open('https://www.japanreef.net/','_blank'); }catch(e){}
+  },'green');
+  T('(c) 日本リーフグループ（日本リーフ・マルイチ・オリエンタルテクノ）',W/2,722,10,'#7fa5bd','center');
+}
+function copyResult(){
+  var R=S.result; if(!R) return;
+  var txt='【ウミショク！診断結果】\nわたしは「'+R.type.name+'」タイプ（ランク'+R.rank+'）でした！\n向いてるしごと：'+R.type.job+'（'+R.type.comp+'）\n#ウミショク #日本リーフグループ\nhttps://www.japanreef.net/';
+  var done=function(){ toast('結果をコピーしたよ！'); sfx.chime(); };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done,function(){ legacyCopy(txt); done(); });
+    }else{ legacyCopy(txt); done(); }
+  }catch(e){ legacyCopy(txt); done(); }
+}
+function legacyCopy(txt){
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){}
+}
+var toastTimer=null;
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.style.opacity='1';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ el.style.opacity='0'; },1800);
+}
+
+/* ---------- メインループ ---------- */
+var lastT=performance.now();
+function loop(now){
+  var dt=Math.min((now-lastT)/1000,0.05); lastT=now;
+  var t=now/1000;
+  HITS.length=0;
+  ctx.clearRect(0,0,W,H);
+  try{
+    switch(S.scene){
+      case 'title': drawTitle(t); break;
+      case 'dialog': drawDialog(t); break;
+      case 'q': drawQ(t); break;
+      case 'brief': drawBrief(t); break;
+      case 'sonar': drawSonar(t,dt); break;
+      case 'factory': drawFactory(t,dt); break;
+      case 'crane': drawCrane(t,dt); break;
+      case 'calc': drawCalc(t,dt); break;
+      case 'result': drawResult(t,dt); break;
+    }
+  }catch(e){ if(window.console&&console.error) console.error('draw error @'+S.scene,e); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

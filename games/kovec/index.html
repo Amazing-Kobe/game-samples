@@ -27,34 +27,34 @@ button,a{font:inherit}
 #bg{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 #ui{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;
   padding:calc(var(--safe-top) + 2px) 20px var(--safe-bottom)}
-#logo{text-align:center;margin-top:0;filter:drop-shadow(0 7px 18px rgba(14,104,124,.22))}
+#logo{width:100%;text-align:center;margin-top:0;filter:drop-shadow(0 7px 18px rgba(14,104,124,.22))}
 #logo .co{display:inline-flex;align-items:center;min-height:28px;color:#125773;font-size:11px;font-weight:800;
   border:1px solid rgba(255,255,255,.88);background:rgba(255,255,255,.76);backdrop-filter:blur(10px);
   border-radius:999px;padding:4px 16px;letter-spacing:.16em}
-#logo h1{font-size:31px;font-weight:900;line-height:1.18;margin-top:8px;letter-spacing:.03em;
-  color:#fff;text-shadow:0 3px 0 rgba(7,92,120,.82),0 8px 24px rgba(9,91,118,.34)}
-#logo h1 em{font-style:normal;color:var(--gold)}
+#logo .main-logo{display:block;width:310px;max-width:100%;height:auto;margin:3px auto -2px;
+  animation:parkLogoIn .8s cubic-bezier(.2,1.45,.35,1) both}
+@keyframes parkLogoIn{from{opacity:0;transform:scale(.55) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}
 #logo .sub{font-size:11px;color:#125773;display:inline-block;margin-top:6px;font-weight:800;
   border-radius:999px;padding:4px 13px;letter-spacing:.09em;background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.9)}
 #mascotBox{display:none;position:absolute;right:4px;top:145px;width:100px;height:116px;pointer-events:none;z-index:4;
-  filter:drop-shadow(0 10px 16px rgba(5,99,112,.28))}
+  filter:drop-shadow(0 10px 16px rgba(5,99,112,.28));transition:filter .2s ease}
 #greet{display:none;position:absolute;right:102px;top:154px;z-index:5;background:rgba(255,255,255,.96);
   border:2px solid var(--cyan);border-radius:14px;padding:8px 11px;font-size:11px;font-weight:800;
   color:#11355D;max-width:190px;line-height:1.5;opacity:0;transition:opacity .45s ease;
   box-shadow:0 8px 22px rgba(0,13,56,.28)}
 #greet::after{content:"";position:absolute;right:-14px;top:18px;border:7px solid transparent;
   border-left-color:var(--cyan)}
-#cards{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:12px}
-.card{position:relative;display:block;width:100%;height:145px;overflow:hidden;border-radius:17px;
+#cards{width:100%;display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.card{position:relative;display:block;width:100%;height:140px;overflow:hidden;border-radius:17px;
   color:#10465A;text-decoration:none;background:#DFF8FA;border:2px solid rgba(255,255,255,.92);
   box-shadow:0 8px 22px rgba(7,91,111,.25),inset 0 0 0 1px rgba(49,189,204,.16);
   transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
 .card:active{transform:scale(.975)}
-.card .art{position:absolute;inset:0;width:100%;height:100%;display:block}
+.card .art{position:absolute;inset:0;width:100%;height:100%;display:block;filter:saturate(1.16) contrast(1.07)}
 .card .shade{position:absolute;inset:0;background:
-  linear-gradient(90deg,rgba(255,255,255,.96) 0%,rgba(239,255,255,.82) 48%,rgba(229,253,255,.08) 82%),
-  linear-gradient(0deg,rgba(230,253,255,.78) 0%,rgba(255,255,255,0) 57%)}
-.card .txt{position:absolute;left:14px;top:11px;z-index:2;width:min(68%,250px)}
+  linear-gradient(90deg,rgba(255,255,255,.84) 0%,rgba(239,255,255,.55) 48%,rgba(229,253,255,.03) 82%),
+  linear-gradient(0deg,rgba(230,253,255,.58) 0%,rgba(255,255,255,0) 54%)}
+.card .txt{position:absolute;left:14px;right:14px;top:11px;z-index:2;width:auto}
 .card .age{display:inline-flex;align-items:center;min-height:24px;font-size:11.5px;font-weight:900;
   border-radius:999px;padding:3px 10px;margin-bottom:4px;color:var(--age-ink,#174F63);
   background:var(--age-color,#FF5F91);border:2px solid rgba(255,255,255,.96);
@@ -62,15 +62,17 @@ button,a{font:inherit}
   box-shadow:0 4px 0 var(--age-shadow,#B83363),0 6px 13px rgba(25,61,85,.24)}
 .card .age::before{content:"★";margin-right:5px;color:#FFF36F;font-size:10px;line-height:1;
   text-shadow:0 1px 2px rgba(85,47,0,.42)}
-.card h2{font-size:19px;line-height:1.2;text-shadow:0 1px 0 rgba(255,255,255,.9)}
-.card .desc{font-size:12px;line-height:1.38;margin-top:3px;color:#245A65;
+.card .game-logo{display:block;width:145px;height:auto;margin:-7px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
+.card .desc{display:none;font-size:12px;line-height:1.38;margin-top:3px;color:#245A65;
   text-shadow:0 1px 0 rgba(255,255,255,.88)}
-.card .prog{position:absolute;left:14px;right:124px;bottom:10px;font-size:11.5px;font-weight:800;
-  color:#176443;text-shadow:0 1px 0 rgba(255,255,255,.9);z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .prog{position:absolute;left:14px;right:124px;bottom:2px;font-size:11.5px;font-weight:800;
+  color:#114B35;text-shadow:none;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.92);border-radius:999px;padding:3px 8px;
+  box-shadow:0 3px 9px rgba(11,82,96,.14);backdrop-filter:blur(5px)}
 .card .go{position:absolute;right:9px;bottom:8px;z-index:2;display:inline-flex;align-items:center;
-  justify-content:center;gap:8px;min-width:108px;min-height:44px;color:#4B2417;background:linear-gradient(180deg,#FFA45D 0%,#FF713B 62%,#F2552D 100%);
-  border:2px solid #fff;font-size:12px;font-weight:900;border-radius:999px;letter-spacing:.04em;
-  text-shadow:0 1px 0 rgba(255,255,255,.46);
+  justify-content:center;gap:8px;min-width:108px;min-height:44px;color:#5A1E0C;background:linear-gradient(180deg,#FFB36F 0%,#FF713B 58%,#EA4925 100%);
+  border:2px solid #fff;font-size:13px;font-weight:900;border-radius:999px;letter-spacing:.07em;
+  text-shadow:0 1px 0 #FFD7BC,0 0 5px rgba(255,255,255,.72);
   box-shadow:0 5px 0 #B83E20,0 0 0 2px rgba(255,255,255,.40),0 9px 20px rgba(97,45,22,.32)}
 .card .go::after{content:"▶";display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;
   border-radius:50%;color:#7B3517;background:linear-gradient(180deg,#FFF88A,#FFD52F);
@@ -91,39 +93,54 @@ button,a{font:inherit}
     radial-gradient(circle at 50% 32%,rgba(255,255,255,.12),rgba(255,255,255,0) 31%),
     linear-gradient(180deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,0) 56%,rgba(13,115,135,.14) 100%)}
   #ui{padding:calc(var(--safe-top) + 12px) max(28px,var(--safe-right)) var(--safe-bottom)}
-  #logo{margin-top:clamp(10px,2.2vh,30px)}
-  #logo .co{min-height:32px;font-size:12px;padding:5px 22px;letter-spacing:.18em}
-  #logo h1{font-size:clamp(38px,4.1vw,60px);line-height:1.08;margin-top:10px;white-space:nowrap}
-  #logo h1 br{display:none}
-  #logo .sub{font-size:clamp(12px,1.05vw,15px);padding:5px 18px;margin-top:8px}
-  #mascotBox{display:block;left:50%;right:auto;top:clamp(185px,25vh,270px);transform:translateX(-50%);
-    width:clamp(190px,17vw,260px);height:clamp(205px,19vw,280px)}
-  #greet{display:block;left:calc(50% - 304px);right:auto;top:clamp(220px,30vh,320px);max-width:230px;
+  #logo{margin-top:0}
+  #logo .co{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:6;
+    min-height:32px;font-size:12px;padding:5px 22px;letter-spacing:.18em}
+  #logo .main-logo{width:clamp(615px,58.5vw,930px);max-width:calc(100vw - 80px);height:auto;margin:0 auto -72px}
+  #logo .sub{display:none}
+  #mascotBox{display:block;left:50%;right:auto;top:clamp(370px,calc(41vh - 30px),415px);transform:translateX(-50%) scale(1.3);transform-origin:center;
+    width:clamp(155px,12vw,180px);height:clamp(170px,12.5vw,190px);pointer-events:auto;cursor:pointer}
+  #mascotBox:hover{filter:drop-shadow(0 13px 22px rgba(5,99,112,.38)) brightness(1.06)}
+  #mascotBox:focus-visible{outline:4px solid #fff;outline-offset:5px;border-radius:50%}
+  #greet{display:block;left:calc(50% - 310px);right:auto;top:clamp(450px,46vh,495px);max-width:230px;
     font-size:13px;padding:10px 14px}
-  #greet::after{left:auto;right:-16px;top:24px;border-width:8px;border-left-color:var(--cyan)}
-  #cards{position:absolute;left:50%;top:clamp(410px,55vh,585px);transform:translateX(-50%);
+  #greet::after{left:auto;right:-16px;top:24px;border-width:8px;border-left-color:var(--cyan);border-bottom-color:transparent}
+  #cards{position:absolute;left:50%;top:clamp(625px,62vh,660px);transform:translateX(-50%);
     width:min(1120px,calc(100vw - 64px));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
     gap:18px;margin:0}
-  .card{height:clamp(178px,21vh,224px);border-radius:22px}
+  .card{height:clamp(255px,29vh,285px);border-radius:22px}
   .card:hover{transform:translateY(-6px);border-color:#fff;
     box-shadow:0 18px 38px rgba(0,7,42,.56),0 0 0 2px rgba(67,223,242,.22)}
   .card .shade{background:
-    linear-gradient(0deg,rgba(241,255,255,.96) 0%,rgba(239,255,255,.70) 52%,rgba(255,255,255,.02) 100%),
-    linear-gradient(90deg,rgba(255,255,255,.20),rgba(255,255,255,0) 70%)}
+    linear-gradient(0deg,rgba(241,255,255,.80) 0%,rgba(239,255,255,.32) 48%,rgba(255,255,255,.01) 80%),
+    linear-gradient(90deg,rgba(255,255,255,.08),rgba(255,255,255,0) 68%)}
   .card .txt{left:18px;right:18px;top:16px;width:auto;max-width:none}
   .card .age{font-size:10px;min-height:24px;padding:4px 11px;margin-bottom:7px}
-  .card h2{font-size:clamp(18px,1.55vw,23px)}
-  .card .desc{font-size:clamp(10px,.9vw,12px);line-height:1.48;margin-top:6px;max-width:95%}
-  .card .prog{left:18px;right:132px;bottom:17px;font-size:11px}
-  .card .go{right:14px;bottom:12px;min-width:112px;min-height:46px;font-size:13px}
+  .card .game-logo{width:clamp(230px,19vw,260px);margin:-3px auto 3px}
+  .card .desc{display:block;font-size:clamp(10px,.9vw,12px);font-weight:800;line-height:1.42;margin-top:0;
+    max-width:calc(100% - 126px);color:#153D45;background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.9);
+    border-radius:9px;padding:4px 7px;text-shadow:none;box-shadow:0 3px 10px rgba(8,75,91,.13);backdrop-filter:blur(5px)}
+  .card .prog{left:18px;right:auto;bottom:17px;max-width:calc(100% - 160px);font-size:11px}
+  .card .go{right:14px;bottom:12px;min-width:118px;min-height:48px;font-size:14px}
   #foot{position:absolute;left:50%;right:auto;bottom:var(--safe-bottom);transform:translateX(-50%);
     width:max-content;max-width:calc(100vw - 32px);font-size:11px;line-height:1.55;padding:6px 18px}
   #foot b{font-size:12px}
 }
+@media (min-width:900px) and (max-height:950px){
+  #mascotBox{top:430px;width:150px;height:165px}
+  #greet{top:450px}
+  #cards{top:665px}.card{height:235px}
+  .card .txt{top:11px}
+  .card .game-logo{width:240px;margin:-8px auto -3px}
+  .card .desc{font-size:10.5px;line-height:1.3}
+  .card .prog{bottom:12px}
+  .card .go{bottom:10px}
+  #foot{display:none}
+}
 @media (min-width:900px) and (max-height:760px){
-  #logo{margin-top:0}#logo h1{font-size:36px}#logo .sub{margin-top:4px}
-  #mascotBox{top:150px;width:140px;height:154px}#greet{top:178px}
-  #cards{top:350px}.card{height:176px}
+  #logo .main-logo{width:585px;max-width:calc(100vw - 64px);margin-bottom:-50px}
+  #mascotBox{top:302px;width:125px;height:138px}#greet{display:none}
+  #cards{top:505px}.card{height:255px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
@@ -138,11 +155,11 @@ button,a{font:inherit}
     <div id="ui">
       <header id="logo">
         <span class="co">株式会社コベック</span>
-        <h1>コベック<br><em>エコ・ゲームパーク</em></h1>
+        <img class="main-logo" src="assets/titles/eco-game-park.png" alt="コベック エコ・ゲームパーク">
         <span class="sub">神戸から始める ECOLOGY</span>
       </header>
       <div id="greet" role="status" aria-live="polite"></div>
-      <canvas id="mascotBox" aria-hidden="true"></canvas>
+      <canvas id="mascotBox" role="button" tabindex="0" aria-label="コベッくん。押すとスターショー"></canvas>
       <nav id="cards" aria-label="ゲームを選ぶ"></nav>
       <footer id="foot">
         <b>バイオガスKOBE</b>（神戸市兵庫区遠矢浜町）<br>
@@ -178,13 +195,13 @@ var stars=0;if(sGrid&&Array.isArray(sGrid.stars))for(var si=0;si<sGrid.stars.len
 var bestMwh=sPlant?+sPlant.bestMwh||0:0;
 var nightT=Math.min(1,(Math.min(lights,60)/60+Math.min(stars,36)/36+Math.min(bestMwh,410)/410)/3);
 var GAMES=[
- {href:'catch.html',title:'もぐもぐキャッチ！',age:'しょうがくせい むけ',ageC:'#F25F92',ageInk:'#FFFFFF',ageShadow:'#AD315F',
+ {href:'catch.html',title:'もぐもぐキャッチ！',logo:'mogumogu-catch.png',age:'しょうがくせい むけ',ageC:'#F25F92',ageInk:'#FFFFFF',ageShadow:'#AD315F',
   desc:'しゅうしゅうしゃで たべもののごみを キャッチ！ タンクいっぱいで はつでんタイム！',
   prog:sCatch?('ハイスコア '+(sCatch.best|0)+'　まちのあかり '+lights+'こ'):'はじめて あそぶ',art:'card_catch.jpg',artDraw:drawCardCatch},
- {href:'grid.html',title:'バイオガス・グリッド',age:'中高生向け',ageC:'#477DF2',ageInk:'#FFFFFF',ageShadow:'#2855B5',
+ {href:'grid.html',title:'バイオガス・グリッド',logo:'biogas-grid.png',age:'中高生向け',ageC:'#477DF2',ageInk:'#FFFFFF',ageShadow:'#2855B5',
   desc:'パイプをつないで 廃棄物→ガス→電気 のルートを完成させる頭脳パズル 全12ステージ',
   prog:sGrid?('★'+stars+'/36　ランドマーク '+Math.min(6,Math.floor(stars/6))+'/6'):'はじめてプレイ',art:'card_grid.jpg',artDraw:drawCardGrid},
- {href:'plant.html',title:'操業マスター 〜バイオガスKOBE〜',age:'大人向け',ageC:'#FF9F2E',ageInk:'#5B3200',ageShadow:'#C66D00',
+ {href:'plant.html',title:'操業マスター 〜バイオガスKOBE〜',logo:'operation-master.png',age:'大人向け',ageC:'#FF9F2E',ageInk:'#5B3200',ageShadow:'#C66D00',
   desc:'実データで挑む30日経営シム。受入・発酵・売電のすべてを指揮する工場長はあなた',
   prog:sPlant&&bestMwh?('ベスト '+bestMwh+' MWh（'+(sPlant.bestRank||'-')+'ランク）　称号 '+((sPlant.titles||[]).length)+'/6'):'はじめてプレイ',art:'card_plant.jpg',artDraw:drawCardPlant}
 ];
@@ -198,7 +215,8 @@ GAMES.forEach(function(g){
   var sh=document.createElement('span');sh.className='shade';sh.setAttribute('aria-hidden','true');el.appendChild(sh);
   var tx=document.createElement('span');tx.className='txt';
   var age=document.createElement('span');age.className='age';age.style.setProperty('--age-color',g.ageC);age.style.setProperty('--age-ink',g.ageInk);age.style.setProperty('--age-shadow',g.ageShadow);age.textContent=g.age;tx.appendChild(age);
-  var h=document.createElement('h2');h.textContent=g.title;tx.appendChild(h);
+  var logo=document.createElement('img');logo.className='game-logo';logo.src='assets/titles/'+g.logo;
+  logo.alt=g.title;logo.decoding='async';tx.appendChild(logo);
   var ds=document.createElement('span');ds.className='desc';ds.textContent=g.desc;tx.appendChild(ds);el.appendChild(tx);
   var pr=document.createElement('span');pr.className='prog';pr.textContent=g.prog;el.appendChild(pr);
   var go=document.createElement('span');go.className='go';go.textContent='あそぶ';el.appendChild(go);
@@ -282,8 +300,16 @@ mascotImg.src='assets/mascot_v2.png?v=20260715c';
 var greet=document.getElementById('greet');
 var greets=['ワイはコベッくん！ すきなゲームをえらんでな！','食べもののごみが電気になるって、知っとった？','バイオガスKOBEは1日60トンのごみを受け入れとるで！'];
 greet.textContent=greets[Math.floor(Math.random()*greets.length)];
+var mascotBurstAt=-99999,greetHideTimer=0;
 setTimeout(function(){greet.style.opacity='1'},reduceMotion?0:650);
-setTimeout(function(){greet.style.opacity='0'},reduceMotion?5000:6500);
+greetHideTimer=setTimeout(function(){greet.style.opacity='0'},reduceMotion?5000:6500);
+function triggerMascotShow(){
+  mascotBurstAt=performance.now();
+  greet.textContent='スター発電、いっくでー！ ★';greet.style.opacity='1';
+  clearTimeout(greetHideTimer);greetHideTimer=setTimeout(function(){greet.style.opacity='0'},2400);
+}
+mb.addEventListener('click',triggerMascotShow);
+mb.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();triggerMascotShow()}});
 
 var bg=document.getElementById('bg'),b=bg.getContext('2d'),bgImg=new Image(),bgReady=false;
 var bgDesktopImg=new Image(),bgDesktopReady=false;
@@ -329,29 +355,62 @@ function drawScene(now){
   if(!reduceMotion){for(var q=0;q<10;q++){var gy=h-((t*22+q*h*.12)%(h*1.15)),gx=w*(.07+(q*97%820)/1000)+Math.sin(t+q)*9;b.fillStyle='rgba(67,223,242,'+(.08+.045*Math.sin(t*2+q))+')';b.beginPath();b.arc(gx,gy,4+(q%3)*3,0,7);b.fill()}}
   paintMascot(now);
 }
+function drawSparkStar(c,x,y,r,rot,color,alpha){
+  c.save();c.translate(x,y);c.rotate(rot);c.globalAlpha=alpha;c.fillStyle=color;c.shadowColor=color;c.shadowBlur=r*.8;
+  c.beginPath();for(var i=0;i<10;i++){var rr=i%2===0?r:r*.43,a=-Math.PI/2+i*Math.PI/5;
+    if(i===0)c.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);else c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}
+  c.closePath();c.fill();c.shadowBlur=0;c.strokeStyle='rgba(255,255,255,.92)';c.lineWidth=Math.max(1,r*.13);c.stroke();c.restore();
+}
 function paintMascot(now){
   var mr=mb.getBoundingClientRect(),w=mr.width,h=mr.height;if(!w||!h)return;
-  m2.clearRect(0,0,w,h);var bob=reduceMotion?0:Math.sin((now-t0)/1000*1.6)*5;
-  var x=w/2,y=h/2+bob;
+  m2.clearRect(0,0,w,h);
+  var elapsed=(now-t0)/1000,bob=reduceMotion?0:Math.sin(elapsed*1.7)*4;
+  var x=w/2,cy=h/2+bob*.35,hr=Math.min(w,h)*.43;
   if(useMascot){
     var iw=mascotImg.naturalWidth||mascotImg.width,ih=mascotImg.naturalHeight||mascotImg.height;
-    var scale=Math.min((w*.84)/iw,(h*.82)/ih),mw=iw*scale,mh=ih*scale;
-    var hr=Math.min(w,h)*.43;
-    m2.save();
-    m2.shadowColor='rgba(8,92,112,.22)';m2.shadowBlur=16;m2.shadowOffsetY=7;
-    var halo=m2.createRadialGradient(x,y-hr*.12,hr*.08,x,y,hr);
+    var imageScale=Math.min((w*.84)/iw,(h*.82)/ih),mw=iw*imageScale,mh=ih*imageScale;
+    var phase=elapsed%8,showP=phase>=5.8&&phase<7.1?(phase-5.8)/1.3:0;
+    var burstAge=(now-mascotBurstAt)/1000,burstOn=burstAge>=0&&burstAge<1.15;
+    var eased=showP?(.5-.5*Math.cos(Math.PI*showP)):0;
+    var spin=reduceMotion?0:Math.PI*2*eased;
+    var pop=reduceMotion?0:Math.sin(Math.PI*showP);
+    var jump=reduceMotion?0:-hr*.18*pop;
+    var characterScale=1+(reduceMotion?0:.12*pop);
+    if(burstOn&&!reduceMotion){var bp=Math.min(1,burstAge/.55);characterScale+=Math.sin(Math.PI*bp)*.17;jump-=Math.sin(Math.PI*bp)*hr*.10}
+
+    m2.save();m2.shadowColor='rgba(8,92,112,.22)';m2.shadowBlur=16;m2.shadowOffsetY=7;
+    var halo=m2.createRadialGradient(x,cy-hr*.12,hr*.08,x,cy,hr);
     halo.addColorStop(0,'rgba(255,255,255,.98)');halo.addColorStop(.72,'rgba(239,253,255,.94)');halo.addColorStop(1,'rgba(206,247,250,.90)');
-    m2.fillStyle=halo;m2.beginPath();m2.arc(x,y,hr,0,Math.PI*2);m2.fill();
-    m2.shadowBlur=0;m2.shadowOffsetY=0;m2.lineWidth=Math.max(3,hr*.035);m2.strokeStyle='#FFD447';m2.stroke();
-    m2.setLineDash([Math.max(5,hr*.09),Math.max(4,hr*.065)]);m2.lineWidth=Math.max(2,hr*.022);m2.strokeStyle='#45CFE2';
-    m2.beginPath();m2.arc(x,y,hr*.86,0,Math.PI*2);m2.stroke();m2.setLineDash([]);
-    m2.fillStyle='#FF6B5B';m2.beginPath();m2.arc(x+hr*.73,y-hr*.55,Math.max(4,hr*.065),0,Math.PI*2);m2.fill();
-    m2.fillStyle='#FFD447';m2.beginPath();m2.arc(x-hr*.78,y+hr*.46,Math.max(3,hr*.05),0,Math.PI*2);m2.fill();
+    m2.fillStyle=halo;m2.beginPath();m2.arc(x,cy,hr,0,Math.PI*2);m2.fill();m2.restore();
+
+    m2.save();m2.translate(x,cy);m2.rotate(reduceMotion?0:elapsed*.62);
+    m2.lineWidth=Math.max(3,hr*.04);m2.lineCap='round';
+    var ringColors=['#FFD447','#FF6B5B','#54E6F1','#7ED957'];
+    for(var s=0;s<4;s++){m2.strokeStyle=ringColors[s];m2.beginPath();m2.arc(0,0,hr,-.08+s*Math.PI/2,.83+s*Math.PI/2);m2.stroke()}
     m2.restore();
-    m2.save();m2.shadowColor='rgba(255,255,255,.98)';m2.shadowBlur=10;
-    m2.drawImage(mascotImg,x-mw/2,y-mh/2,mw,mh);m2.restore();
-    m2.save();m2.shadowColor='rgba(7,73,83,.38)';m2.shadowBlur=8;m2.shadowOffsetY=4;
-    m2.drawImage(mascotImg,x-mw/2,y-mh/2,mw,mh);m2.restore();
+    m2.save();m2.translate(x,cy);m2.rotate(reduceMotion?0:-elapsed*.88);
+    m2.setLineDash([Math.max(5,hr*.09),Math.max(4,hr*.065)]);m2.lineWidth=Math.max(2,hr*.022);m2.strokeStyle='#45CFE2';
+    m2.beginPath();m2.arc(0,0,hr*.84,0,Math.PI*2);m2.stroke();m2.restore();
+
+    var starColors=['#FFD447','#FF6B5B','#63E8F1'];
+    for(var j=0;j<3;j++){
+      var a=(reduceMotion?j*2.094:elapsed*(.82+j*.055)+j*2.094),orbit=hr*.96;
+      var sx=x+Math.cos(a)*orbit,sy=cy+Math.sin(a)*orbit*.82-(reduceMotion?0:Math.abs(Math.sin(elapsed*3.2+j))*hr*.09);
+      drawSparkStar(m2,sx,sy,hr*(.085+.018*Math.sin(elapsed*2+j)),a,starColors[j],.96);
+    }
+    if(burstOn&&!reduceMotion){
+      var burstP=burstAge/1.15;
+      for(var k=0;k<10;k++){var ba=k*Math.PI/5+burstP*.65,br=hr*(.42+1.05*burstP);
+        drawSparkStar(m2,x+Math.cos(ba)*br,cy+Math.sin(ba)*br,hr*.065,ba,starColors[k%3],1-burstP)}
+    }
+
+    function drawMascotPass(shadowColor,blur,offsetY){
+      m2.save();m2.translate(x,cy+jump);m2.rotate(spin);m2.scale(characterScale,characterScale);
+      m2.shadowColor=shadowColor;m2.shadowBlur=blur;m2.shadowOffsetY=offsetY;
+      m2.drawImage(mascotImg,-mw/2,-mh/2,mw,mh);m2.restore();
+    }
+    drawMascotPass('rgba(7,73,83,.38)',9,5);
+    drawMascotPass('rgba(255,255,255,.72)',5,0);
   }
 }
 var resizeTimer=0;

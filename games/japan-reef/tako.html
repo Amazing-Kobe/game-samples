@@ -350,7 +350,7 @@ var seaweeds = [];
 var eggSparkT = 0;
 var celebrateQ = [];     // {img,title,lines}
 var reportLines = null;  // るすの間レポート
-var ui = { panel:null, shopTab:0, dexTab:0, placing:null, toastT:0, toast:'', tutStep:0, confirm:null };
+var ui = { panel:null, shopTab:0, dexTab:0, placing:null, toastT:0, toast:'', tutStep:0, confirm:null, titleSplashT:4.5 };
 var hits = [];           // 今フレームのタップ領域 {x,y,w,h,fn}
 var potBounce = [];      // ツボごとの弾みタイマー
 for (var pb=0; pb<8; pb++) potBounce.push(0);
@@ -603,6 +603,7 @@ function greetVisitor(v){
 /* ---------- 毎フレーム更新 ---------- */
 function update(dt){
   timeNow += dt;
+  if (ui.titleSplashT > 0) ui.titleSplashT -= dt;
   var nowMs = Date.now();
   if (save.boostUntil && save.boostUntil < nowMs) { save.boostUntil = 0; toast('シーアシストIの効果が切れた'); }
 
@@ -1743,6 +1744,10 @@ function drawTutorial(ctx){
   roundRect(ctx, px, py, pw, ph, 18); ctx.fill();
   ctx.strokeStyle = C.aqua; ctx.lineWidth=2;
   roundRect(ctx, px, py, pw, ph, 18); ctx.stroke();
+  if (ui.tutStep === 0 && imgs.game_logo_tako && imgs.game_logo_tako.complete && imgs.game_logo_tako.naturalWidth){
+    var logoW=340, logoH=logoW*imgs.game_logo_tako.naturalHeight/imgs.game_logo_tako.naturalWidth;
+    ctx.drawImage(imgs.game_logo_tako, (W-logoW)/2, 48, logoW, logoH);
+  }
   if (imgs.mascot && imgs.mascot.complete && imgs.mascot.naturalWidth){
     ctx.drawImage(imgs.mascot, W/2-45, py-70, 90, 90);
   }
@@ -1764,6 +1769,18 @@ function drawTutorial(ctx){
     ui.tutStep++;
     if (ui.tutStep >= 3){ ui.panel=null; save.tut=1; persist(); }
   });
+}
+function drawTitleSplash(ctx){
+  if (ui.titleSplashT <= 0 || !imgs.game_logo_tako || !imgs.game_logo_tako.complete || !imgs.game_logo_tako.naturalWidth) return;
+  var alpha=Math.min(1, (4.5-ui.titleSplashT)/0.4, ui.titleSplashT/0.7);
+  var logoW=340, logoH=logoW*imgs.game_logo_tako.naturalHeight/imgs.game_logo_tako.naturalWidth;
+  ctx.save(); ctx.globalAlpha=Math.max(0,alpha);
+  ctx.fillStyle='rgba(7,20,34,0.76)';
+  roundRect(ctx, 24, 56, W-48, 116, 20); ctx.fill();
+  ctx.strokeStyle=rgba(C.aqua,0.4); ctx.lineWidth=1.5;
+  roundRect(ctx, 24, 56, W-48, 116, 20); ctx.stroke();
+  ctx.drawImage(imgs.game_logo_tako, (W-logoW)/2, 65, logoW, logoH);
+  ctx.restore();
 }
 function drawCelebrate(ctx){
   var c = celebrateQ[0];
@@ -1955,6 +1972,7 @@ function loop(ts){
   else if (ui.panel === 'confirm') drawConfirm(ctx);
   else if (ui.panel === 'report') drawReport(ctx);
   else if (ui.panel === 'tutorial') drawTutorial(ctx);
+  else drawTitleSplash(ctx);
   ctx.restore();
 }
 
@@ -2004,7 +2022,7 @@ function onPointerDown(e){
 function boot(){
   cv = document.getElementById('cv');
   ctx = cv.getContext('2d');
-  var names = ['mascot','mascot_joy','mascot_sad'];
+  var names = ['mascot','mascot_joy','mascot_sad','game_logo_tako'];
   for (var i=0;i<names.length;i++){
     imgs[names[i]] = new Image();
     imgs[names[i]].src = 'assets/' + names[i] + '.png';
@@ -2082,4 +2100,3 @@ if (!IS_TEST) boot();
 </script>
 </body>
 </html>
-

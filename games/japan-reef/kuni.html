@@ -339,13 +339,14 @@ var hits = [];
 var particles=[], floaters=[], bubblesFx=[], fishes=[], smokes=[], waveRings=[];
 var shakeT=0, shakeMag=0;
 var time=0, lastT=0, saveTimer=0, fishTimer=0;
+var titleSplashT=4.5;
 var catalogNew=false;
 var hiddenAt=0;
 var pressFx=[];
 
 var IMGS={};
 (function(){
-  var names=['mascot','mascot_joy','mascot_sad'];
+  var names=['mascot','mascot_joy','mascot_sad','game_logo_kuni'];
   for(var i=0;i<names.length;i++){
     try{
       var im=new Image(); im.src='assets/'+names[i]+'.png'; IMGS[names[i]]=im;
@@ -1738,6 +1739,10 @@ function drawTutorial(){
   var step=TUT[S.tut];
   ctx.fillStyle='rgba(7,18,28,0.72)';
   ctx.fillRect(0,0,W,H);
+  if(S.tut===0 && IMGS.game_logo_kuni && IMGS.game_logo_kuni.complete && IMGS.game_logo_kuni.naturalWidth){
+    var logoW=330, logoH=logoW*IMGS.game_logo_kuni.naturalHeight/IMGS.game_logo_kuni.naturalWidth;
+    ctx.drawImage(IMGS.game_logo_kuni,(W-logoW)/2,38,logoW,logoH);
+  }
   var bob=Math.sin(time*2.4)*6;
   drawImgN(step.img, W/2-70, 220+bob, 140, 140);
   var px=30, py=400, pw=W-60, ph=190;
@@ -1756,10 +1761,21 @@ function drawTutorial(){
     if(S.tut>=3) saveGame();
   });
 }
+function drawTitleSplash(){
+  if(titleSplashT<=0 || !IMGS.game_logo_kuni || !IMGS.game_logo_kuni.complete || !IMGS.game_logo_kuni.naturalWidth) return;
+  var alpha=Math.min(1,(4.5-titleSplashT)/0.4,titleSplashT/0.7);
+  var logoW=340, logoH=logoW*IMGS.game_logo_kuni.naturalHeight/IMGS.game_logo_kuni.naturalWidth;
+  ctx.save(); ctx.globalAlpha=Math.max(0,alpha);
+  ctx.fillStyle='rgba(7,18,28,0.78)'; rr(22,66,W-44,logoH+20,20); ctx.fill();
+  ctx.strokeStyle='rgba(53,201,221,0.42)'; ctx.lineWidth=1.5; rr(22,66,W-44,logoH+20,20); ctx.stroke();
+  ctx.drawImage(IMGS.game_logo_kuni,(W-logoW)/2,76,logoW,logoH);
+  ctx.restore();
+}
 
 /* ---------------- 更新・描画ルート ---------------- */
 function update(dt){
   time+=dt;
+  if(titleSplashT>0) titleSplashT-=dt;
   updateFx(dt);
   // 収益
   S.money+=totalIncomeOf(S)*dt;
@@ -1820,6 +1836,7 @@ function draw(){
       else if(modal.type==='offline') drawOfflineModal();
     }
     if(S.tut<3) drawTutorial();
+    else if(!modal) drawTitleSplash();
   }
   ctx.restore();
 }

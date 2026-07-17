@@ -1,3 +1,15 @@
+# 業務資料（社外秘）。このリポジトリは public のため決して追跡しない
+*.pdf
+*.pptx
+*.ppt
+*.xlsx
+*.xls
+*.docx
+*.doc
+
+# 社内向け作業ログ（提案先名・見積前提などを含む）
+TRAVEL_MODE_LOG.md
+
 # OS / エディタが生成するゴミファイル
 .DS_Store
 .DS_Store?

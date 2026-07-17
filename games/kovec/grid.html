@@ -57,9 +57,8 @@
       linear-gradient(180deg,rgba(255,255,255,.04),rgba(173,231,235,.16) 54%,rgba(26,132,148,.43)),
       url('assets/card_grid.jpg') center/cover no-repeat #A6E5EE; }
   #ovTitle .kicker{ font-size:11px; font-weight:800; letter-spacing:.34em; color:#DFFFFF; text-shadow:0 2px 5px rgba(8,86,103,.65); }
-  #ovTitle h1{ margin-top:8px; font-size:37px; font-weight:900; line-height:1.2; letter-spacing:.02em;
-    text-shadow:0 2px 0 #0F2E1F, 0 10px 30px rgba(0,0,0,.65); }
-  #ovTitle h1 b{ color:var(--orange); }
+  #ovTitle .title-logo{ display:block; width:390px; max-width:100%; height:auto; margin:7px auto 0;
+    filter:drop-shadow(0 10px 18px rgba(0,6,40,.5)); }
   #ovTitle .lead{ margin-top:10px; font-size:12.5px; font-weight:800; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.86); line-height:1.7; }
   #ovTitle .eco{ margin-top:6px; font-size:10.5px; font-weight:800; letter-spacing:.22em; color:#9CEBFF; text-shadow:0 1px 5px rgba(0,0,0,.75); }
   #ovTitle .foot{ position:absolute; bottom:16px; left:0; right:0; font-size:10px; letter-spacing:.12em; color:rgba(246,243,234,.55); }
@@ -128,7 +127,7 @@
   <!-- タイトル -->
   <div id="ovTitle" class="ov">
     <div class="kicker">KOBEC ECO GAME PARK</div>
-    <h1>バイオガス<b>・</b><br>グリッド</h1>
+    <img class="title-logo" src="assets/titles/biogas-grid.png" alt="バイオガス・グリッド">
     <div class="lead">パイプをつないで 流して、<br>廃棄物のちからで神戸を灯せ。</div>
     <div class="eco">─ 神戸から始めるECOLOGY ─</div>
     <canvas id="titleMkun" class="mkun bob" width="192" height="192" style="margin-top:14px"></canvas>
