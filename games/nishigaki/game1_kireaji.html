@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>キレアジ！ 〜ニシガキのシゴト体験＆適職診断〜</title>
+<style>
+html,body{margin:0;padding:0;background:#1C2B33;height:100%;overflow:hidden;
+font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+canvas{touch-action:none;display:block;}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<script>
+'use strict';
+/* ============================================================
+   キレアジ！ ニシガキ工業 シゴト体験＆適職診断
+   G1Core: DOM非依存ロジック（node単体テスト可能）
+============================================================ */
+(function(root){
+const TEXT = {
+  mascot:'ニシー', company:'ニシガキ工業',
+  title:'キレアジ！', subtitle:'ニシガキのシゴト体験＆適職診断',
+  recruitUrl:'https://www.ni-co.jp/',
+};
+const STAGES = [
+ {id:'forge',   name:'鍛造',   label:'打て、真っ赤な鋼',   stat:'focus',       statName:'集中'},
+ {id:'sharpen', name:'刃付け', label:'角度をあわせろ',     stat:'precision',   statName:'精密'},
+ {id:'assemble',name:'組立',   label:'ぴったり組付け',     stat:'logistics',   statName:'段取り'},
+ {id:'inspect', name:'検品',   label:'見抜け、プロの目',   stat:'observation', statName:'観察'},
+ {id:'deal',    name:'商談',   label:'世界へ売り込め',     stat:'communication',statName:'対話・発想'},
+];
+const TYPES = {
+ blacksmith:{name:'鍛造職人タイプ', icon:'🔥', color:'#E8590C',
+  desc:'燃える鋼と向き合い、一打に集中できる人。',
+  work:'三木金物の伝統を受け継ぐ鍛造・熱処理の現場。切れ味の心臓部「高級刃物鋼」はここで生まれる。',
+  nishie:'その集中力、鋼より熱いで！'},
+ sharpener:{name:'刃研ぎ職人タイプ', icon:'⚔️', color:'#AEB6BB',
+  desc:'0.1ミリのズレも見逃さない、精密さの人。',
+  work:'刃付け・研磨の工程。テフロン加工の下地になる刃面を、一本一本仕上げる職人仕事。',
+  nishie:'キミの角度、ワシのツメより正確や！'},
+ assembler:{name:'組立マイスタータイプ', icon:'🔧', color:'#D98E32',
+  desc:'段取りと手際で、部品に命を吹き込む人。',
+  work:'刃・バネ・ボルト・グリップの組付け工程。太丸の「テコの力」は正確な組立から生まれる。',
+  nishie:'その手際、太丸1500より頼もしい！'},
+ inspector:{name:'品質番人タイプ', icon:'🔍', color:'#2E5E3A',
+  desc:'誰よりも先に「おかしい」に気づける人。',
+  work:'出荷前の検品・品質管理。世界で信頼される「日本製の作りの良さ」の最後の砦。',
+  nishie:'キミの目、鳥の巣も見逃さへんな！'},
+ sales:{name:'海外セールスタイプ', icon:'🌍', color:'#3E7CB1',
+  desc:'相手の悩みを聞き出し、心をつかむ人。',
+  work:'フランス・スペインへの直接輸出を実現した海外営業。世界の果樹園にLRツールを届ける仕事。',
+  nishie:'世界中にワシの仲間をつくってや！'},
+ planner:{name:'開発プランナータイプ', icon:'💡', color:'#F2B705',
+  desc:'「こんな道具があれば」を形にできる人。',
+  work:'世界初の高枝切鋏を生んだ商品開発。かぼちゃはさみのような「誰かの困った」に応える発明の現場。',
+  nishie:'次の世界初、キミがつくるんやで！'},
+};
+const TYPE_ORDER = ['blacksmith','sharpener','assembler','inspector','sales','planner'];
+const TRIVIA = [
+ {stage:0,t:'ニシガキ工業は刃物のまち・三木で1969年創業。三木金物の伝統技術を受け継ぐ。'},
+ {stage:1,t:'刃は高級刃物鋼＋テフロン加工。きれいな切り口は木を傷めない。'},
+ {stage:2,t:'太枝切鋏「太丸」はテコの力で生木40mmを軽々カット。電動の太丸充電プロなら40mmが1秒。'},
+ {stage:3,t:'1980年代、世界に先駆けて高枝切鋏を商品化。テレビショッピングで爆発的に普及した。'},
+ {stage:4,t:'2019年フランス・スペインへ直接輸出を達成。ロゴのカニ菱形マークとニシーが世界へ。'},
+];
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+/* --- stage1 鍛造 --- */
+function forgeZoneHalf(strikeIdx){return Math.max(0.05,0.15-strikeIdx*0.013);}
+function forgeHit(needle,zoneC,zoneHalf){
+ const d=Math.abs(needle-zoneC);
+ if(d>zoneHalf)return -1;
+ return Math.round(100*(1-d/zoneHalf*0.6));
+}
+function forgeScore(hits){ // hits: array of quality(-1=miss)
+ if(!hits.length)return 0;
+ let s=0;for(const h of hits)s+=h<0?0:h;
+ return Math.round(s/hits.length);
+}
+/* --- stage2 刃付け --- */
+function inBand(angle,target,tol){return Math.abs(angle-target)<=tol;}
+function sharpenScore(inTime,totalTime){
+ if(totalTime<=0)return 0;
+ return Math.round(clamp(inTime/totalTime,0,1)*100);
+}
+/* --- stage3 組立 --- */
+const ASSEMBLE_ORDER=['blade','spring','bolt','grip'];
+const PART_NAMES={blade:'刃',spring:'バネ',bolt:'ボルト',grip:'グリップ',washer:'ワッシャ',cap:'キャップ'};
+function newAssembleState(){return {idx:0,miss:0,done:false};}
+function assembleTap(st,part){
+ if(st.done)return {ok:false,done:true};
+ if(part===ASSEMBLE_ORDER[st.idx]){st.idx++;if(st.idx>=ASSEMBLE_ORDER.length){st.done=true;}return {ok:true,done:st.done};}
+ st.miss++;return {ok:false,done:false};
+}
+function assembleScore(rounds,misses,timeRatio){ // rounds完了数(0-2), timeRatio残り時間率0-1
+ const base=rounds*40, t=Math.round(timeRatio*20);
+ return clamp(base+t-misses*8,0,100);
+}
+/* --- stage4 検品 --- */
+const DEFECTS=['chip','loose','wobble']; // 欠け刃・ネジ緩み・ガタつき
+function makeInspectSet(rng){ // 8本中4本不良（順序rng）
+ const items=[];
+ for(let i=0;i<8;i++){
+  const bad=i%2===1;
+  items.push({defect:bad?DEFECTS[i%DEFECTS.length]:null});
+ }
+ // shuffle
+ for(let i=items.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));const t=items[i];items[i]=items[j];items[j]=t;}
+ return items;
+}
+function inspectJudge(item,saidNG){return (item.defect!==null)===saidNG;}
+function inspectScore(correct,total){return total?Math.round(correct/total*100):0;}
+/* --- stage5 商談 --- */
+const DEALS=[
+ {who:'フランスの果樹園バイヤー', q:'「うちのリンゴ園、太い古枝の更新剪定が大変でね…」',
+  choices:[
+   {t:'太丸なら生木40mmもテコの力で軽く切れます', d:9, i:5},
+   {t:'まず園の悩みを詳しく聞かせてください', d:10, i:4},
+   {t:'切り口がきれいだと木の回復も早いんです', d:6, i:9},
+  ]},
+ {who:'インドのマンゴー農園主', q:'「木が高くなりすぎて収穫も剪定も危ないんだ」',
+  choices:[
+   {t:'樹高を4〜5mに保つ管理が世界の主流です。LRツールで地上から安全に', d:7, i:10},
+   {t:'ハシゴ作業は転落が怖い。高枝切鋏なら地面から届きます', d:10, i:6},
+   {t:'老木更新の剪定なら、実の量も質も上がりますよ', d:6, i:9},
+  ]},
+ {who:'日本の造園職人', q:'「道具は相棒や。妥協はでけへん」',
+  choices:[
+   {t:'刈吉は熟練職人が一本一本手がけた刈込鋏です', d:9, i:6},
+   {t:'現場の声を開発に届けるのが私の仕事です。教えてください', d:8, i:10},
+   {t:'八角形ポールは軽くて丈夫。一日使っても疲れにくい', d:7, i:8},
+  ]},
+];
+function dealScore(picks){ // picks: choice index array
+ let d=0,i=0;
+ picks.forEach((p,idx)=>{const c=DEALS[idx].choices[p];d+=c.d;i+=c.i;});
+ const max=30;
+ return {dialog:Math.round(clamp(d/max,0,1)*100), idea:Math.round(clamp(i/max,0,1)*100)};
+}
+/* --- 診断 --- */
+function diagnose(sig){
+ const scores={
+  blacksmith: sig.focus*0.75+sig.precision*0.25,
+  sharpener:  sig.precision*0.75+sig.focus*0.25,
+  assembler:  sig.logistics*0.75+sig.precision*0.25,
+  inspector:  sig.observation*0.75+sig.logistics*0.25,
+  sales:      sig.dialog*0.75+sig.observation*0.25,
+  planner:    sig.idea*0.75+sig.dialog*0.25,
+ };
+ let best=TYPE_ORDER[0];
+ for(const k of TYPE_ORDER){if(scores[k]>scores[best])best=k;}
+ return {type:best,scores};
+}
+/* --- セーブ --- */
+function makeSave(){return {ver:1,types:[],trivia:[],best:{}};}
+function serialize(sv){return JSON.stringify(sv);}
+function deserialize(s){
+ try{const o=JSON.parse(s);if(!o||o.ver!==1||!Array.isArray(o.types))return makeSave();
+  return {ver:1,types:o.types.slice(0,12),trivia:Array.isArray(o.trivia)?o.trivia:[],best:o.best&&typeof o.best==='object'?o.best:{}};
+ }catch(e){return makeSave();}
+}
+function addType(sv,t){if(TYPE_ORDER.includes(t)&&!sv.types.includes(t))sv.types.push(t);return sv;}
+function addTrivia(sv,i){if(i>=0&&i<TRIVIA.length&&!sv.trivia.includes(i))sv.trivia.push(i);return sv;}
+const G1Core={TEXT,STAGES,TYPES,TYPE_ORDER,TRIVIA,clamp,forgeZoneHalf,forgeHit,forgeScore,
+ inBand,sharpenScore,ASSEMBLE_ORDER,PART_NAMES,newAssembleState,assembleTap,assembleScore,
+ DEFECTS,makeInspectSet,inspectJudge,inspectScore,DEALS,dealScore,diagnose,
+ makeSave,serialize,deserialize,addType,addTrivia};
+if(typeof module!=='undefined'&&module.exports){module.exports=G1Core;}
+else{root.G1Core=G1Core;}
+})(typeof window!=='undefined'?window:globalThis);
+
+/* ============================================================
+   シェル層（ブラウザのみ）
+============================================================ */
+if(typeof window!=='undefined'){(function(){
+const C=window.G1Core, TEXT=C.TEXT;
+const W=420,H=740;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let scale=1;
+function fit(){
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ const vw=window.innerWidth,vh=window.innerHeight;
+ scale=Math.min(vw/W,vh/H);
+ cv.style.width=(W*scale)+'px';cv.style.height=(H*scale)+'px';
+ cv.width=Math.round(W*scale*dpr);cv.height=Math.round(H*scale*dpr);
+ ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0);
+}
+window.addEventListener('resize',fit);fit();
+/* --- storage --- */
+const LS={mute:'nishigaki_g1_mute',save:'nishigaki_g1_save',tut:'nishigaki_g1_tut'};
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+let save=C.deserialize(lsGet(LS.save,''));
+let muted=lsGet(LS.mute,'0')==='1';
+/* --- audio --- */
+let AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC;}
+function tone(f,dur,type,vol,slide){
+ if(muted)return;const a=ac();if(!a)return;
+ const o=a.createOscillator(),g=a.createGain();
+ o.type=type||'sine';o.frequency.value=f;
+ if(slide)o.frequency.exponentialRampToValueAtTime(slide,a.currentTime+dur);
+ g.gain.setValueAtTime(vol||0.15,a.currentTime);
+ g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);
+ o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+dur);
+}
+function noise(dur,vol,hp){
+ if(muted)return;const a=ac();if(!a)return;
+ const n=a.sampleRate*dur,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);
+ for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+ const s=a.createBufferSource();s.buffer=buf;
+ const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=hp||800;
+ const g=a.createGain();g.gain.value=vol||0.2;
+ s.connect(f).connect(g).connect(a.destination);s.start();
+}
+const SE={
+ tap(){tone(880,0.06,'square',0.06);},
+ clang(){tone(220,0.18,'square',0.2,110);noise(0.12,0.25,2000);},
+ shing(){noise(0.2,0.18,3000);tone(2400,0.15,'sine',0.08,3600);},
+ good(){tone(660,0.1,'sine',0.12);tone(990,0.14,'sine',0.1);},
+ bad(){tone(180,0.25,'sawtooth',0.15,90);},
+ ding(){tone(1320,0.3,'sine',0.14);},
+ fanfare(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.25,'triangle',0.14),i*110));},
+};
+/* --- images try-load --- */
+const IMG={};
+['mascot','mascot_joy','mascot_sad','mascot_point','title_game1'].forEach(n=>{
+ const im=new Image();im.onload=()=>{IMG[n]=im;};im.onerror=()=>{};im.src='assets/img/'+n+'.png';
+});
+/* --- particles / juice --- */
+let parts=[],floats=[],shake=0;
+function addParts(x,y,color,n,spd){
+ for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=(0.4+Math.random()*0.6)*(spd||140);
+  parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-60,life:0.7+Math.random()*0.4,t:0,c:color,r:2+Math.random()*3});}
+}
+function addFloat(x,y,txt,color,big){floats.push({x,y,txt,c:color,t:0,big:!!big});}
+function drawJuice(dt){
+ parts=parts.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=380*dt;return p.t<p.life;});
+ for(const p of parts){ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();}
+ ctx.globalAlpha=1;
+ floats=floats.filter(f=>{f.t+=dt;return f.t<1;});
+ for(const f of floats){
+  ctx.globalAlpha=1-f.t;ctx.font=(f.big?'bold 26px':'bold 18px')+" 'Hiragino Maru Gothic ProN',sans-serif";
+  ctx.textAlign='center';ctx.fillStyle=f.c;
+  ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=3;
+  ctx.strokeText(f.txt,f.x,f.y-f.t*40);ctx.fillText(f.txt,f.x,f.y-f.t*40);
+ }
+ ctx.globalAlpha=1;
+}
+/* --- ニシー描画（ベクター） --- */
+function drawNishie(x,y,s,mood){
+ const key=mood==='joy'?'mascot_joy':mood==='sad'?'mascot_sad':mood==='point'?'mascot_point':'mascot';
+ if(IMG[key]){const im=IMG[key],w=110*s,h=w*im.height/im.width;ctx.drawImage(im,x-w/2,y-h/2,w,h);return;}
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ // 脚
+ ctx.strokeStyle='#B8752A';ctx.lineWidth=5;ctx.lineCap='round';
+ for(let i=0;i<3;i++){for(const dir of[-1,1]){
+  ctx.beginPath();ctx.moveTo(dir*30,6+i*8);ctx.quadraticCurveTo(dir*46,10+i*9,dir*52,20+i*9);ctx.stroke();}}
+ // 体（木製）
+ const g=ctx.createRadialGradient(-8,-10,6,0,0,42);
+ g.addColorStop(0,'#E8A54B');g.addColorStop(1,'#C67D28');
+ ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,38,30,0,0,7);ctx.fill();
+ // 木目
+ ctx.strokeStyle='rgba(140,85,30,0.5)';ctx.lineWidth=1.5;
+ for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(-6,2,10+i*8,Math.PI*0.15,Math.PI*0.85);ctx.stroke();}
+ // ツメ=剪定鋏
+ for(const dir of[-1,1]){
+  ctx.save();ctx.translate(dir*40,-18);ctx.rotate(dir*-0.5);
+  ctx.strokeStyle='#B8752A';ctx.lineWidth=8;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(dir*-10,16);ctx.lineTo(0,4);ctx.stroke();
+  // 刃（スチール）
+  ctx.fillStyle='#AEB6BB';
+  ctx.beginPath();ctx.moveTo(0,2);ctx.quadraticCurveTo(dir*14,-16,dir*4,-24);ctx.quadraticCurveTo(dir*2,-12,dir*-4,-4);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#8C9296';
+  ctx.beginPath();ctx.moveTo(0,2);ctx.quadraticCurveTo(dir*-12,-14,dir*-2,-22);ctx.quadraticCurveTo(dir*0,-10,dir*4,-4);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#54595d';ctx.beginPath();ctx.arc(0,0,4,0,7);ctx.fill();
+  ctx.fillStyle='#2b2e30';ctx.beginPath();ctx.arc(0,0,1.8,0,7);ctx.fill();
+  ctx.restore();
+ }
+ // 目
+ for(const dir of[-1,1]){
+  ctx.strokeStyle='#B8752A';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(dir*10,-26);ctx.lineTo(dir*12,-38);ctx.stroke();
+  ctx.fillStyle='#E8A54B';ctx.beginPath();ctx.arc(dir*12,-42,7,0,7);ctx.fill();
+  ctx.fillStyle='#20242a';
+  if(mood==='joy'){ctx.strokeStyle='#20242a';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(dir*12,-41,4,Math.PI*1.15,Math.PI*1.85);ctx.stroke();}
+  else if(mood==='sad'){ctx.beginPath();ctx.arc(dir*12,-40.5,3.4,0,7);ctx.fill();ctx.strokeStyle='#4a90d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(dir*14,-36);ctx.lineTo(dir*15,-30);ctx.stroke();}
+  else{ctx.beginPath();ctx.arc(dir*12,-41,3.4,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(dir*13,-42.5,1.2,0,7);ctx.fill();}
+ }
+ // 口
+ ctx.strokeStyle='#8a5a20';ctx.lineWidth=2.5;ctx.lineCap='round';
+ ctx.beginPath();
+ if(mood==='joy')ctx.arc(0,-6,8,Math.PI*0.15,Math.PI*0.85);
+ else if(mood==='sad')ctx.arc(0,2,7,Math.PI*1.15,Math.PI*1.85);
+ else ctx.arc(0,-5,6,Math.PI*0.2,Math.PI*0.8);
+ ctx.stroke();
+ ctx.restore();
+}
+/* --- 共通UI --- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function btn(x,y,w,h,label,color,pulse){
+ const p=pulse?1+Math.sin(perf()/300)*0.02:1;
+ ctx.save();ctx.translate(x+w/2,y+h/2);ctx.scale(p,p);
+ rr(-w/2,-h/2,w,h,h/2);
+ ctx.fillStyle=color||'#E8590C';ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;ctx.fill();
+ ctx.shadowColor='transparent';
+ ctx.fillStyle='#F6EFE3';ctx.font="bold 19px 'Hiragino Maru Gothic ProN',sans-serif";ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.fillText(label,0,1);ctx.restore();
+ return {x,y,w,h};
+}
+function hit(b,px,py){return b&&px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;}
+function topBar(title){
+ ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fillRect(0,0,W,52);
+ ctx.font="bold 15px sans-serif";ctx.textAlign='left';ctx.textBaseline='middle';
+ ctx.fillStyle='#F6EFE3';ctx.fillText('← もどる',14,27);
+ ctx.textAlign='center';ctx.fillText(title||'',W/2,27);
+ ctx.textAlign='right';ctx.fillText(muted?'音OFF':'音ON',W-16,27);
+ return {back:{x:0,y:0,w:110,h:52},mute:{x:W-64,y:0,w:64,h:52}};
+}
+function perf(){return performance.now();}
+/* --- シーン管理 --- */
+let scene='title', sceneT=0, buttons={}, stageIdx=0;
+const results={focus:0,precision:0,logistics:0,observation:0,dialog:0,idea:0};
+let st={}; // stage state
+function go(s){scene=s;sceneT=0;buttons={};} /* stは各遷移元で設定済みのため破壊しない */
+/* --- ステージ初期化 --- */
+function initStage(i){
+ stageIdx=i;
+ const rng=Math.random;
+ if(i===0)st={strike:0,hits:[],needleT:Math.random()*6,zoneC:0.35+Math.random()*0.3,speed:1.6,flash:0,done:0};
+ if(i===1)st={blade:0,angle:8,target:22,tdir:1,hold:false,inT:0,totT:0.0001,gauge:0,flashes:[],done:0};
+ if(i===2)st={round:0,asm:C.newAssembleState(),items:spawnParts(),misses:0,time:30,done:0};
+ if(i===3)st={items:C.makeInspectSet(rng),idx:0,correct:0,slide:0,verdict:0,done:0};
+ if(i===4)st={deal:0,picks:[],reveal:0,done:0};
+ go('stage');
+}
+function spawnParts(){
+ const kinds=['blade','spring','bolt','grip','washer','cap'];
+ const arr=[];
+ kinds.forEach((k,i)=>{arr.push({k,x:W+60+i*95,y:330+((i%3)-1)*95,taken:false,wob:Math.random()*6});});
+ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=arr[i].y;arr[i].y=arr[j].y;arr[j].y=t;}
+ return arr;
+}
+function stageScoreDone(sc){
+ const stage=C.STAGES[stageIdx];
+ if(stageIdx===4){results.dialog=sc.dialog;results.idea=sc.idea;}
+ else results[stage.stat]=sc;
+ save=C.addTrivia(save,stageIdx);
+ lsSet(LS.save,C.serialize(save));
+ st.finalScore=stageIdx===4?Math.max(sc.dialog,sc.idea):sc;
+ go('stageResult');
+}
+/* --- 入力 --- */
+let pdown=false,px=0,py=0;
+cv.addEventListener('pointerdown',e=>{
+ ac();
+ const r=cv.getBoundingClientRect();
+ px=(e.clientX-r.left)/scale;py=(e.clientY-r.top)/scale;pdown=true;
+ onDown(px,py);e.preventDefault();
+},{passive:false});
+cv.addEventListener('pointermove',e=>{
+ const r=cv.getBoundingClientRect();
+ px=(e.clientX-r.left)/scale;py=(e.clientY-r.top)/scale;
+});
+cv.addEventListener('pointerup',()=>{pdown=false;onUp();});
+cv.addEventListener('pointercancel',()=>{pdown=false;onUp();});
+cv.addEventListener('pointerleave',()=>{pdown=false;onUp();});
+function copyText(txt){
+ const done=()=>{addFloat(W/2,H-90,'コピーしました！','#F2B705',true);SE.good();};
+ const fallback=()=>{
+  try{
+   const ta=document.createElement('textarea');ta.value=txt;
+   ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);
+   ta.select();document.execCommand('copy');document.body.removeChild(ta);done();
+  }catch(e){addFloat(W/2,H-90,'コピーできませんでした','#d9534f',true);}
+ };
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(txt).then(done,fallback);
+ }else fallback();
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){lsSet(LS.save,C.serialize(save));}});
+function onDown(x,y){
+ const tb=buttons._top;
+ if(tb){
+  if(hit(tb.back,x,y)){SE.tap();location.href='index.html';return;}
+  if(hit(tb.mute,x,y)){muted=!muted;lsSet(LS.mute,muted?'1':'0');SE.tap();return;}
+ }
+ if(scene==='title'){
+  if(hit(buttons.start,x,y)){SE.ding();
+   if(lsGet(LS.tut,'0')==='1')initStage(0);else{st={page:0};go('tutorial');}
+   return;}
+  if(hit(buttons.coll,x,y)){SE.tap();go('collection');return;}
+ }
+ else if(scene==='tutorial'){
+  st.page=(st.page||0)+1;SE.tap();
+  if(st.page>=3){lsSet(LS.tut,'1');initStage(0);}
+ }
+ else if(scene==='stageIntro'){if(hit(buttons.go,x,y)){SE.ding();initStage(st.next);}}
+ else if(scene==='stage')stageDown(x,y);
+ else if(scene==='stageResult'){
+  if(hit(buttons.next,x,y)){SE.tap();
+   if(stageIdx<4){st={next:stageIdx+1};go('stageIntro');}
+   else finishAll();
+  }
+ }
+ else if(scene==='final'){
+  if(hit(buttons.retry,x,y)){SE.tap();go('title');return;}
+  if(hit(buttons.recruit,x,y)){SE.ding();window.open(TEXT.recruitUrl,'_blank');return;}
+  if(hit(buttons.copy,x,y)){
+   const t=C.TYPES[st.type];
+   const txt='【キレアジ！診断結果】わたしは「'+t.name+'」でした！ #ニシガキ工業 のシゴト体験ゲーム';
+   copyText(txt);
+   return;}
+  if(hit(buttons.coll,x,y)){SE.tap();go('collection');return;}
+ }
+ else if(scene==='collection'){if(hit(buttons.back2,x,y)){SE.tap();go('title');}}
+}
+function onUp(){
+ if(scene==='stage'&&stageIdx===1){st.hold=false;}
+}
+/* --- ステージ入力 --- */
+function stageDown(x,y){
+ if(stageIdx===0){ // 鍛造: タップで打つ
+  if(st.done)return;
+  const needle=(Math.sin(st.needleT*st.speed)+1)/2;
+  const q=C.forgeHit(needle,st.zoneC,C.forgeZoneHalf(st.strike));
+  st.hits.push(q);st.strike++;st.flash=1;
+  if(q<0){SE.bad();addFloat(W/2,300,'ミス…','#d9534f',true);shake=4;}
+  else{SE.clang();addParts(W/2,330,'#FFB74D',18,180);addParts(W/2,330,'#FFE082',10,220);
+   addFloat(W/2,290,q>=85?'カン！ 完璧！':'カン！ +'+q,q>=85?'#F2B705':'#F6EFE3',q>=85);
+   if(q>=85)shake=3;}
+  st.zoneC=0.2+Math.random()*0.6;
+  if(st.strike>=8){st.done=1;setTimeout(()=>stageScoreDone(C.forgeScore(st.hits)),700);}
+ }
+ else if(stageIdx===1){st.hold=true;}
+ else if(stageIdx===2){
+  if(st.done)return;
+  for(const it of st.items){
+   if(it.taken)continue;
+   if(Math.abs(x-it.x)<44&&Math.abs(y-it.y)<44){
+    const res=C.assembleTap(st.asm,it.k);
+    if(res.ok){it.taken=true;SE.good();addParts(it.x,it.y,'#D98E32',10,120);addFloat(it.x,it.y,C.PART_NAMES[it.k]+' OK','#7CB342');
+     if(res.done){st.round++;SE.shing();addFloat(W/2,300,'一丁あがり！','#F2B705',true);addParts(W/2,340,'#AEB6BB',16,160);
+      if(st.round>=2){st.done=1;setTimeout(()=>stageScoreDone(C.assembleScore(st.round,st.misses,st.time/30)),700);}
+      else{st.asm=C.newAssembleState();st.items=spawnParts();}
+     }}
+    else{st.misses++;SE.bad();shake=3;addFloat(it.x,it.y,'ちがう部品！','#d9534f');}
+    return;
+   }
+  }
+ }
+ else if(stageIdx===3){
+  if(st.done||st.verdict)return;
+  const ok=hit(buttons.ok,x,y),ng=hit(buttons.ng,x,y);
+  if(!ok&&!ng)return;
+  const item=st.items[st.idx];
+  const correct=C.inspectJudge(item,ng);
+  st.verdict=correct?1:-1;
+  if(correct){st.correct++;SE.good();addFloat(W/2,340,'正解！','#7CB342',true);addParts(W/2,340,'#7CB342',10,130);}
+  else{SE.bad();shake=4;addFloat(W/2,340,item.defect?'不良を見逃した！':'それ良品や！','#d9534f',true);}
+  setTimeout(()=>{
+   st.verdict=0;st.idx++;st.slide=1;
+   if(st.idx>=st.items.length){st.done=1;setTimeout(()=>stageScoreDone(C.inspectScore(st.correct,st.items.length)),500);}
+  },650);
+ }
+ else if(stageIdx===4){
+  if(st.done||st.reveal)return;
+  for(let i=0;i<3;i++){
+   if(hit(buttons['c'+i],x,y)){
+    st.picks.push(i);st.reveal=1;SE.good();
+    setTimeout(()=>{
+     st.reveal=0;st.deal++;
+     if(st.deal>=C.DEALS.length){st.done=1;setTimeout(()=>stageScoreDone(C.dealScore(st.picks)),400);}
+    },800);
+    return;
+   }
+  }
+ }
+}
+function finishAll(){
+ const diag=C.diagnose(results);
+ save=C.addType(save,diag.type);
+ lsSet(LS.save,C.serialize(save));
+ st={type:diag.type};
+ SE.fanfare();
+ go('final');
+}
+/* ============ 描画 ============ */
+function bgWorkshop(){
+ const g=ctx.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,'#1C2B33');g.addColorStop(0.6,'#28414d');g.addColorStop(1,'#2E5E3A');
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='rgba(246,239,227,0.05)';
+ for(let i=0;i<5;i++){ctx.beginPath();ctx.arc((i*97)%W,(i*173+sceneT*8)%H,2,0,7);ctx.fill();}
+}
+function drawTitle(){
+ bgWorkshop();
+ // 火の粉
+ if(Math.random()<0.15)parts.push({x:Math.random()*W,y:H,vx:(Math.random()-0.5)*20,vy:-60-Math.random()*40,life:3,t:0,c:'#E8590C',r:1.5+Math.random()*1.5});
+ if(IMG.title_game1){
+  const w=340,h=w*IMG.title_game1.height/IMG.title_game1.width;
+  // 画像版には副題まで含まれるため、説明文と重ならないよう上寄せで描画する。
+  ctx.drawImage(IMG.title_game1,W/2-w/2,70,w,h);
+ }else{
+  ctx.textAlign='center';
+  ctx.font="bold 64px 'Hiragino Maru Gothic ProN',sans-serif";
+  ctx.lineWidth=10;ctx.strokeStyle='#1C2B33';ctx.strokeText('キレアジ！',W/2,190);
+  const tg=ctx.createLinearGradient(0,140,0,210);tg.addColorStop(0,'#F2B705');tg.addColorStop(1,'#E8590C');
+  ctx.fillStyle=tg;ctx.fillText('キレアジ！',W/2,190);
+ }
+ ctx.textAlign='center';ctx.font="bold 17px sans-serif";ctx.fillStyle='#F6EFE3';
+ if(!IMG.title_game1)ctx.fillText('〜 ニシガキのシゴト体験 ＆ 適職診断 〜',W/2,236);
+ ctx.font="13px sans-serif";ctx.fillStyle='rgba(246,239,227,0.75)';
+ ctx.fillText('刃物のまち・三木の工場に一日体験入社。',W/2,280);
+ ctx.fillText('5つのシゴトで、キミの「切れ味」を診断します。',W/2,300);
+ drawNishie(W/2,400,1.15,'point');
+ ctx.font="12px sans-serif";ctx.fillStyle='rgba(246,239,227,0.6)';
+ ctx.fillText('所要 5〜8分｜診断タイプ 全6種',W/2,480);
+ buttons.start=btn(W/2-120,520,240,58,'体験入社する ▶','#E8590C',true);
+ buttons.coll=btn(W/2-100,600,200,44,'称号コレクション','#2E5E3A');
+ ctx.font="11px sans-serif";ctx.fillStyle='rgba(246,239,227,0.45)';
+ ctx.fillText('(c) '+TEXT.company+' 採用・仕事体験デモ',W/2,H-20);
+ buttons._top=topBar('');
+}
+function drawTutorial(){
+ bgWorkshop();
+ const page=st.page||0;
+ const msgs=[
+  ['ようこそ、'+TEXT.company+'へ！','ワシは案内係のニシー。ツメは自慢の剪定鋏や。','今日はキミに5つのシゴトを体験してもらうで！'],
+  ['鍛造・刃付け・組立・検品・商談。','それぞれのシゴトでキミの力を測るからな。','うまくできなくても大丈夫、正直が一番！'],
+  ['最後に、キミにピッタリの仕事を診断するで。','ほな、真っ赤な鋼が待っとる。','行くで〜！'],
+ ][Math.min(page,2)];
+ drawNishie(W/2,270,1.3,page===2?'joy':'point');
+ rr(40,360,W-80,170,16);ctx.fillStyle='rgba(246,239,227,0.95)';ctx.fill();
+ ctx.beginPath();ctx.moveTo(W/2-12,360);ctx.lineTo(W/2+12,360);ctx.lineTo(W/2,342);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#1C2B33';ctx.font="bold 15px sans-serif";ctx.textAlign='center';
+ msgs.forEach((m,i)=>ctx.fillText(m,W/2,405+i*30));
+ ctx.fillStyle='rgba(28,43,51,0.5)';ctx.font="12px sans-serif";
+ ctx.fillText('タップでつづく（'+(Math.min(page,2)+1)+'/3）',W/2,560);
+ buttons._top=topBar('');
+}
+function drawStageIntro(){
+ bgWorkshop();
+ const i=st.next,sg=C.STAGES[i];
+ ctx.textAlign='center';
+ ctx.fillStyle='rgba(246,239,227,0.6)';ctx.font="bold 15px sans-serif";
+ ctx.fillText('シゴト '+(i+1)+' / 5',W/2,180);
+ ctx.font="bold 40px 'Hiragino Maru Gothic ProN',sans-serif";
+ ctx.lineWidth=8;ctx.strokeStyle='#1C2B33';ctx.strokeText(sg.name,W/2,250);
+ ctx.fillStyle='#F2B705';ctx.fillText(sg.name,W/2,250);
+ ctx.font="bold 19px sans-serif";ctx.fillStyle='#F6EFE3';ctx.fillText('「'+sg.label+'」',W/2,295);
+ const tips=[
+  '温度計のハリが「適温ゾーン」に入った瞬間にタップ！\n8回打って鋼を鍛えよう。ゾーンはだんだん狭くなるで。',
+  '画面を押すと刃の角度が上がる、離すと下がる。\n動く目標角度に合わせてキープ！ 3本仕上げよう。',
+  '設計図の順番どおりに部品をタップ！\n刃→バネ→ボルト→グリップ。急いで、でも正確に。',
+  '流れてくる鋏をよーく見て「よし」か「アカン」か判定！\n欠け刃・ネジのすき間・刃のズレを見逃すな。',
+  'お客様の悩みに、キミならどう応える？\n正解はひとつやない。キミらしい選択でええんやで。',
+ ][i].split('\n');
+ ctx.font="14px sans-serif";ctx.fillStyle='rgba(246,239,227,0.85)';
+ tips.forEach((t,j)=>ctx.fillText(t,W/2,350+j*24));
+ drawNishie(W/2,470,0.9,'point');
+ const measures=['集中力','精密さ','段取り力','観察力','対話と発想'];
+ ctx.font="13px sans-serif";ctx.fillStyle='#7CB342';
+ ctx.fillText('ここで測るのは…【'+measures[i]+'】',W/2,545);
+ buttons.go=btn(W/2-110,575,220,54,'はじめる ▶','#E8590C',true);
+ buttons._top=topBar(TEXT.title);
+}
+/* --- 各ステージ描画 --- */
+function drawStage(dt){
+ bgWorkshop();
+ const sg=C.STAGES[stageIdx];
+ ctx.textAlign='center';ctx.font="bold 14px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+ ctx.fillText('シゴト'+(stageIdx+1)+'：'+sg.name+'「'+sg.label+'」',W/2,74);
+ if(stageIdx===0)drawForge(dt);
+ else if(stageIdx===1)drawSharpen(dt);
+ else if(stageIdx===2)drawAssemble(dt);
+ else if(stageIdx===3)drawInspect(dt);
+ else drawDeal(dt);
+ buttons._top=topBar(TEXT.title);
+}
+function drawForge(dt){
+ st.needleT+=dt;st.flash=Math.max(0,st.flash-dt*3);
+ // 炉と鋼
+ ctx.fillStyle='#3a2b22';rr(70,250,W-140,160,14);ctx.fill();
+ const glow=0.6+Math.sin(sceneT*3)*0.15+st.flash*0.5;
+ const fg=ctx.createRadialGradient(W/2,330,10,W/2,330,120);
+ fg.addColorStop(0,'rgba(255,'+Math.round(150+glow*80)+',60,'+glow+')');fg.addColorStop(1,'rgba(232,89,12,0)');
+ ctx.fillStyle=fg;ctx.fillRect(70,250,W-140,160);
+ ctx.save();ctx.translate(W/2,330);ctx.rotate(-0.08);
+ ctx.fillStyle='#ff9a3d';rr(-70,-12,140,24,6);ctx.fill();
+ ctx.fillStyle='rgba(255,230,140,'+(0.4+st.flash*0.6)+')';rr(-70,-12,140,10,5);ctx.fill();
+ ctx.restore();
+ // ハンマー
+ ctx.save();ctx.translate(W/2+80,240);ctx.rotate(st.flash>0.5?-0.9:Math.sin(sceneT*2)*0.08-0.2);
+ ctx.fillStyle='#8a5a20';ctx.fillRect(-6,-8,12,70);ctx.fillStyle='#54595d';rr(-26,-34,52,32,6);ctx.fill();
+ ctx.restore();
+ // 温度バー
+ const bx=50,bw=W-100,by=480;
+ rr(bx,by,bw,34,17);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
+ const zh=C.forgeZoneHalf(st.strike);
+ rr(bx+(st.zoneC-zh)*bw,by,zh*2*bw,34,10);
+ ctx.fillStyle='rgba(242,183,5,0.85)';ctx.fill();
+ const needle=(Math.sin(st.needleT*st.speed)+1)/2;
+ ctx.fillStyle='#F6EFE3';rr(bx+needle*bw-3,by-8,6,50,3);ctx.fill();
+ ctx.font="bold 13px sans-serif";ctx.fillStyle='#F6EFE3';ctx.textAlign='center';
+ ctx.fillText('適温ゾーンでタップ！　'+st.strike+' / 8 打',W/2,555);
+ drawNishie(70,640,0.75,'norm');
+}
+function drawSharpen(dt){
+ st.totT+=dt;
+ if(st.hold)st.angle+=55*dt;else st.angle-=40*dt;
+ st.angle=C.clamp(st.angle,0,45);
+ st.target+=st.tdir*dt*(6+st.blade*3);
+ if(st.target>34||st.target<12)st.tdir*=-1;
+ const inb=C.inBand(st.angle,st.target,3);
+ if(inb){st.inT+=dt;st.gauge+=dt/6;
+  if(Math.random()<0.3)addParts(W/2+60-st.angle,390-st.angle*2,'#9fd8ff',1,60);
+  if(Math.random()<0.2)addParts(W/2+50,380,'#FFE082',1,90);
+ }
+ if(st.gauge>=1){
+  st.blade++;st.gauge=0;SE.shing();addFloat(W/2,300,'一本仕上がり！ シャキーン','#F2B705',true);
+  addParts(W/2,360,'#AEB6BB',20,200);shake=3;
+  if(st.blade>=3&&!st.done){st.done=1;setTimeout(()=>stageScoreDone(C.sharpenScore(st.inT,st.totT)),700);}
+ }
+ // 砥石と刃
+ ctx.fillStyle='#54595d';rr(90,400,240,36,10);ctx.fill();
+ ctx.fillStyle='#6a7075';rr(90,400,240,10,5);ctx.fill();
+ ctx.save();ctx.translate(210,398);ctx.rotate(-st.angle*Math.PI/180);
+ ctx.fillStyle='#AEB6BB';ctx.beginPath();ctx.moveTo(-10,0);ctx.lineTo(130,-6);ctx.lineTo(130,2);ctx.lineTo(-10,8);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#D98E32';rr(126,-12,46,20,6);ctx.fill();
+ ctx.restore();
+ // 角度メーター
+ const cx=W/2,cy=250,R=90;
+ ctx.strokeStyle='rgba(246,239,227,0.25)';ctx.lineWidth=14;
+ ctx.beginPath();ctx.arc(cx,cy,R,Math.PI,Math.PI+Math.PI/2*0.9);ctx.stroke();
+ const ta=Math.PI+st.target/45*Math.PI/2*0.9;
+ ctx.strokeStyle=inb?'#7CB342':'#F2B705';
+ ctx.beginPath();ctx.arc(cx,cy,R,ta-0.09,ta+0.09);ctx.stroke();
+ const aa=Math.PI+st.angle/45*Math.PI/2*0.9;
+ ctx.strokeStyle='#F6EFE3';ctx.lineWidth=4;
+ ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(aa)*(R+18),cy+Math.sin(aa)*(R+18));ctx.stroke();
+ ctx.font="bold 13px sans-serif";ctx.textAlign='center';ctx.fillStyle=inb?'#7CB342':'#F6EFE3';
+ ctx.fillText(inb?'その角度や！キープ！':'目標の角度に合わせよう',W/2,300);
+ // ゲージ
+ rr(60,470,W-120,18,9);ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fill();
+ rr(60,470,(W-120)*C.clamp(st.gauge,0,1),18,9);ctx.fillStyle='#7CB342';ctx.fill();
+ ctx.fillStyle='#F6EFE3';ctx.font="bold 13px sans-serif";
+ ctx.fillText('押す=上げる／離す=下げる　仕上げた刃 '+st.blade+' / 3',W/2,520);
+ drawNishie(70,640,0.75,'norm');
+}
+function drawAssemble(dt){
+ if(!st.done){st.time-=dt;if(st.time<=0){st.time=0;st.done=1;setTimeout(()=>stageScoreDone(C.assembleScore(st.round,st.misses,0)),400);}}
+ // 設計図
+ rr(20,96,W-40,74,10);ctx.fillStyle='rgba(246,239,227,0.9)';ctx.fill();
+ ctx.font="bold 13px sans-serif";ctx.fillStyle='#1C2B33';ctx.textAlign='left';
+ ctx.fillText('設計図（この順にタップ）',34,118);
+ C.ASSEMBLE_ORDER.forEach((k,i)=>{
+  const done=i<st.asm.idx;
+  ctx.fillStyle=done?'#7CB342':'#1C2B33';
+  ctx.font=done?"bold 15px sans-serif":"15px sans-serif";
+  ctx.fillText((i+1)+'.'+C.PART_NAMES[k]+(done?'✓':''),34+i*95,148);
+ });
+ // ベルトコンベア
+ ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,220,W,290);
+ for(let i=0;i<8;i++){ctx.fillStyle='rgba(246,239,227,0.08)';ctx.fillRect(((i*70-sceneT*40)%(W+70)+W+70)%(W+70)-70,220,3,290);}
+ for(const it of st.items){
+  if(it.taken)continue;
+  it.x-=45*dt;if(it.x<-60)it.x=W+60;
+  const yy=it.y+Math.sin(sceneT*2+it.wob)*4;
+  drawPart(it.k,it.x,yy);
+ }
+ ctx.font="bold 14px sans-serif";ctx.textAlign='center';ctx.fillStyle='#F6EFE3';
+ ctx.fillText('のこり '+Math.ceil(st.time)+'秒　組み上げた鋏 '+st.round+' / 2',W/2,545);
+ drawNishie(70,640,0.75,'norm');
+}
+function drawPart(k,x,y){
+ ctx.save();ctx.translate(x,y);
+ rr(-40,-40,80,80,12);ctx.fillStyle='rgba(246,239,227,0.12)';ctx.fill();
+ if(k==='blade'){ctx.fillStyle='#AEB6BB';ctx.beginPath();ctx.moveTo(-22,18);ctx.quadraticCurveTo(4,-26,22,-20);ctx.quadraticCurveTo(6,-8,-14,20);ctx.closePath();ctx.fill();}
+ else if(k==='spring'){ctx.strokeStyle='#D98E32';ctx.lineWidth=4;ctx.beginPath();for(let i=0;i<5;i++){ctx.arc(0,-12+i*6,8,Math.PI,0,i%2===0);}ctx.stroke();}
+ else if(k==='bolt'){ctx.fillStyle='#54595d';ctx.beginPath();for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ctx.lineTo(Math.cos(a)*14,Math.sin(a)*14);}ctx.closePath();ctx.fill();ctx.fillStyle='#8C9296';ctx.beginPath();ctx.arc(0,0,6,0,7);ctx.fill();}
+ else if(k==='grip'){ctx.fillStyle='#E8590C';rr(-10,-24,20,48,9);ctx.fill();ctx.fillStyle='rgba(0,0,0,0.15)';for(let i=0;i<4;i++)ctx.fillRect(-10,-16+i*10,20,3);}
+ else if(k==='washer'){ctx.strokeStyle='#8C9296';ctx.lineWidth=6;ctx.beginPath();ctx.arc(0,0,12,0,7);ctx.stroke();}
+ else {ctx.fillStyle='#2E5E3A';ctx.beginPath();ctx.arc(0,0,13,0,7);ctx.fill();}
+ ctx.font="11px sans-serif";ctx.textAlign='center';ctx.fillStyle='#F6EFE3';
+ ctx.fillText(C.PART_NAMES[k],0,36);
+ ctx.restore();
+}
+function drawInspect(dt){
+ if(st.slide>0)st.slide=Math.max(0,st.slide-dt*3);
+ const item=st.items[st.idx];
+ ctx.font="bold 14px sans-serif";ctx.textAlign='center';ctx.fillStyle='#F6EFE3';
+ ctx.fillText('検品 '+(st.idx+1)+' / '+st.items.length+'　正解 '+st.correct,W/2,105);
+ if(item){
+  const ox=st.slide*W*0.6;
+  ctx.save();ctx.translate(W/2+ox,300);
+  // 検品台
+  ctx.fillStyle='rgba(246,239,227,0.1)';rr(-140,-120,280,240,16);ctx.fill();
+  drawShears(item.defect);
+  ctx.restore();
+  ctx.font="13px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+  ctx.fillText('欠け刃・ネジのすき間・刃のズレ…どこか変?',W/2,450);
+  buttons.ok=btn(48,490,140,56,'✓ よし','#2E5E3A');
+  buttons.ng=btn(W-188,490,140,56,'✗ アカン','#d9534f');
+ }
+ drawNishie(70,640,0.75,st.verdict<0?'sad':(st.verdict>0?'joy':'norm'));
+ ctx.font="12px sans-serif";ctx.textAlign='center';ctx.fillStyle='rgba(246,239,227,0.6)';
+ ctx.fillText('プロの目で、じっくり見てや',W/2,660);
+}
+function drawShears(defect){
+ ctx.save();ctx.scale(1.5,1.5);
+ const wob=defect==='wobble'?0.16:0;
+ // 下の刃
+ ctx.save();ctx.rotate(0.5);
+ ctx.fillStyle='#8C9296';ctx.beginPath();ctx.moveTo(-4,0);ctx.quadraticCurveTo(10,-46,4,-58);ctx.quadraticCurveTo(-4,-40,-8,-4);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#E8590C';rr(-7,2,12,52,6);ctx.fill();
+ ctx.restore();
+ // 上の刃
+ ctx.save();ctx.rotate(-0.5+wob);
+ ctx.fillStyle='#AEB6BB';ctx.beginPath();ctx.moveTo(4,0);ctx.quadraticCurveTo(-10,-46,-4,-58);
+ if(defect==='chip'){ctx.lineTo(-1,-44);ctx.lineTo(-8,-38);}
+ ctx.quadraticCurveTo(4,-40,8,-4);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#E8590C';rr(-5,2,12,52,6);ctx.fill();
+ ctx.restore();
+ // ボルト
+ ctx.fillStyle='#54595d';ctx.beginPath();ctx.arc(0,0,7,0,7);ctx.fill();
+ if(defect==='loose'){ctx.strokeStyle='#F2B705';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,10,0,7);ctx.stroke();
+  ctx.fillStyle='#2b2e30';ctx.beginPath();ctx.arc(3,2,3,0,7);ctx.fill();}
+ else{ctx.fillStyle='#2b2e30';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();}
+ ctx.restore();
+}
+function drawDeal(dt){
+ const d=C.DEALS[st.deal];
+ if(!d)return;
+ ctx.font="bold 14px sans-serif";ctx.textAlign='center';ctx.fillStyle='#F6EFE3';
+ ctx.fillText('商談 '+(st.deal+1)+' / 3',W/2,100);
+ // 相手
+ rr(30,120,W-60,120,14);ctx.fillStyle='rgba(246,239,227,0.92)';ctx.fill();
+ ctx.fillStyle='#1C2B33';ctx.font="bold 14px sans-serif";
+ ctx.fillText(d.who,W/2,148);
+ ctx.font="13px sans-serif";
+ wrapText(d.q,W/2,175,W-110,20);
+ // 選択肢
+ d.choices.forEach((c,i)=>{
+  const y=280+i*92;
+  const picked=st.reveal&&st.picks[st.deal]===i;
+  rr(30,y,W-60,76,12);
+  ctx.fillStyle=picked?'#F2B705':'rgba(246,239,227,0.14)';ctx.fill();
+  ctx.fillStyle=picked?'#1C2B33':'#F6EFE3';ctx.font="13px sans-serif";
+  wrapText(c.t,W/2,y+30,W-110,19);
+  buttons['c'+i]={x:30,y,w:W-60,h:76};
+ });
+ drawNishie(70,640,0.75,'point');
+ ctx.font="12px sans-serif";ctx.fillStyle='rgba(246,239,227,0.6)';ctx.textAlign='center';
+ ctx.fillText('キミらしい応え方を選んでや',W/2,660);
+}
+function wrapText(t,cx,y,maxW,lh){
+ const chars=t.split('');let line='',yy=y;
+ ctx.textAlign='center';
+ for(const ch of chars){
+  if(ctx.measureText(line+ch).width>maxW){ctx.fillText(line,cx,yy);line=ch;yy+=lh;}
+  else line+=ch;
+ }
+ ctx.fillText(line,cx,yy);
+}
+function drawStageResult(){
+ bgWorkshop();
+ const sg=C.STAGES[stageIdx];
+ const sc=st.finalScore;
+ ctx.textAlign='center';
+ ctx.font="bold 22px sans-serif";ctx.fillStyle='#F6EFE3';
+ ctx.fillText(sg.name+'のシゴト、おつかれさま！',W/2,150);
+ const t=Math.min(1,sceneT/0.8);
+ ctx.font="bold 72px 'Hiragino Maru Gothic ProN',sans-serif";
+ ctx.lineWidth=10;ctx.strokeStyle='#1C2B33';
+ const shown=Math.round(sc*t);
+ ctx.strokeText(shown,W/2,260);
+ ctx.fillStyle=sc>=80?'#F2B705':'#F6EFE3';ctx.fillText(shown,W/2,260);
+ ctx.font="bold 15px sans-serif";ctx.fillStyle='#7CB342';
+ ctx.fillText('【'+sg.statName+'】のスコア',W/2,295);
+ drawNishie(W/2,380,1.0,sc>=60?'joy':'norm');
+ // トリビアカード
+ const tr=C.TRIVIA[stageIdx];
+ rr(30,440,W-60,110,14);ctx.fillStyle='rgba(242,183,5,0.14)';ctx.fill();
+ ctx.strokeStyle='#F2B705';ctx.lineWidth=2;rr(30,440,W-60,110,14);ctx.stroke();
+ ctx.fillStyle='#F2B705';ctx.font="bold 13px sans-serif";
+ ctx.fillText('✦ ニシガキ豆知識 GET！',W/2,466);
+ ctx.fillStyle='#F6EFE3';ctx.font="13px sans-serif";
+ wrapText(tr.t,W/2,492,W-110,20);
+ buttons.next=btn(W/2-110,590,220,54,stageIdx<4?'次のシゴトへ ▶':'診断結果を見る ▶','#E8590C',true);
+ buttons._top=topBar(TEXT.title);
+}
+function drawFinal(){
+ bgWorkshop();
+ const type=C.TYPES[st.type];
+ ctx.textAlign='center';
+ ctx.font="bold 15px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+ ctx.fillText('― 診断結果 ―',W/2,80);
+ drawRhombus(W/2,118,22,type.color); /* カニ菱形（社章モチーフ） */
+ ctx.font="bold 27px 'Hiragino Maru Gothic ProN',sans-serif";
+ ctx.lineWidth=8;ctx.strokeStyle='#1C2B33';ctx.strokeText(type.name,W/2,168);
+ ctx.fillStyle=type.color;ctx.fillText(type.name,W/2,168);
+ ctx.font="13px sans-serif";ctx.fillStyle='#F6EFE3';
+ ctx.fillText(type.desc,W/2,196);
+ // レーダーチャート
+ drawRadar(112,300,78);
+ // ニシー
+ drawNishie(310,290,0.95,'joy');
+ rr(230,350,170,56,10);ctx.fillStyle='rgba(246,239,227,0.92)';ctx.fill();
+ ctx.fillStyle='#1C2B33';ctx.font="bold 11px sans-serif";
+ wrapText('ニシー「'+type.nishie+'」',315,372,150,15);
+ // 仕事解説
+ rr(24,424,W-48,96,12);ctx.fillStyle='rgba(46,94,58,0.35)';ctx.fill();
+ ctx.fillStyle='#7CB342';ctx.font="bold 12px sans-serif";
+ ctx.fillText('▼ ニシガキ工業での、キミの仕事',W/2,447);
+ ctx.fillStyle='#F6EFE3';ctx.font="12px sans-serif";
+ wrapText(type.work,W/2,470,W-90,18);
+ // 称号
+ ctx.font="12px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+ ctx.fillText('あつめた称号 '+save.types.length+' / 6（全部あつめられるかな？）',W/2,545);
+ buttons.recruit=btn(24,566,W-48,52,'ニシガキ工業の採用情報を見る ▶','#E8590C',true);
+ buttons.copy=btn(24,630,180,44,'結果をコピー','#3E7CB1');
+ buttons.retry=btn(216,630,88,44,'もう一回','#2E5E3A');
+ buttons.coll=btn(312,630,84,44,'称号','#54595d');
+ ctx.font="11px sans-serif";ctx.fillStyle='rgba(246,239,227,0.45)';
+ ctx.fillText('(c) '+TEXT.company+'｜刃物のまち・三木から世界へ',W/2,H-18);
+ buttons._top=topBar('診断結果');
+}
+function drawRhombus(cx,cy,r,color){
+ ctx.save();ctx.translate(cx,cy);
+ ctx.fillStyle=color;
+ ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(r*1.35,0);ctx.lineTo(0,r);ctx.lineTo(-r*1.35,0);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='rgba(246,239,227,0.85)';ctx.lineWidth=2;ctx.stroke();
+ ctx.fillStyle='#F6EFE3';ctx.font="bold "+Math.round(r*0.9)+"px sans-serif";
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('蟹',0,1);
+ ctx.textBaseline='alphabetic';
+ ctx.restore();
+}
+function drawRadar(cx,cy,R){
+ const axes=[
+  ['集中',results.focus],['精密',results.precision],['段取り',results.logistics],
+  ['観察',results.observation],['対話・発想',Math.max(results.dialog,results.idea)],
+ ];
+ const n=axes.length;
+ for(let ring=1;ring<=3;ring++){
+  ctx.beginPath();
+  for(let i=0;i<=n;i++){const a=-Math.PI/2+i/n*Math.PI*2;const r=R*ring/3;
+   const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.strokeStyle='rgba(246,239,227,0.2)';ctx.lineWidth=1;ctx.stroke();
+ }
+ const t=Math.min(1,sceneT/1.0);
+ ctx.beginPath();
+ for(let i=0;i<=n;i++){const j=i%n;const a=-Math.PI/2+j/n*Math.PI*2;
+  const r=R*C.clamp(axes[j][1],5,100)/100*t;
+  const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+ ctx.fillStyle='rgba(242,183,5,0.35)';ctx.fill();
+ ctx.strokeStyle='#F2B705';ctx.lineWidth=2;ctx.stroke();
+ ctx.font="10px sans-serif";ctx.fillStyle='#F6EFE3';
+ for(let i=0;i<n;i++){const a=-Math.PI/2+i/n*Math.PI*2;
+  ctx.textAlign='center';
+  ctx.fillText(axes[i][0],cx+Math.cos(a)*(R+16),cy+Math.sin(a)*(R+16)+3);}
+}
+function drawCollection(){
+ bgWorkshop();
+ ctx.textAlign='center';
+ ctx.font="bold 22px sans-serif";ctx.fillStyle='#F2B705';
+ ctx.fillText('称号コレクション',W/2,100);
+ ctx.font="12px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+ ctx.fillText('診断でタイプを引き当てると集まるで（'+save.types.length+'/6）',W/2,126);
+ C.TYPE_ORDER.forEach((k,i)=>{
+  const t=C.TYPES[k],got=save.types.includes(k);
+  const x=30+(i%2)*(W/2-20),y=150+Math.floor(i/2)*118;
+  rr(x,y,W/2-40,102,12);
+  ctx.fillStyle=got?'rgba(246,239,227,0.14)':'rgba(0,0,0,0.3)';ctx.fill();
+  if(got){ctx.strokeStyle=t.color;ctx.lineWidth=2;rr(x,y,W/2-40,102,12);ctx.stroke();}
+  if(got)drawRhombus(x+(W/2-40)/2,y+36,16,t.color);
+  else{ctx.font="26px sans-serif";ctx.fillStyle='rgba(246,239,227,0.25)';ctx.fillText('？',x+(W/2-40)/2,y+42);}
+  ctx.font="bold 12px sans-serif";
+  ctx.fillText(got?t.name:'？？？',x+(W/2-40)/2,y+70);
+ });
+ // トリビア数
+ ctx.font="12px sans-serif";ctx.fillStyle='rgba(246,239,227,0.7)';
+ ctx.fillText('あつめた豆知識: '+save.trivia.length+' / '+C.TRIVIA.length,W/2,540);
+ buttons.back2=btn(W/2-100,575,200,50,'タイトルへ','#2E5E3A');
+ buttons._top=topBar('コレクション');
+}
+/* --- ループ --- */
+let last=perf();
+function loop(){
+ const now=perf();let dt=Math.min(0.05,(now-last)/1000);last=now;
+ if(document.hidden){requestAnimationFrame(loop);return;}
+ sceneT+=dt;
+ ctx.save();
+ if(shake>0){shake=Math.max(0,shake-dt*20);ctx.translate((Math.random()-0.5)*shake*2,(Math.random()-0.5)*shake*2);}
+ if(scene==='title')drawTitle();
+ else if(scene==='tutorial')drawTutorial();
+ else if(scene==='stageIntro')drawStageIntro();
+ else if(scene==='stage')drawStage(dt);
+ else if(scene==='stageResult')drawStageResult();
+ else if(scene==='final')drawFinal();
+ else if(scene==='collection')drawCollection();
+ drawJuice(dt);
+ ctx.restore();
+ requestAnimationFrame(loop);
+}
+loop();
+})();}
+</script>
+</body>
+</html>

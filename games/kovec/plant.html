@@ -101,6 +101,17 @@ input.code{width:100%;font-size:12px;padding:6px;border-radius:8px;border:2px so
 </div></div>
 <script>
 'use strict';
+/* file:// やプライベートモード等で localStorage アクセスが例外を投げても
+   スクリプトが止まらないようにする安全ラッパ（例外時はメモリ上に退避）。
+   これが無いと Safari 等でローカルHTMLを開いた際に真っ白/真っ黒になる。 */
+var LS=(function(){
+  try{var k='__kobec_probe__';window.localStorage.setItem(k,'1');window.localStorage.removeItem(k);return window.localStorage;}
+  catch(e){var mem={};return{
+    getItem:function(k){return Object.prototype.hasOwnProperty.call(mem,k)?mem[k]:null;},
+    setItem:function(k,v){mem[k]=String(v);},
+    removeItem:function(k){delete mem[k];}
+  };}
+})();
 /* ================================================================
    操業マスター 〜バイオガスKOBE〜  株式会社コベック デモ
    実データ: 処理60t/日・バイオガス約6,900N㎥/日・メタン約60%
@@ -261,11 +272,11 @@ function fit(){var s=Math.min(1.25,Math.min(innerWidth/420,innerHeight/740));wra
 addEventListener('resize',fit);fit();
 
 /* ---------- サウンド ---------- */
-var AC=null,muted=localStorage.getItem('kobec_mute')==='1';
+var AC=null,muted=LS.getItem('kobec_mute')==='1';
 var muteBtn=document.getElementById('muteBtn');
 function updMute(){muteBtn.textContent=muted?'✕':'♪'}
 updMute();
-muteBtn.addEventListener('click',function(){muted=!muted;localStorage.setItem('kobec_mute',muted?'1':'0');updMute()});
+muteBtn.addEventListener('click',function(){muted=!muted;LS.setItem('kobec_mute',muted?'1':'0');updMute()});
 function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
 function tone(f,t,dur,type,vol){
   if(muted)return;var a=ac();if(!a)return;
@@ -337,8 +348,8 @@ function drawMetankun(c,x,y,s,mood){
 var SAVEKEY='kobec_plant_save', METAKEY='kobec_plant_meta';
 var G=null; // ラン状態
 var meta=loadMeta();
-function loadMeta(){try{var m=JSON.parse(localStorage.getItem(METAKEY));if(m&&m.titles)return m}catch(e){}return{titles:[],bestMwh:0,bestRank:'-'}}
-function saveMeta(){try{localStorage.setItem(METAKEY,JSON.stringify(meta))}catch(e){}}
+function loadMeta(){try{var m=JSON.parse(LS.getItem(METAKEY));if(m&&m.titles)return m}catch(e){}return{titles:[],bestMwh:0,bestRank:'-'}}
+function saveMeta(){try{LS.setItem(METAKEY,JSON.stringify(meta))}catch(e){}}
 function newGame(seed){
   return {seed:seed,day:1,phase:'accept',stock:0,todayIn:0,cond:80,holder:1500,
     money:0,mwh:0,co2:0,trust:50,flaredTotal:0,noFlare:true,maxMethane:0,
@@ -347,8 +358,8 @@ function newGame(seed){
     lastOp:null,lastPw:null,quality:{tons:0,foreign:0,water:0,oil:0},
     feed:40,temp:37,mix:2,pre:1,rate:60,history:[]};
 }
-function saveRun(){try{localStorage.setItem(SAVEKEY,JSON.stringify(G))}catch(e){}}
-function clearRun(){try{localStorage.removeItem(SAVEKEY)}catch(e){}}
+function saveRun(){try{LS.setItem(SAVEKEY,JSON.stringify(G))}catch(e){}}
+function clearRun(){try{LS.removeItem(SAVEKEY)}catch(e){}}
 function validRun(g){
   if(!g||typeof g.day!=='number'||g.day<1||g.day>CORE.DAYS)return false;
   if(['accept','operate','power','night','final'].indexOf(g.phase)<0)return false;
@@ -358,7 +369,7 @@ function validRun(g){
   if(g.phase==='night'&&(!g.lastPw||typeof g.lastPw.kwh!=='number'))return false;
   return true;
 }
-function loadRun(){try{var g=JSON.parse(localStorage.getItem(SAVEKEY));if(validRun(g))return g}catch(e){}return null}
+function loadRun(){try{var g=JSON.parse(LS.getItem(SAVEKEY));if(validRun(g))return g}catch(e){}return null}
 var rng=CORE.mulberry32(Date.now()&0xffffffff);
 
 /* ---------- 演出ヘルパ ---------- */
@@ -572,7 +583,7 @@ function showTitle(){
   if(saved) mkb('つづきから（Day '+saved.day+'）','primary',function(){G=saved;titleOv.classList.add('hidden');enterPhase(G.phase,true)});
   mkb(saved?'はじめから':'操業スタート',saved?'':'primary',function(){
     clearRun();G=newGame(Date.now()&0xffff);titleOv.classList.add('hidden');
-    if(!localStorage.getItem('kobec_plant_tut')){showTut()}else{startDay()}
+    if(!LS.getItem('kobec_plant_tut')){showTut()}else{startDay()}
   });
   mkb('引き継ぎコード','ghost',showCode);
   titleOv.appendChild(bs);
@@ -626,7 +637,7 @@ function showTut(){
     tutOv.appendChild(card);
     document.getElementById('tutNext').addEventListener('click',function(){
       SE.click();i++;
-      if(i>=tutPages.length){localStorage.setItem('kobec_plant_tut','1');tutOv.classList.add('hidden');startDay();}
+      if(i>=tutPages.length){LS.setItem('kobec_plant_tut','1');tutOv.classList.add('hidden');startDay();}
       else page();
     });
   }

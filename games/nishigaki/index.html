@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ニシガキ工業｜刃物のまち・三木ではたらく未来を、ゲームで体験。</title>
+<style>
+:root{
+ --wood:#D98E32; --steel:#AEB6BB; --green:#2E5E3A; --leaf:#7CB342;
+ --forge:#E8590C; --navy:#1C2B33; --cream:#F6EFE3; --gold:#F2B705;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+ font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
+ background:var(--navy); color:var(--cream); overflow-x:hidden;
+}
+/* ===== 背景レイヤー（夕暮れの三木 → 深緑の庭園へ） ===== */
+.bg{
+ position:fixed; inset:0; z-index:-2;
+ background:linear-gradient(180deg,
+  #2b1f3a 0%, #6c3a55 14%, #c95d3e 26%, #e8a05c 33%,
+  #3d5a63 46%, #28414d 62%, #224430 80%, #14291c 100%);
+}
+.bg-img{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center top;opacity:0;transition:opacity 1.2s;}
+.bg-img.on{opacity:0.55;}
+.vignette{position:fixed;inset:0;z-index:0;pointer-events:none;
+ background:radial-gradient(ellipse at 50% 30%, transparent 55%, rgba(10,16,20,0.55) 100%);}
+/* 山と工房のシルエット */
+.mtn{position:absolute;left:0;right:0;height:180px;z-index:0;pointer-events:none;}
+svg.deco{display:block;width:100%;height:100%;}
+/* パーティクル */
+.pt{position:fixed;z-index:1;pointer-events:none;border-radius:50%;opacity:0;}
+/* ===== レイアウト ===== */
+.page{position:relative;z-index:2;max-width:860px;margin:0 auto;padding:0 18px 40px;}
+.badge-top{
+ margin:22px auto 0; width:max-content; max-width:92%;
+ background:rgba(10,16,20,0.55); border:1px solid rgba(246,239,227,0.25);
+ border-radius:999px; padding:8px 22px; font-size:13px; letter-spacing:0.05em;
+ backdrop-filter:blur(4px); text-align:center;
+}
+.badge-top b{color:var(--gold);}
+/* ヒーロー */
+.hero{text-align:center;padding:34px 0 10px;}
+.hero-title-img{max-width:min(560px,92%);height:auto;display:none;margin:0 auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,0.5));}
+.hero-title{
+ font-size:clamp(34px,7.2vw,60px); font-weight:800; line-height:1.35;
+ background:linear-gradient(180deg,#ffe9b0 8%, var(--gold) 45%, var(--forge) 95%);
+ -webkit-background-clip:text; background-clip:text; color:transparent;
+ filter:drop-shadow(0 4px 0 rgba(20,25,30,0.85)) drop-shadow(0 10px 22px rgba(0,0,0,0.5));
+ letter-spacing:0.02em;
+}
+.hero-sub{margin-top:18px;font-size:clamp(13px,2.6vw,16px);color:rgba(246,239,227,0.9);text-shadow:0 2px 8px rgba(0,0,0,0.7);}
+.mascot-wrap{margin:26px auto 8px;width:150px;height:150px;position:relative;animation:bob 3.2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.mascot-wrap img{width:100%;height:100%;object-fit:contain;display:none;filter:drop-shadow(0 10px 16px rgba(0,0,0,0.45));}
+.mascot-fallback{width:100%;height:100%;}
+.hero-note{
+ margin:18px auto 0;width:max-content;max-width:94%;
+ background:rgba(10,16,20,0.5);border-radius:999px;padding:8px 20px;font-size:12.5px;
+ border:1px solid rgba(246,239,227,0.18);
+}
+.chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+.chip{
+ font-size:12px;padding:7px 14px;border-radius:999px;
+ background:rgba(46,94,58,0.55);border:1px solid rgba(124,179,66,0.5);
+}
+.chip::before{content:'●';color:var(--leaf);margin-right:6px;font-size:9px;vertical-align:1px;}
+.scroll-cue{margin:26px auto 0;font-size:12px;color:rgba(246,239,227,0.6);animation:bob 2s ease-in-out infinite;}
+/* ヒーローカード（キレアジ！） */
+.hero-card{
+ margin:44px auto 0; background:rgba(16,28,34,0.82); border-radius:22px;
+ border:1px solid rgba(246,239,227,0.14); overflow:hidden;
+ box-shadow:0 24px 60px rgba(0,0,0,0.5); backdrop-filter:blur(6px);
+ display:grid; grid-template-columns:1fr 1fr;
+}
+@media(max-width:680px){.hero-card{grid-template-columns:1fr;}}
+.hero-card .art{min-height:250px;position:relative;overflow:hidden;}
+.hero-card .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+.art-fallback{position:absolute;inset:0;}
+.hero-card .body{padding:26px 26px 24px;}
+.tag-line{font-size:12px;color:var(--leaf);letter-spacing:0.08em;margin-bottom:10px;}
+.game-logo{
+ font-size:clamp(30px,5.5vw,42px);font-weight:800;
+ background:linear-gradient(180deg,#fff3c8, var(--gold) 55%, var(--forge));
+ -webkit-background-clip:text;background-clip:text;color:transparent;
+ filter:drop-shadow(0 3px 0 rgba(20,25,30,0.9));
+}
+.game-logo-sub{font-size:13px;color:#9fd8ff;margin:6px 0 12px;}
+.hero-card p.desc{font-size:13.5px;line-height:1.9;color:rgba(246,239,227,0.88);}
+.meta{font-size:11.5px;color:rgba(246,239,227,0.55);margin-top:12px;}
+.cta{
+ display:inline-block;margin-top:18px;padding:15px 34px;border-radius:999px;
+ background:linear-gradient(180deg,#f7a03c,var(--forge));color:#fff;text-decoration:none;
+ font-weight:800;font-size:16px;letter-spacing:0.04em;
+ box-shadow:0 8px 22px rgba(232,89,12,0.45), inset 0 1px 0 rgba(255,255,255,0.35);
+ animation:pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.045);}}
+.cta:active{transform:scale(0.97);}
+/* サブセクション */
+.sect-head{text-align:center;margin:64px 0 6px;font-size:19px;font-weight:800;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,0.6);}
+.sect-sub{text-align:center;font-size:12.5px;color:rgba(246,239,227,0.7);margin-bottom:24px;}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:680px){.cards{grid-template-columns:1fr;}}
+.card{
+ background:rgba(16,28,34,0.82);border-radius:18px;overflow:hidden;
+ border:1px solid rgba(246,239,227,0.12);box-shadow:0 14px 36px rgba(0,0,0,0.45);
+ display:flex;flex-direction:column;transition:transform 0.25s, box-shadow 0.25s;
+}
+.card:hover{transform:translateY(-6px);box-shadow:0 22px 48px rgba(0,0,0,0.55);}
+.card .art{height:150px;position:relative;overflow:hidden;}
+.card .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+.card .ribbon{
+ position:absolute;top:10px;left:10px;z-index:2;font-size:10.5px;font-weight:800;
+ padding:4px 12px;border-radius:999px;color:#fff;
+}
+.card .body{padding:16px 16px 18px;display:flex;flex-direction:column;flex:1;}
+.card h3{
+ font-size:19px;font-weight:800;margin-bottom:8px;
+ background:linear-gradient(180deg,#fff3c8,var(--gold) 60%,var(--forge));
+ -webkit-background-clip:text;background-clip:text;color:transparent;
+ filter:drop-shadow(0 2px 0 rgba(20,25,30,0.9));
+}
+.card p{font-size:12px;line-height:1.85;color:rgba(246,239,227,0.85);flex:1;}
+.card .cta{align-self:flex-end;margin-top:14px;padding:10px 24px;font-size:13px;animation:none;}
+.card .cta.green{background:linear-gradient(180deg,#8cc152,var(--green));box-shadow:0 6px 16px rgba(46,94,58,0.5), inset 0 1px 0 rgba(255,255,255,0.3);}
+/* フッター */
+footer{margin-top:70px;text-align:center;padding-bottom:20px;}
+footer .slogan{font-size:15px;font-weight:800;color:var(--cream);letter-spacing:0.12em;}
+footer .link{display:inline-block;margin-top:12px;color:#9fd8ff;font-size:12.5px;}
+footer .copy{margin-top:14px;font-size:11px;color:rgba(246,239,227,0.45);}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="bg-img" id="bgimg"></div>
+<div class="vignette"></div>
+
+<div class="page">
+ <div class="badge-top"><b>ニシガキ工業株式会社</b>　採用・仕事体験コンテンツ</div>
+
+ <!-- ヒーロー -->
+ <section class="hero">
+  <img class="hero-title-img" id="titleimg" alt="刃物のまち・三木ではたらく未来を、ゲームで体験。">
+  <h1 class="hero-title" id="titletext">刃物のまち・三木で<br>はたらく未来を、<br>ゲームで体験。</h1>
+  <p class="hero-sub">世界初の高枝切鋏を生んだ町工場の仕事と、あなたの適性がわかる</p>
+
+  <div class="mascot-wrap">
+   <img id="mascotimg" alt="ニシー">
+   <svg class="mascot-fallback" id="mascotsvg" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#B8752A" stroke-width="5" stroke-linecap="round" fill="none">
+     <path d="M45 92 Q30 98 26 110"/><path d="M45 100 Q31 108 28 120"/><path d="M48 108 Q36 118 34 128"/>
+     <path d="M105 92 Q120 98 124 110"/><path d="M105 100 Q119 108 122 120"/><path d="M102 108 Q114 118 116 128"/>
+    </g>
+    <g>
+     <g transform="translate(32,52) rotate(28)">
+      <path d="M0 14 L8 2" stroke="#B8752A" stroke-width="9" stroke-linecap="round"/>
+      <path d="M8 0 Q-8 -18 0 -28 Q4 -14 10 -4 Z" fill="#8C9296"/>
+      <path d="M8 0 Q22 -20 12 -30 Q10 -14 4 -4 Z" fill="#AEB6BB"/>
+      <circle cx="8" cy="0" r="4.5" fill="#54595d"/><circle cx="8" cy="0" r="2" fill="#2b2e30"/>
+     </g>
+     <g transform="translate(118,52) rotate(-28) scale(-1,1)">
+      <path d="M0 14 L8 2" stroke="#B8752A" stroke-width="9" stroke-linecap="round"/>
+      <path d="M8 0 Q-8 -18 0 -28 Q4 -14 10 -4 Z" fill="#8C9296"/>
+      <path d="M8 0 Q22 -20 12 -30 Q10 -14 4 -4 Z" fill="#AEB6BB"/>
+      <circle cx="8" cy="0" r="4.5" fill="#54595d"/><circle cx="8" cy="0" r="2" fill="#2b2e30"/>
+     </g>
+    </g>
+    <ellipse cx="75" cy="88" rx="40" ry="32" fill="#D98E32"/>
+    <ellipse cx="66" cy="78" rx="40" ry="32" fill="rgba(255,255,255,0.12)" clip-path="circle(38px at 75px 88px)"/>
+    <g stroke="rgba(140,85,30,0.5)" stroke-width="1.6" fill="none">
+     <path d="M60 86 a12 12 0 0 1 20 -6"/><path d="M55 92 a20 20 0 0 1 34 -10"/><path d="M52 99 a28 28 0 0 1 46 -13"/>
+    </g>
+    <line x1="63" y1="60" x2="61" y2="46" stroke="#B8752A" stroke-width="4.5"/>
+    <line x1="87" y1="60" x2="89" y2="46" stroke="#B8752A" stroke-width="4.5"/>
+    <circle cx="60" cy="41" r="7.5" fill="#E8A54B"/><circle cx="90" cy="41" r="7.5" fill="#E8A54B"/>
+    <circle cx="61" cy="41" r="3.6" fill="#20242a"/><circle cx="89" cy="41" r="3.6" fill="#20242a"/>
+    <circle cx="62.5" cy="39.5" r="1.3" fill="#fff"/><circle cx="90.5" cy="39.5" r="1.3" fill="#fff"/>
+    <path d="M68 96 a8 8 0 0 0 14 0" stroke="#8a5a20" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+   </svg>
+  </div>
+
+  <div class="hero-note">就活中のあなたへ｜まずは5分、町工場のシゴトを体験しよう</div>
+  <div class="chips">
+   <span class="chip">鍛造・刃付け</span><span class="chip">組立・検品</span><span class="chip">開発・海外営業</span>
+  </div>
+  <div class="scroll-cue">▼ スクロールして工場へ</div>
+
+  <!-- 三木の山並みと工房のシルエット -->
+  <div style="position:relative;height:150px;margin:8px -18px -40px;pointer-events:none;">
+   <svg class="deco" viewBox="0 0 900 150" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 120 L90 62 L170 105 L260 48 L350 100 L440 70 L520 108 L0 108 Z" fill="rgba(16,26,32,0.55)"/>
+    <path d="M380 150 L470 78 L560 125 L650 55 L740 110 L830 72 L900 118 L900 150 Z" fill="rgba(16,26,32,0.75)"/>
+    <g transform="translate(555,84)">
+     <path d="M-46 66 L-46 18 L0 -10 L46 18 L46 66 Z" fill="#101a20"/>
+     <rect x="-14" y="30" width="28" height="36" fill="#F2B705" opacity="0.85"/>
+     <rect x="-38" y="26" width="14" height="12" fill="#F2B705" opacity="0.5"/>
+     <rect x="24" y="26" width="14" height="12" fill="#F2B705" opacity="0.5"/>
+     <rect x="18" y="-16" width="10" height="22" fill="#101a20"/>
+     <circle cx="23" cy="-22" r="3" fill="#E8590C" opacity="0.8"/>
+     <circle cx="26" cy="-30" r="2.2" fill="#F2B705" opacity="0.6"/>
+    </g>
+    <path d="M0 150 L0 118 L900 118 L900 150 Z" fill="rgba(16,26,32,0.9)"/>
+   </svg>
+  </div>
+ </section>
+
+ <!-- ヒーローカード: キレアジ！ -->
+ <section class="hero-card">
+  <div class="art">
+   <div class="art-fallback">
+    <svg class="deco" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+      <linearGradient id="fga" x1="0" y1="0" x2="0" y2="1">
+       <stop offset="0" stop-color="#3a2b22"/><stop offset="1" stop-color="#1C2B33"/>
+      </linearGradient>
+      <radialGradient id="fgb" cx="0.5" cy="0.55" r="0.5">
+       <stop offset="0" stop-color="#ffb44d"/><stop offset="1" stop-color="#E8590C" stop-opacity="0"/>
+      </radialGradient>
+     </defs>
+     <rect width="400" height="300" fill="url(#fga)"/>
+     <circle cx="200" cy="165" r="120" fill="url(#fgb)" opacity="0.8"/>
+     <rect x="140" y="150" width="120" height="22" rx="8" fill="#ff9a3d" transform="rotate(-6 200 160)"/>
+     <rect x="250" y="70" width="44" height="30" rx="6" fill="#54595d" transform="rotate(-24 272 85)"/>
+     <rect x="266" y="96" width="10" height="56" rx="5" fill="#8a5a20" transform="rotate(-24 271 124)"/>
+     <g opacity="0.9">
+      <circle cx="180" cy="120" r="3" fill="#FFE082"/><circle cx="222" cy="105" r="2.4" fill="#FFB74D"/>
+      <circle cx="205" cy="90" r="2" fill="#FFE082"/><circle cx="160" cy="100" r="2" fill="#FFB74D"/>
+     </g>
+     <text x="200" y="262" font-size="15" fill="rgba(246,239,227,0.85)" text-anchor="middle" font-weight="bold">鍛造 → 刃付け → 組立 → 検品 → 商談</text>
+    </svg>
+   </div>
+   <img id="card1img" alt="キレアジ！">
+  </div>
+  <div class="body">
+   <div class="tag-line">ゲームでシゴトを知る・自分の強みを見つける</div>
+   <div class="game-logo">キレアジ！</div>
+   <div class="game-logo-sub">ニシガキのシゴト体験 ＆ 適職診断</div>
+   <p class="desc">鍛造・刃付け・組立・検品・海外商談。世界初の高枝切鋏を生んだニシガキ工業の5つのシゴトを1日体験して、あなたの強みと向いている役割を全6タイプで診断します。刃物のまち・三木ではたらくキャリアを考える、最初の一歩に。</p>
+   <div class="meta">約5〜8分｜スマホで体験｜診断タイプ全6種</div>
+   <a class="cta" href="game1_kireaji.html">シゴト体験をはじめる ▶</a>
+  </div>
+ </section>
+
+ <!-- サブカード -->
+ <h2 class="sect-head">もっと知ろう、切れ味のシゴト</h2>
+ <p class="sect-sub">ニシガキ工業のものづくりを、2つのミニゲームでも体験できます。</p>
+ <section class="cards">
+  <div class="card">
+   <div class="art">
+    <span class="ribbon" style="background:#d9534f;">爽快アクション</span>
+    <svg class="deco" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+     <defs><linearGradient id="g2a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd3f4"/><stop offset="1" stop-color="#2E5E3A"/></linearGradient></defs>
+     <rect width="400" height="300" fill="url(#g2a)"/>
+     <rect x="185" y="90" width="30" height="210" rx="10" fill="#8a5a20"/>
+     <path d="M200 100 Q120 60 90 90" stroke="#6d4a1e" stroke-width="16" fill="none" stroke-linecap="round"/>
+     <path d="M200 140 Q290 100 320 130" stroke="#6d4a1e" stroke-width="14" fill="none" stroke-linecap="round"/>
+     <circle cx="95" cy="80" r="30" fill="#7CB342"/><circle cx="320" cy="120" r="26" fill="#7CB342"/>
+     <circle cx="140" cy="60" r="34" fill="#8cc152"/>
+     <circle cx="330" cy="145" r="8" fill="#ffb300"/><circle cx="308" cy="138" r="8" fill="#ffb300"/>
+     <g transform="translate(120,210) rotate(-20)">
+      <rect x="-6" y="0" width="12" height="70" rx="6" fill="#E8590C"/>
+      <path d="M0 0 Q-16 -26 -4 -38 Q0 -20 8 -6 Z" fill="#AEB6BB"/>
+     </g>
+     <g opacity="0.85"><circle cx="180" cy="180" r="3" fill="#e8d5a0"/><circle cx="196" cy="168" r="2.5" fill="#e8d5a0"/><circle cx="210" cy="185" r="2" fill="#e8d5a0"/></g>
+    </svg>
+    <img id="card2img" alt="ニシーの果樹園バッサリ！">
+   </div>
+   <div class="body">
+    <h3>ニシーの果樹園バッサリ！</h3>
+    <p>のびすぎた果樹の枝を、太丸とLR（ロングリーチ）ツールでバッサリ剪定！ ハシゴはあぶない、地面から安全に。正しく切れば実がたわわ──切り口がキレイだと気持ちいい、爽快アクション。</p>
+    <a class="cta" href="game2_futomaru.html">あそぶ ▶</a>
+   </div>
+  </div>
+  <div class="card">
+   <div class="art">
+    <span class="ribbon" style="background:#2E5E3A;">まったり系</span>
+    <svg class="deco" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+     <defs><linearGradient id="g3a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28414d"/><stop offset="1" stop-color="#14291c"/></linearGradient></defs>
+     <rect width="400" height="300" fill="url(#g3a)"/>
+     <ellipse cx="110" cy="190" rx="55" ry="70" fill="#2E5E3A"/>
+     <ellipse cx="110" cy="190" rx="55" ry="70" fill="none" stroke="#7CB342" stroke-width="4" stroke-dasharray="10 8" opacity="0.8"/>
+     <path d="M250 250 q0 -90 45 -110 q45 20 45 110 Z" fill="#2E5E3A"/>
+     <circle cx="295" cy="115" r="26" fill="#7CB342"/>
+     <rect x="100" y="255" width="20" height="30" fill="#8a5a20"/><rect x="285" y="255" width="20" height="30" fill="#8a5a20"/>
+     <circle cx="205" cy="80" r="4" fill="#ffe082"/><circle cx="180" cy="110" r="3" fill="#ffe082"/>
+     <g transform="translate(200,200) rotate(15)"><rect x="-5" y="0" width="10" height="52" rx="5" fill="#D98E32"/><path d="M0 0 L-12 -34 L0 -28 L12 -34 Z" fill="#AEB6BB"/></g>
+    </svg>
+    <img id="card3img" alt="刈吉のトピアリー庭園">
+   </div>
+   <div class="body">
+    <h3>刈吉のトピアリー庭園</h3>
+    <p>職人が一本一本手がけた刈込鋏「刈吉」で、のびた生垣をシャキシャキ刈りこもう。まる、ことり、ニシー……かたちが完成したら、じぶんの庭園にかざれるよ。小鳥やちょうちょも遊びにくる、まったり庭づくり。</p>
+    <a class="cta green" href="game3_karikichi.html">あそぶ ▶</a>
+   </div>
+  </div>
+  <div class="card">
+   <div class="art">
+    <span class="ribbon" style="background:#3E7CB1;">会社を知る</span>
+    <svg class="deco" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+     <defs><linearGradient id="g4a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c95d3e"/><stop offset="1" stop-color="#28414d"/></linearGradient></defs>
+     <rect width="400" height="300" fill="url(#g4a)"/>
+     <path d="M0 220 L70 150 L130 200 L200 130 L270 190 L340 140 L400 200 L400 300 L0 300 Z" fill="#1C2B33"/>
+     <rect x="150" y="185" width="100" height="60" fill="#22333B"/>
+     <path d="M140 185 L200 150 L260 185 Z" fill="#2b3f49"/>
+     <rect x="188" y="215" width="24" height="30" fill="#F2B705" opacity="0.9"/>
+     <rect x="160" y="200" width="18" height="16" fill="#F2B705" opacity="0.6"/><rect x="222" y="200" width="18" height="16" fill="#F2B705" opacity="0.6"/>
+     <circle cx="330" cy="70" r="26" fill="#ffcf6e" opacity="0.9"/>
+     <g transform="translate(200,95)"><path d="M-22 0 L0 -14 L22 0 L0 14 Z" fill="#d9534f"/><text x="0" y="5" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">蟹</text></g>
+    </svg>
+    <img id="cardCompanyImg" alt="三木の町工場と庭園のイメージ">
+   </div>
+   <div class="body">
+    <h3>ニシガキ工業とは</h3>
+    <p>1969年創業、刃物のまち・三木の園芸刃物メーカー。世界初の高枝切鋏、テコの力で40mmを切る「太丸」、そしてフランス・スペインへ。カニのマークの町工場の挑戦を、公式サイトでご覧ください。</p>
+    <a class="cta" style="background:linear-gradient(180deg,#69a8dc,#3E7CB1);box-shadow:0 6px 16px rgba(62,124,177,0.5), inset 0 1px 0 rgba(255,255,255,0.3);" href="https://www.ni-co.jp/" target="_blank" rel="noopener">公式サイトへ ▶</a>
+   </div>
+  </div>
+ </section>
+
+ <footer>
+  <div class="slogan">「切れ味で、未来をひらく。」</div>
+  <a class="link" href="https://www.ni-co.jp/" target="_blank" rel="noopener">ニシガキ工業株式会社の会社・製品を知る</a>
+  <div class="copy">(c) ニシガキ工業株式会社（兵庫県三木市）／ 採用・仕事体験デモ</div>
+ </footer>
+</div>
+
+<script>
+'use strict';
+(function(){
+ /* 画像 try-load（あれば差し替え） */
+ function tryImg(src,ok){
+  const im=new Image();
+  im.onload=function(){ok(src);};
+  im.src=src;
+ }
+ tryImg('assets/img/entrance_bg.png',function(s){
+  const el=document.getElementById('bgimg');
+  el.style.backgroundImage='url("'+s+'")';el.classList.add('on');
+ });
+ tryImg('assets/img/title_entrance.png',function(s){
+  const im=document.getElementById('titleimg');
+  im.src=s;im.style.display='block';
+  document.getElementById('titletext').style.display='none';
+ });
+ tryImg('assets/img/mascot.png',function(s){
+  const im=document.getElementById('mascotimg');
+  im.src=s;im.style.display='block';
+  document.getElementById('mascotsvg').style.display='none';
+ });
+ [['card_game1.png','card1img'],['card_game2.png','card2img'],['card_game3.png','card3img'],['card_company.png','cardCompanyImg']].forEach(function(p){
+  tryImg('assets/img/'+p[0],function(s){
+   const im=document.getElementById(p[1]);
+   im.src=s;im.style.display='block';
+  });
+ });
+ /* 浮遊パーティクル（葉と火の粉） */
+ const N=18,ps=[];
+ for(let i=0;i<N;i++){
+  const d=document.createElement('div');d.className='pt';
+  const leaf=i%3!==0;
+  const sz=leaf?(5+Math.random()*6):(2+Math.random()*2.5);
+  d.style.width=sz+'px';d.style.height=(leaf?sz*0.6:sz)+'px';
+  d.style.background=leaf?'#7CB342':'#F2B705';
+  d.style.borderRadius=leaf?'60% 0 60% 0':'50%';
+  document.body.appendChild(d);
+  ps.push({el:d,x:Math.random()*100,y:Math.random()*100,vx:(Math.random()-0.5)*0.4,vy:leaf?(0.5+Math.random()*0.8):(-0.6-Math.random()*0.6),rot:Math.random()*360,vr:(Math.random()-0.5)*3,leaf});
+ }
+ let lastT=performance.now();
+ function tick(now){
+  const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(!document.hidden){
+   for(const p of ps){
+    p.x+=p.vx*dt*10;p.y+=p.vy*dt*10;p.rot+=p.vr;
+    if(p.y>105){p.y=-5;p.x=Math.random()*100;}
+    if(p.y<-6){p.y=105;p.x=Math.random()*100;}
+    if(p.x<-5)p.x=105;if(p.x>105)p.x=-5;
+    p.el.style.opacity=p.leaf?0.5:0.7;
+    p.el.style.transform='translate('+(p.x*window.innerWidth/100)+'px,'+(p.y*window.innerHeight/100)+'px) rotate('+p.rot+'deg)';
+   }
+  }
+  requestAnimationFrame(tick);
+ }
+ requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>ニシーの果樹園バッサリ！｜ニシガキ工業</title>
+<style>
+:root{
+  --amber:#D98E32; --steel:#AEB6BB; --deep:#2E5E3A; --leaf:#7CB342;
+  --forge:#E8590C; --night:#1C2B33; --cream:#F6EFE3;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--night);
+  font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;}
+#stage{position:fixed;left:50%;top:50%;transform-origin:center center;width:420px;height:740px;}
+#cv{position:absolute;left:0;top:0;width:420px;height:740px;touch-action:none;display:block;}
+.uibtn{position:absolute;z-index:40;cursor:pointer;color:var(--cream);
+  background:rgba(28,43,51,.78);border:1.5px solid rgba(246,239,227,.35);
+  border-radius:20px;padding:7px 14px;font-size:14px;font-weight:bold;
+  font-family:inherit;}
+.uibtn:active{transform:scale(.94);}
+#backBtn{left:10px;top:10px;text-decoration:none;}
+#muteBtn{right:10px;top:10px;height:36px;padding:0 12px;font-size:13px;}
+.scr{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;color:var(--cream);}
+.scr.on{display:flex;}
+#titleScr{background:linear-gradient(180deg,rgba(28,43,51,.10) 0%,rgba(28,43,51,.62) 70%,rgba(18,30,36,.94) 100%);}
+#titleLogoImg{max-width:340px;display:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));}
+.logoFall{line-height:1.1;transform:rotate(-2deg);}
+.logoFall .l1{font-size:21px;font-weight:bold;color:var(--cream);letter-spacing:5px;
+  text-shadow:0 2px 0 #14201f,0 0 14px rgba(0,0,0,.5);}
+.logoFall .l2{font-size:50px;font-weight:900;color:var(--amber);letter-spacing:1px;
+  -webkit-text-stroke:2px #5c3a10;
+  text-shadow:0 4px 0 #5c3a10,0 8px 16px rgba(0,0,0,.55);}
+.logoFall .l3{font-size:46px;font-weight:900;color:var(--forge);letter-spacing:3px;
+  -webkit-text-stroke:1.5px #F6EFE3;
+  text-shadow:0 4px 0 #7a2d05,0 8px 18px rgba(0,0,0,.55);}
+#titleSub{margin-top:13px;font-size:13px;opacity:.94;line-height:1.75;}
+#bestLine{margin-top:9px;font-size:14px;color:#ffd98c;font-weight:bold;}
+#startBtn{margin-top:24px;font-size:22px;font-weight:900;color:#fff;
+  background:linear-gradient(180deg,#ff7a26,var(--forge));border:none;border-radius:40px;
+  padding:16px 54px;cursor:pointer;font-family:inherit;letter-spacing:3px;
+  box-shadow:0 6px 0 #92380a,0 10px 24px rgba(0,0,0,.45);
+  animation:pulse 1.15s ease-in-out infinite;}
+#startBtn:active{transform:scale(.95);}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);
+  box-shadow:0 6px 0 #92380a,0 14px 34px rgba(232,89,12,.55);}}
+#zukanBtn{margin-top:15px;font-size:14px;background:rgba(246,239,227,.12);
+  border:1.5px solid rgba(246,239,227,.4);border-radius:24px;color:var(--cream);
+  padding:9px 26px;cursor:pointer;font-family:inherit;font-weight:bold;}
+#titleNishie{margin-top:6px;}
+/* チュートリアル */
+#tutScr{background:rgba(20,32,38,.66);justify-content:flex-end;padding-bottom:120px;}
+#tutBox{width:340px;background:var(--cream);color:#2b2b23;border-radius:18px;
+  padding:16px 18px 14px;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+#tutBox:after{content:'';position:absolute;left:44px;bottom:-14px;
+  border:10px solid transparent;border-top:15px solid var(--cream);border-bottom:none;}
+#tutTxt{font-size:15px;line-height:1.8;font-weight:bold;text-align:left;min-height:80px;}
+#tutTxt b{color:var(--forge);}
+#tutNext{margin-top:10px;font-size:15px;font-weight:900;background:var(--forge);color:#fff;
+  border:none;border-radius:22px;padding:9px 30px;cursor:pointer;font-family:inherit;}
+#tutDots{margin-top:8px;letter-spacing:6px;color:#8b8674;font-size:12px;}
+#tutNishieWrap{margin-top:18px;align-self:flex-start;margin-left:20px;}
+/* リザルト */
+#resultScr{background:rgba(20,32,38,.82);}
+#resultCard{width:344px;background:linear-gradient(180deg,#fbf6ea,#efe4cd);color:#33301f;
+  border-radius:22px;padding:20px 18px 18px;box-shadow:0 14px 40px rgba(0,0,0,.55);
+  animation:cardIn .45s cubic-bezier(.2,1.4,.4,1);}
+@keyframes cardIn{0%{transform:translateY(50px) scale(.8);opacity:0;}100%{transform:none;opacity:1;}}
+#resTitle{font-size:20px;font-weight:900;color:var(--deep);letter-spacing:2px;}
+#resScore{font-size:44px;font-weight:900;color:var(--forge);margin-top:2px;
+  text-shadow:0 2px 0 rgba(122,45,5,.25);}
+.resRow{display:flex;justify-content:space-between;font-size:14px;font-weight:bold;
+  padding:5px 8px;border-bottom:1px dashed #c9bc9c;}
+.resRow .v{color:#7a4a10;}
+#resRank{margin:10px auto 4px;font-size:17px;font-weight:900;color:#fff;
+  background:linear-gradient(180deg,var(--amber),#b06f1e);display:inline-block;
+  border-radius:26px;padding:8px 30px;letter-spacing:4px;box-shadow:0 4px 0 #7d4f14;}
+#resBest{font-size:13px;font-weight:900;color:var(--forge);margin-top:6px;min-height:18px;}
+#resUnlock{font-size:12.5px;font-weight:bold;color:#245331;margin-top:6px;min-height:16px;line-height:1.6;}
+.resBtns{margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.resBtns button{font-family:inherit;font-weight:900;font-size:15px;border:none;border-radius:26px;
+  padding:11px 22px;cursor:pointer;}
+#againBtn{background:linear-gradient(180deg,#ff7a26,var(--forge));color:#fff;
+  box-shadow:0 4px 0 #92380a;animation:pulse 1.2s ease-in-out infinite;}
+#resZukanBtn{background:var(--deep);color:var(--cream);box-shadow:0 4px 0 #1d3d26;}
+#resTitleBtn{background:#d8cdb4;color:#4a4433;box-shadow:0 4px 0 #a99e85;}
+/* 図鑑 */
+#zukanScr{background:rgba(20,32,38,.9);justify-content:flex-start;padding-top:56px;overflow-y:auto;}
+#zukanHead{font-size:20px;font-weight:900;letter-spacing:3px;color:#ffd98c;margin-bottom:4px;}
+#zukanSub{font-size:12px;opacity:.85;margin-bottom:12px;}
+.zcard{width:344px;background:linear-gradient(180deg,#fbf6ea,#efe4cd);color:#33301f;border-radius:16px;
+  padding:12px 14px;margin-bottom:10px;text-align:left;box-shadow:0 6px 16px rgba(0,0,0,.4);
+  display:flex;gap:12px;align-items:center;}
+.zcard.locked{background:rgba(246,239,227,.10);color:rgba(246,239,227,.55);box-shadow:none;}
+.zcard .zic{width:56px;height:56px;flex:0 0 56px;}
+.zcard .zn{font-size:15px;font-weight:900;color:var(--deep);}
+.zcard.locked .zn{color:rgba(246,239,227,.7);}
+.zcard .zt{font-size:12px;line-height:1.6;margin-top:2px;}
+#zukanClose{margin:8px 0 30px;font-size:15px;font-weight:900;background:var(--forge);color:#fff;
+  border:none;border-radius:24px;padding:10px 40px;cursor:pointer;font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv" width="420" height="740"></canvas>
+  <a id="backBtn" class="uibtn" href="index.html">← もどる</a>
+  <button id="muteBtn" class="uibtn">音ON</button>
+
+  <div id="titleScr" class="scr on">
+    <img id="titleLogoImg" alt="">
+    <div id="titleLogoFall" class="logoFall">
+      <div class="l1">ニシーの果樹園</div>
+      <div class="l2">バッサリ！</div>
+      <div class="l3">太丸×高枝切</div>
+    </div>
+    <div id="titleSub">90秒の剪定スコアアタック。<br>低い枝は「太丸」、高い枝は「のびのび高枝切」。<br>正しく切ると、実がたわわに！</div>
+    <div id="bestLine"></div>
+    <canvas id="titleNishie" width="150" height="120"></canvas>
+    <button id="startBtn">はじめる</button>
+    <button id="zukanBtn">道具図鑑</button>
+  </div>
+
+  <div id="tutScr" class="scr">
+    <div id="tutBox">
+      <div id="tutTxt"></div>
+      <button id="tutNext">つぎへ</button>
+      <div id="tutDots"></div>
+    </div>
+    <div id="tutNishieWrap"><canvas id="tutNishie" width="140" height="120"></canvas></div>
+  </div>
+
+  <div id="resultScr" class="scr">
+    <div id="resultCard">
+      <div id="resTitle">剪定リザルト</div>
+      <div id="resScore">0</div>
+      <div class="resRow"><span>剪定スコア</span><span class="v" id="resCutPts">0</span></div>
+      <div class="resRow"><span>収穫量ボーナス</span><span class="v" id="resHarvest">0</span></div>
+      <div class="resRow"><span>最大コンボ</span><span class="v" id="resCombo">0</span></div>
+      <div id="resRank">見習い</div>
+      <div id="resBest"></div>
+      <div id="resUnlock"></div>
+      <canvas id="resNishie" width="150" height="110"></canvas>
+      <div class="resBtns">
+        <button id="againBtn">もう一回</button>
+        <button id="resZukanBtn">図鑑</button>
+        <button id="resTitleBtn">タイトル</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="zukanScr" class="scr">
+    <div id="zukanHead">ニシガキ道具図鑑</div>
+    <div id="zukanSub"></div>
+    <div id="zukanList"></div>
+    <button id="zukanClose">とじる</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/*CORE_START*/
+var G2Core = (function(){
+'use strict';
+/* ===== 文言定数（表示名の変更はここだけ） ===== */
+var TEXT = {
+  mascot: 'ニシー',
+  gameTitle: 'ニシーの果樹園バッサリ！',
+  company: 'ニシガキ工業',
+  toolFutomaru: '太丸',
+  toolLR: 'のびのび高枝切',
+  toolFever: '太丸充電プロ',
+  justMsg: '切り口がキレイやで！',
+  ladderMsg: 'ハシゴがグラグラ…あぶないで！',
+  fallMsg: 'ワシ、落ちてもうた！包帯ぐるぐる…',
+  fallHint: 'LRツールなら地面から安全やで！',
+  budMsg: '新芽は未来の枝やで！',
+  nestMsg: '鳥の巣はそっとやで！',
+  tooThickMsg: 'タップは25mmまでや！長押しでテコやで！',
+  wrongToolMsg: '低い枝は太丸やで！',
+  feverMsg: '太丸充電プロや！40mmが1秒やで！',
+  harvestMsg: '収穫量ボーナス',
+  copy: 'Increase Fruit Yield and Quality!'
+};
+/* ===== 調整定数 ===== */
+var CONST = {
+  TIME: 90,
+  ZONE_SPLIT: 400,            /* y<400=高所 / y>=400=低所 */
+  JUST: 5, GOOD: 12,          /* 切断ライン誤差px（JUST<=5, GOOD<=12, それ以外OK） */
+  BASE: { JUST: 300, GOOD: 150, OK: 60 },
+  THICK_MULT: { 10: 1, 25: 1.5, 40: 2 },
+  TAP_MAX: 25,                /* 太丸タップ切りの上限mm */
+  LEVER_MAX: 40,              /* 太丸テコ切りの上限mm */
+  CHARGE_NEED: 0.9,           /* テコゲージ必要量(0..1) */
+  PENALTY: 300,               /* 新芽・鳥の巣ペナルティ */
+  FRUIT: { JUST: 2, GOOD: 1, OK: 0 },
+  FRUIT_BONUS: 40,            /* 果実1個あたりの収穫ボーナス */
+  GAUGE_MAX: 100,
+  GAUGE_GAIN: { JUST: 18, GOOD: 12, OK: 7 },
+  FEVER_TIME: 10, FEVER_MULT: 2,
+  LADDER_FALL_AT: 2,          /* ハシゴ警告がこの回数で落下 */
+  FALL_LOCK: 2.5,             /* 落下ロス秒 */
+  COMBO_STEP: 10, COMBO_CAP: 10,
+  SPAWN_DELAY: 0.9,           /* 切断後スロット再生成までの秒 */
+  LATE_AT: 30,                /* 残り秒がこれ以下で終盤（山場）モード */
+  LATE_40: 0.5                /* 終盤の低所40mm出現率 */
+};
+var RANKS = [
+  { min: 9500, name: '匠' },
+  { min: 5500, name: '職人' },
+  { min: 2500, name: '庭師' },
+  { min: 0,    name: '見習い' }
+];
+/* 図鑑（実トリビア） */
+var ZUKAN = [
+  { id: 'mini600',  name: '太丸ミニ 600',    need: 0,
+    trivia: '太丸シリーズの入門サイズ。高級刃物鋼＋テフロン加工で切れ味が長持ちする。' },
+  { id: 'futomaru', name: '太丸 1500',       need: 3000,
+    trivia: 'テコの力で生木40mmを軽く切るロングセラー。ハサミは110度回転、0.6〜2.0Mの5タイプ。' },
+  { id: 'nobinobi', name: 'のびのび高枝切',  need: 8000,
+    trivia: '世界初の高枝切鋏はニシガキから。八角形ポールは軽くて丈夫、高い枝も地面から安全に切れる。' },
+  { id: 'edauchi',  name: '枝打ち一発',      need: 15000,
+    trivia: '枝打ち用の鋸。刃物のまち・三木金物の職人技が生んだ切れ味で、高い枝もスパッと落とす。' },
+  { id: 'chargepro',name: '太丸充電プロ',    need: 25000,
+    trivia: '14.4Vの電動太枝切。40mmの太枝がわずか1秒で切れる。プロ果樹農家の強い味方。' }
+];
+/* 枝スロット（8箇所）: side=-1左/+1右 */
+var SLOTS = [
+  { y: 150, side:  1, zone: 'high' },
+  { y: 215, side: -1, zone: 'high' },
+  { y: 285, side:  1, zone: 'high' },
+  { y: 350, side: -1, zone: 'high' },
+  { y: 450, side:  1, zone: 'low' },
+  { y: 515, side: -1, zone: 'low' },
+  { y: 578, side:  1, zone: 'low' },
+  { y: 636, side: -1, zone: 'low' }
+];
+/* ===== 乱数（seed指定でテスト再現可能） ===== */
+function makeRng(seed) {
+  var s = (seed >>> 0) || 88675123;
+  return function () {
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    var t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/* ===== ゲーム状態 ===== */
+function createGame(seed) {
+  return {
+    time: CONST.TIME, over: false,
+    score: 0, combo: 0, maxCombo: 0,
+    gauge: 0, fever: 0, feverCount: 0,
+    ladder: 0,          /* ハシゴ危険カウンタ */
+    lock: 0,            /* 落下ロス残り秒 */
+    fruits: 0, cuts: 0, justCount: 0, penalties: 0, falls: 0,
+    tool: 'futomaru',   /* 'futomaru' | 'lr' */
+    items: new Array(SLOTS.length).fill(null),
+    respawn: new Array(SLOTS.length).fill(0),
+    rng: makeRng(seed || (Date.now() & 0xffffffff))
+  };
+}
+function isFever(st) { return st.fever > 0; }
+/* ===== 枝の生成 =====
+   force: {slot, kind, thick} でテスト用に固定生成できる
+   終盤（残りLATE_AT秒以下）は高所スロット優先＋低所40mm率アップで山場を作る */
+function spawnBranch(st, force) {
+  force = force || {};
+  var late = !st.over && st.time <= CONST.LATE_AT;
+  var slot = (typeof force.slot === 'number') ? force.slot : -1;
+  if (slot < 0 && late) {
+    for (var h = 0; h < SLOTS.length; h++) {
+      if (!st.items[h] && st.respawn[h] <= 0 && SLOTS[h].zone === 'high') { slot = h; break; }
+    }
+  }
+  if (slot < 0) {
+    for (var i = 0; i < SLOTS.length; i++) {
+      if (!st.items[i] && st.respawn[i] <= 0) { slot = i; break; }
+    }
+  }
+  if (slot < 0 || st.items[slot]) return null;
+  var def = SLOTS[slot];
+  var r = st.rng();
+  var kind = force.kind ||
+    (r < 0.12 ? 'bud' : r < 0.19 ? 'nest' : 'branch');
+  var thick = force.thick || 0;
+  if (!thick) {
+    var t = st.rng();
+    if (def.zone === 'high') thick = t < 0.55 ? 10 : 25;
+    else if (late) thick = t < 0.18 ? 10 : t < 1 - CONST.LATE_40 ? 25 : 40;
+    else thick = t < 0.34 ? 10 : t < 0.70 ? 25 : 40;
+  }
+  if (kind !== 'branch') thick = 10;
+  var item = {
+    slot: slot, zone: def.zone, side: def.side, y: def.y,
+    kind: kind, thick: thick,
+    len: 96 + Math.floor(st.rng() * 36),
+    cutT: 0.42 + st.rng() * 0.2,   /* 切断ライン位置(枝の付け根からの割合) */
+    age: 0, anim: 0
+  };
+  st.items[slot] = item;
+  return item;
+}
+/* ===== 切断試行 =====
+   offset: 切断ラインからの誤差px / opts.charge: テコゲージ(0..1) */
+function attemptCut(st, item, offset, opts) {
+  opts = opts || {};
+  if (st.over) return { type: 'over' };
+  if (st.lock > 0) return { type: 'locked' };
+  if (!item) return { type: 'miss' };
+  /* 1) 届くか？ 高所×太丸＝ハシゴ危険 */
+  if (st.tool === 'futomaru' && item.zone === 'high') {
+    st.ladder++;
+    if (st.ladder >= CONST.LADDER_FALL_AT) {
+      st.ladder = 0; st.falls++; st.combo = 0;
+      st.lock = CONST.FALL_LOCK;
+      return { type: 'fall', msg: TEXT.fallMsg, hint: TEXT.fallHint };
+    }
+    return { type: 'ladder', count: st.ladder, msg: TEXT.ladderMsg };
+  }
+  if (st.tool === 'lr' && item.zone === 'low') {
+    return { type: 'wrongTool', msg: TEXT.wrongToolMsg };
+  }
+  /* 2) 禁止対象（新芽・鳥の巣） */
+  if (item.kind !== 'branch') {
+    st.score = Math.max(0, st.score - CONST.PENALTY);
+    st.combo = 0; st.penalties++;
+    st.items[item.slot] = null;
+    st.respawn[item.slot] = CONST.SPAWN_DELAY;
+    return {
+      type: 'forbidden', kind: item.kind, penalty: CONST.PENALTY,
+      msg: item.kind === 'bud' ? TEXT.budMsg : TEXT.nestMsg
+    };
+  }
+  /* 3) 太さ判定（太丸のみ。フィーバー中は一撃） */
+  if (st.tool === 'futomaru' && !isFever(st) &&
+      item.thick > CONST.TAP_MAX && (opts.charge || 0) < CONST.CHARGE_NEED) {
+    return { type: 'tooThick', msg: TEXT.tooThickMsg };
+  }
+  /* 4) 切断成功 → JUST/GOOD/OK */
+  var off = Math.abs(offset || 0);
+  var grade = off <= CONST.JUST ? 'JUST' : off <= CONST.GOOD ? 'GOOD' : 'OK';
+  var pts = Math.round(CONST.BASE[grade] * CONST.THICK_MULT[item.thick]);
+  pts += Math.min(st.combo, CONST.COMBO_CAP) * CONST.COMBO_STEP;
+  if (isFever(st)) pts *= CONST.FEVER_MULT;
+  st.combo++;
+  if (st.combo > st.maxCombo) st.maxCombo = st.combo;
+  st.score += pts; st.cuts++;
+  if (grade === 'JUST') st.justCount++;
+  var fruit = CONST.FRUIT[grade];
+  st.fruits += fruit;
+  var feverStart = false;
+  if (!isFever(st)) {
+    st.gauge += CONST.GAUGE_GAIN[grade];
+    if (st.gauge >= CONST.GAUGE_MAX) {
+      st.gauge = 0; st.fever = CONST.FEVER_TIME;
+      st.feverCount++; feverStart = true;
+    }
+  }
+  st.items[item.slot] = null;
+  st.respawn[item.slot] = CONST.SPAWN_DELAY;
+  return {
+    type: 'cut', grade: grade, pts: pts, fruit: fruit,
+    feverStart: feverStart,
+    msg: grade === 'JUST' ? TEXT.justMsg : ''
+  };
+}
+/* ===== 時間経過 ===== */
+function tick(st, dt) {
+  if (st.over) return;
+  if (st.lock > 0) st.lock = Math.max(0, st.lock - dt);
+  if (st.fever > 0) st.fever = Math.max(0, st.fever - dt);
+  for (var i = 0; i < SLOTS.length; i++) {
+    if (st.respawn[i] > 0) st.respawn[i] = Math.max(0, st.respawn[i] - dt);
+  }
+  st.time -= dt;
+  if (st.time <= 0) { st.time = 0; st.over = true; }
+}
+/* ===== 集計・ランク ===== */
+function finalize(st) {
+  var harvest = st.fruits * CONST.FRUIT_BONUS;
+  var total = st.score + harvest;
+  return {
+    cutScore: st.score, harvest: harvest, total: total,
+    fruits: st.fruits, maxCombo: st.maxCombo,
+    falls: st.falls, penalties: st.penalties,
+    rank: rankOf(total)
+  };
+}
+function rankOf(total) {
+  for (var i = 0; i < RANKS.length; i++) {
+    if (total >= RANKS[i].min) return RANKS[i].name;
+  }
+  return RANKS[RANKS.length - 1].name;
+}
+/* ===== 図鑑（累計スコアで解放） ===== */
+function unlockedZukan(totalCum) {
+  var out = [];
+  for (var i = 0; i < ZUKAN.length; i++) {
+    if (totalCum >= ZUKAN[i].need) out.push(ZUKAN[i].id);
+  }
+  return out;
+}
+/* ===== セーブ ===== */
+function defaults() { return { v: 1, best: 0, total: 0, tut: 0 }; }
+function serialize(d) {
+  return JSON.stringify({
+    v: 1,
+    best: Math.max(0, Math.floor(d.best || 0)),
+    total: Math.max(0, Math.floor(d.total || 0)),
+    tut: d.tut ? 1 : 0
+  });
+}
+function deserialize(str) {
+  var d = defaults();
+  if (!str) return d;
+  try {
+    var o = JSON.parse(str);
+    if (!o || o.v !== 1) return d;
+    d.best = Math.max(0, Math.floor(Number(o.best) || 0));
+    d.total = Math.max(0, Math.floor(Number(o.total) || 0));
+    d.tut = o.tut ? 1 : 0;
+    return d;
+  } catch (e) { return d; }
+}
+return {
+  TEXT: TEXT, CONST: CONST, RANKS: RANKS, ZUKAN: ZUKAN, SLOTS: SLOTS,
+  makeRng: makeRng, createGame: createGame, spawnBranch: spawnBranch,
+  attemptCut: attemptCut, tick: tick, isFever: isFever,
+  finalize: finalize, rankOf: rankOf, unlockedZukan: unlockedZukan,
+  defaults: defaults, serialize: serialize, deserialize: deserialize
+};
+})();
+if (typeof module !== 'undefined' && module.exports) { module.exports = G2Core; }
+/*CORE_END*/
+</script>
+<script>
+'use strict';
+(function () {
+var C = G2Core, K = C.CONST, TX = C.TEXT;
+var W = 420, H = 740;
+/* roundRect ポリフィル（旧ブラウザ向け） */
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w2, h2, r) {
+    r = Math.min(r, w2 / 2, h2 / 2);
+    this.moveTo(x + r, y);
+    this.arcTo(x + w2, y, x + w2, y + h2, r);
+    this.arcTo(x + w2, y + h2, x, y + h2, r);
+    this.arcTo(x, y + h2, x, y, r);
+    this.arcTo(x, y, x + w2, y, r);
+    this.closePath();
+    return this;
+  };
+}
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var $ = function (id) { return document.getElementById(id); };
+
+/* ---- スケーリング ---- */
+var dpr = Math.min(2, window.devicePixelRatio || 1);
+cv.width = W * dpr; cv.height = H * dpr;
+cv.style.width = W + 'px'; cv.style.height = H + 'px';
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+function fit() {
+  var s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  $('stage').style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+}
+window.addEventListener('resize', fit); fit();
+
+/* ---- セーブ ---- */
+var PREFIX = 'nishigaki_g2_';
+function loadSave() {
+  try { return C.deserialize(localStorage.getItem(PREFIX + 'save')); }
+  catch (e) { return C.defaults(); }
+}
+function storeSave(d) {
+  try { localStorage.setItem(PREFIX + 'save', C.serialize(d)); } catch (e) {}
+}
+var save = loadSave();
+
+/* ---- サウンド（WebAudio合成） ---- */
+var AC = window.AudioContext || window.webkitAudioContext;
+var ac = null, muted = false;
+try { muted = localStorage.getItem(PREFIX + 'mute') === '1'; } catch (e) {}
+function unlockAudio() {
+  if (!ac && AC) { try { ac = new AC(); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function tone(freq, dur, type, vol, when, slide) {
+  if (!ac || muted) return;
+  var t0 = ac.currentTime + (when || 0);
+  var o = ac.createOscillator(), g = ac.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, slide), t0 + dur);
+  g.gain.setValueAtTime(vol || 0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol, when, hp) {
+  if (!ac || muted) return;
+  var t0 = ac.currentTime + (when || 0);
+  var n = Math.floor(ac.sampleRate * dur);
+  var buf = ac.createBuffer(1, n, ac.sampleRate);
+  var ch = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  var src = ac.createBufferSource(); src.buffer = buf;
+  var f = ac.createBiquadFilter();
+  f.type = hp ? 'highpass' : 'lowpass';
+  f.frequency.value = hp ? 2200 : 900;
+  var g = ac.createGain(); g.gain.value = vol || 0.15;
+  src.connect(f); f.connect(g); g.connect(ac.destination);
+  src.start(t0);
+}
+var se = {
+  snip: function () { noise(0.07, 0.22, 0, true); tone(1500, 0.05, 'square', 0.05, 0, 500); },
+  thick: function () { noise(0.14, 0.3); tone(180, 0.14, 'triangle', 0.16, 0, 70); },
+  just: function () { tone(880, 0.1, 'sine', 0.12); tone(1174, 0.1, 'sine', 0.12, 0.07); tone(1568, 0.2, 'sine', 0.13, 0.14); },
+  bad: function () { tone(220, 0.22, 'sawtooth', 0.12, 0, 90); tone(160, 0.24, 'square', 0.08, 0.05, 70); },
+  ladder: function () { tone(300, 0.3, 'sawtooth', 0.06, 0, 220); tone(260, 0.28, 'sawtooth', 0.05, 0.18, 340); },
+  fall: function () { tone(700, 0.5, 'sine', 0.14, 0, 90); noise(0.25, 0.3, 0.42); },
+  fruit: function () { tone(660, 0.09, 'sine', 0.11, 0, 990); },
+  fever: function () { tone(330, 0.12, 'square', 0.1, 0, 660); tone(660, 0.3, 'square', 0.1, 0.12, 1320); },
+  btn: function () { tone(520, 0.07, 'sine', 0.09, 0, 700); },
+  swap: function () { noise(0.05, 0.12, 0, true); tone(940, 0.07, 'triangle', 0.08); },
+  charge: function (p) { tone(240 + 500 * p, 0.06, 'triangle', 0.07); },
+  finish: function () { [523, 659, 784, 1046].forEach(function (f, i) { tone(f, 0.24, 'sine', 0.12, i * 0.13); }); }
+};
+var muteBtn = $('muteBtn');
+function updMute() { muteBtn.textContent = muted ? '音OFF' : '音ON'; }
+muteBtn.addEventListener('click', function () {
+  muted = !muted;
+  try { localStorage.setItem(PREFIX + 'mute', muted ? '1' : '0'); } catch (e) {}
+  updMute(); if (!muted) { unlockAudio(); se.btn(); }
+});
+updMute();
+window.addEventListener('pointerdown', unlockAudio, { once: false });
+
+/* ---- 画像try-load規約 ---- */
+var IMG = {};
+['mascot', 'mascot_joy', 'mascot_sad', 'mascot_point', 'title_game2'].forEach(function (n) {
+  var im = new Image();
+  im.onload = function () { IMG[n] = im; if (n === 'title_game2') applyTitleImg(); };
+  im.src = 'assets/img/' + n + '.png';
+});
+function applyTitleImg() {
+  $('titleLogoImg').src = IMG.title_game2.src;
+  $('titleLogoImg').style.display = 'block';
+  $('titleLogoFall').style.display = 'none';
+}
+
+/* ---- ニシー ベクター描画（表情: normal/joy/sad/point/bandage） ---- */
+function drawNishie(c, x, y, sc, mood, t) {
+  t = t || 0;
+  var imgKey = mood === 'joy' ? 'mascot_joy' : mood === 'sad' || mood === 'bandage' ? 'mascot_sad'
+    : mood === 'point' ? 'mascot_point' : 'mascot';
+  if (IMG[imgKey]) {
+    /* 画像のアスペクト比を維持したまま 120x100 の枠に収める */
+    var img = IMG[imgKey];
+    var iw = img.naturalWidth || img.width || 120;
+    var ih = img.naturalHeight || img.height || 100;
+    var fitK = Math.min(120 / iw, 100 / ih);
+    var w = iw * fitK * sc, h = ih * fitK * sc;
+    c.drawImage(img, x - w / 2, y - h + 6 * sc, w, h);
+    return;
+  }
+  c.save();
+  c.translate(x, y);
+  c.scale(sc, sc);
+  var bob = Math.sin(t * 3) * 1.6;
+  c.translate(0, bob);
+  /* 脚6本 */
+  c.strokeStyle = '#a5671c'; c.lineWidth = 4; c.lineCap = 'round';
+  for (var i = 0; i < 3; i++) {
+    var lx = 14 + i * 9, ly = -6 + i * 5, sw = Math.sin(t * 6 + i) * 1.5;
+    c.beginPath(); c.moveTo(-lx + 4, ly - 8); c.lineTo(-lx - 7 + sw, ly + 6); c.stroke();
+    c.beginPath(); c.moveTo(lx - 4, ly - 8); c.lineTo(lx + 7 - sw, ly + 6); c.stroke();
+  }
+  /* 木製ボディ */
+  var grd = c.createRadialGradient(-8, -30, 6, 0, -22, 40);
+  grd.addColorStop(0, '#eba94e'); grd.addColorStop(1, '#D98E32');
+  c.fillStyle = grd;
+  c.beginPath(); c.ellipse(0, -22, 34, 29, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#8a5a1a'; c.lineWidth = 2.5;
+  c.beginPath(); c.ellipse(0, -22, 34, 29, 0, 0, Math.PI * 2); c.stroke();
+  /* 木目の弧線 */
+  c.strokeStyle = 'rgba(138,90,26,.55)'; c.lineWidth = 1.6;
+  c.beginPath(); c.arc(-6, -20, 14, 0.5, 2.4); c.stroke();
+  c.beginPath(); c.arc(-4, -19, 20, 0.7, 2.2); c.stroke();
+  c.beginPath(); c.arc(10, -30, 8, 2.6, 5.6); c.stroke();
+  /* 包帯 */
+  if (mood === 'bandage') {
+    c.strokeStyle = '#F6EFE3'; c.lineWidth = 7;
+    c.beginPath(); c.moveTo(-30, -34); c.lineTo(28, -10); c.stroke();
+    c.beginPath(); c.moveTo(-30, -12); c.lineTo(28, -32); c.stroke();
+    c.fillStyle = '#F6EFE3';
+    c.beginPath(); c.arc(24, -44, 7, 0, Math.PI * 2); c.fill();
+  }
+  /* 目玉（飛び出し） */
+  var blink = mood === 'bandage' || (Math.sin(t * 1.7) > 0.985);
+  [-11, 11].forEach(function (ex) {
+    c.strokeStyle = '#8a5a1a'; c.lineWidth = 3.2;
+    c.beginPath(); c.moveTo(ex, -46); c.lineTo(ex, -58); c.stroke();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(ex, -62, 8, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#6d4512'; c.lineWidth = 1.6; c.stroke();
+    if (blink) {
+      c.strokeStyle = '#333'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(ex - 4, -62); c.lineTo(ex + 4, -62); c.stroke();
+    } else {
+      c.fillStyle = '#2b2418';
+      var px = mood === 'point' ? 2.4 : 0;
+      c.beginPath(); c.arc(ex + px, -61, 3.4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(ex + px + 1.2, -62.4, 1.2, 0, Math.PI * 2); c.fill();
+    }
+  });
+  /* 口 */
+  c.strokeStyle = '#6d4512'; c.lineWidth = 2.4; c.lineCap = 'round';
+  c.beginPath();
+  if (mood === 'joy') { c.arc(0, -14, 8, 0.15, Math.PI - 0.15); }
+  else if (mood === 'sad' || mood === 'bandage') { c.arc(0, -6, 7, Math.PI + 0.3, -0.3); }
+  else { c.arc(0, -13, 5.5, 0.3, Math.PI - 0.3); }
+  c.stroke();
+  if (mood === 'sad') {
+    c.fillStyle = 'rgba(120,180,230,.9)';
+    c.beginPath(); c.ellipse(-16, -46, 2.4, 4, 0.2, 0, Math.PI * 2); c.fill();
+  }
+  /* ツメ＝剪定鋏（左右） */
+  function shear(sx, dir, open, raise) {
+    c.save();
+    c.translate(sx, -26 + (raise ? -14 : 0));
+    c.rotate(dir * (raise ? -0.9 : -0.35));
+    c.strokeStyle = '#8a5a1a'; c.lineWidth = 5; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(dir * 16, -4); c.stroke();
+    c.translate(dir * 18, -6);
+    /* 湾曲刃×2 */
+    c.fillStyle = '#AEB6BB'; c.strokeStyle = '#7d868c'; c.lineWidth = 1.4;
+    [-1, 1].forEach(function (b) {
+      c.save(); c.rotate(b * (0.28 + open * 0.34));
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(dir * 13, -6 * b - 4, dir * 22, -2 * b - 6);
+      c.quadraticCurveTo(dir * 13, -2 * b + 1, 0, 3);
+      c.closePath(); c.fill(); c.stroke();
+      /* 刃のハイライト */
+      c.strokeStyle = '#e2e8ea'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(dir * 3, -1);
+      c.quadraticCurveTo(dir * 12, -5 * b - 3, dir * 19, -2 * b - 5); c.stroke();
+      c.restore();
+    });
+    /* 回転ボルト */
+    c.fillStyle = '#E8590C';
+    c.beginPath(); c.arc(0, 0, 3.6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#ffd28f';
+    c.beginPath(); c.arc(-1, -1, 1.3, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+  var open = mood === 'joy' ? 0.9 : 0.35 + Math.sin(t * 4) * 0.12;
+  shear(-30, -1, open, false);
+  shear(30, 1, open, mood === 'point');
+  c.restore();
+}
+
+/* ---- パーティクル・浮き文字 ---- */
+var parts = [], floats = [];
+function addChips(x, y, n, gold) {
+  for (var i = 0; i < n; i++) {
+    var a = Math.random() * Math.PI - Math.PI / 2 - Math.PI / 2;
+    var sp = 90 + Math.random() * 220;
+    parts.push({
+      x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
+      g: 560, life: 0.5 + Math.random() * 0.45, t: 0,
+      w: 3 + Math.random() * 5, h: 1.6 + Math.random() * 2.4,
+      rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 12,
+      col: gold ? (Math.random() < 0.5 ? '#ffd76e' : '#ffb62e')
+        : (Math.random() < 0.5 ? '#e8c58a' : '#d9a75c')
+    });
+  }
+}
+function addLeaves(x, y, n) {
+  for (var i = 0; i < n; i++) {
+    parts.push({
+      x: x + (Math.random() - 0.5) * 40, y: y, vx: (Math.random() - 0.5) * 90,
+      vy: -30 - Math.random() * 60, g: 190, life: 0.9 + Math.random() * 0.6, t: 0,
+      w: 6, h: 3.4, rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 8,
+      col: Math.random() < 0.5 ? '#7CB342' : '#5c9032'
+    });
+  }
+}
+function addBurst(x, y, col, n) {
+  for (var i = 0; i < n; i++) {
+    var a = (i / n) * Math.PI * 2;
+    parts.push({
+      x: x, y: y, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170,
+      g: 0, life: 0.42, t: 0, w: 5, h: 5, rot: a, vr: 0, col: col, fade: true
+    });
+  }
+}
+function addFloat(x, y, txt, col, big) {
+  floats.push({ x: x, y: y, txt: txt, col: col || '#fff', t: 0,
+    life: big ? 1.25 : 0.95, big: !!big });
+}
+function drawParts(dt) {
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var p = parts[i]; p.t += dt;
+    if (p.t >= p.life) { parts.splice(i, 1); continue; }
+    p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    var al = 1 - p.t / p.life;
+    ctx.save(); ctx.globalAlpha = al; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  }
+  for (var j = floats.length - 1; j >= 0; j--) {
+    var f = floats[j]; f.t += dt;
+    if (f.t >= f.life) { floats.splice(j, 1); continue; }
+    var k = f.t / f.life;
+    var yy = f.y - easeOut(k) * (f.big ? 54 : 40);
+    ctx.save(); ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+    ctx.font = '900 ' + (f.big ? 24 : 17) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(28,43,51,.85)';
+    ctx.strokeText(f.txt, f.x, yy); ctx.fillStyle = f.col; ctx.fillText(f.txt, f.x, yy);
+    ctx.restore();
+  }
+}
+function easeOut(k) { return 1 - Math.pow(1 - k, 3); }
+function easeBack(k) { var c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); }
+/* ---- ベクター星・きらめき（絵文字fillText不使用＝豆腐化回避） ---- */
+function drawStar(c, x, y, r) {
+  c.beginPath();
+  for (var i = 0; i < 10; i++) {
+    var rr = i % 2 ? r * 0.45 : r;
+    var a = -Math.PI / 2 + i * Math.PI / 5;
+    if (i) c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath(); c.fill();
+}
+function drawSparkle(c, x, y, r) {
+  c.beginPath();
+  c.moveTo(x, y - r);
+  c.quadraticCurveTo(x + r * 0.22, y - r * 0.22, x + r, y);
+  c.quadraticCurveTo(x + r * 0.22, y + r * 0.22, x, y + r);
+  c.quadraticCurveTo(x - r * 0.22, y + r * 0.22, x - r, y);
+  c.quadraticCurveTo(x - r * 0.22, y - r * 0.22, x, y - r);
+  c.closePath(); c.fill();
+}
+
+/* ---- シーン状態 ---- */
+var scene = 'title', st = null, paused = false, gTime = 0;
+var TRUNK_X = 210, GROUND_Y = 662;
+var fx = {
+  shake: 0, ladderT: 0, ladderY: 0, ladderSide: 1,
+  fallT: 0, feverBanner: 0, hint: '', hintT: 0,
+  charging: false, chargeT: 0, chargeItem: null,
+  mood: 'normal', moodT: 0, toolFlash: 0, comboPop: 0, timeFx: 0
+};
+var fruitsOnTree = [], stumps = [], fallers = [], spawnTick = 0;
+
+function trunkHalf(y) { return 12 + (y - 120) / (GROUND_Y - 120) * 13; }
+function branchGeom(it) {
+  var baseX = TRUNK_X + it.side * (trunkHalf(it.y) - 2);
+  var tipX = baseX + it.side * it.len;
+  var cutX = baseX + it.side * (it.len * it.cutT);
+  return { baseX: baseX, tipX: tipX, cutX: cutX };
+}
+function thickPx(mm) { return mm === 40 ? 18 : mm === 25 ? 12 : 7; }
+
+/* ---- 背景 ---- */
+function drawBG(t) {
+  var g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#b7d9cf'); g.addColorStop(0.5, '#e8ecd8');
+  g.addColorStop(0.62, '#F6EFE3'); g.addColorStop(0.7, '#a9c46f');
+  g.addColorStop(1, '#2E5E3A');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  /* 太陽 */
+  var sg = ctx.createRadialGradient(340, 90, 6, 340, 90, 60);
+  sg.addColorStop(0, 'rgba(255,244,214,.95)'); sg.addColorStop(1, 'rgba(255,244,214,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(340, 90, 60, 0, Math.PI * 2); ctx.fill();
+  /* 遠山と果樹園の列 */
+  ctx.fillStyle = 'rgba(46,94,58,.28)';
+  ctx.beginPath(); ctx.moveTo(0, 470);
+  ctx.quadraticCurveTo(90, 420, 190, 462); ctx.quadraticCurveTo(300, 415, 420, 458);
+  ctx.lineTo(420, 520); ctx.lineTo(0, 520); ctx.fill();
+  ctx.fillStyle = 'rgba(46,94,58,.4)';
+  for (var i = 0; i < 7; i++) {
+    var tx = 24 + i * 62, ty = 505 + (i % 2) * 9;
+    ctx.beginPath(); ctx.arc(tx, ty, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(tx - 1.5, ty + 8, 3, 10);
+  }
+  /* 地面の起伏 */
+  ctx.fillStyle = '#5c9032';
+  ctx.beginPath(); ctx.moveTo(0, GROUND_Y - 8);
+  ctx.quadraticCurveTo(110, GROUND_Y - 22, 230, GROUND_Y - 8);
+  ctx.quadraticCurveTo(330, GROUND_Y + 2, 420, GROUND_Y - 12);
+  ctx.lineTo(420, H); ctx.lineTo(0, H); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  for (var cl = 0; cl < 2; cl++) {
+    var cx = ((t * 7 + cl * 260) % 520) - 60, cy = 70 + cl * 46;
+    ctx.beginPath(); ctx.ellipse(cx, cy, 34, 11, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 22, cy - 7, 22, 9, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  /* ゾーン境界（高所/低所） */
+  if (scene === 'play') {
+    ctx.save(); ctx.strokeStyle = 'rgba(28,43,51,.24)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([7, 8]);
+    ctx.beginPath(); ctx.moveTo(8, K.ZONE_SPLIT); ctx.lineTo(412, K.ZONE_SPLIT); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = 'rgba(28,43,51,.45)';
+    ctx.textAlign = 'left';
+    ctx.fillText('↑ 高所は ' + TX.toolLR, 12, K.ZONE_SPLIT - 7);
+    ctx.fillText('↓ 低所は ' + TX.toolFutomaru, 12, K.ZONE_SPLIT + 16);
+    ctx.restore();
+  }
+}
+/* ---- 幹と樹冠 ---- */
+function drawTree(t) {
+  ctx.save();
+  var tg = ctx.createLinearGradient(TRUNK_X - 26, 0, TRUNK_X + 26, 0);
+  tg.addColorStop(0, '#6d4a1c'); tg.addColorStop(0.45, '#93662c'); tg.addColorStop(1, '#6d4a1c');
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(TRUNK_X - trunkHalf(GROUND_Y), GROUND_Y + 6);
+  ctx.quadraticCurveTo(TRUNK_X - 20, 400, TRUNK_X - trunkHalf(120), 116);
+  ctx.lineTo(TRUNK_X + trunkHalf(120), 116);
+  ctx.quadraticCurveTo(TRUNK_X + 24, 420, TRUNK_X + trunkHalf(GROUND_Y), GROUND_Y + 6);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(80,50,14,.5)'; ctx.lineWidth = 1.4;
+  for (var i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(TRUNK_X - 8 + i * 5, 170 + i * 40);
+    ctx.quadraticCurveTo(TRUNK_X - 4 + i * 5, 330 + i * 30, TRUNK_X - 9 + i * 5, GROUND_Y - 30);
+    ctx.stroke();
+  }
+  /* 根本 */
+  ctx.fillStyle = '#5c3f16';
+  ctx.beginPath(); ctx.ellipse(TRUNK_X, GROUND_Y + 5, 34, 9, 0, 0, Math.PI * 2); ctx.fill();
+  /* 樹冠 */
+  var sway = Math.sin(t * 0.8) * 3;
+  [[TRUNK_X, 92, 52], [TRUNK_X - 52, 112, 38], [TRUNK_X + 54, 108, 40], [TRUNK_X + 8, 62, 36]].forEach(function (b, i2) {
+    ctx.fillStyle = i2 % 2 ? '#2E5E3A' : '#3e7a4c';
+    ctx.beginPath(); ctx.arc(b[0] + sway * (i2 % 2 ? 0.6 : 1), b[1], b[2], 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.fillStyle = 'rgba(124,179,66,.75)';
+  ctx.beginPath(); ctx.arc(TRUNK_X - 20 + sway, 76, 22, 0, Math.PI * 2);
+  ctx.arc(TRUNK_X + 38 + sway, 86, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+/* ---- 枝・新芽・鳥の巣 ---- */
+function drawItem(it, t) {
+  var gm = branchGeom(it);
+  var ap = Math.min(1, it.anim);
+  var sc = ap < 1 ? easeBack(ap) : 1;
+  ctx.save();
+  ctx.translate(gm.baseX, it.y);
+  ctx.scale(sc, sc);
+  var dir = it.side, L = it.len;
+  var wob = Math.sin(t * 1.3 + it.slot) * 2;
+  if (it.kind === 'branch') {
+    var hw = thickPx(it.thick) / 2;
+    var bg2 = ctx.createLinearGradient(0, -hw, 0, hw);
+    bg2.addColorStop(0, '#a5713a'); bg2.addColorStop(1, '#7a5220');
+    ctx.fillStyle = bg2;
+    ctx.beginPath();
+    ctx.moveTo(0, -hw - 1);
+    ctx.quadraticCurveTo(dir * L * 0.55, -hw + wob, dir * L, -hw * 0.4 + wob);
+    ctx.lineTo(dir * L, hw * 0.4 + wob);
+    ctx.quadraticCurveTo(dir * L * 0.55, hw + wob, 0, hw + 1);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(80,50,14,.4)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(dir * 6, 0); ctx.lineTo(dir * (L - 8), wob); ctx.stroke();
+    /* 先端の葉 */
+    ctx.fillStyle = '#2E5E3A';
+    ctx.beginPath(); ctx.arc(dir * L, wob - 4, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7CB342';
+    ctx.beginPath(); ctx.arc(dir * (L - 10), wob - 12, 10, 0, Math.PI * 2);
+    ctx.arc(dir * (L + 8), wob + 4, 9, 0, Math.PI * 2); ctx.fill();
+    /* 切断ライン */
+    var cx = dir * L * it.cutT;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(246,239,227,.95)'; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(cx, -hw - 7); ctx.lineTo(cx, hw + 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(246,239,227,.95)';
+    ctx.beginPath(); ctx.moveTo(cx - 4, -hw - 11); ctx.lineTo(cx + 4, -hw - 11); ctx.lineTo(cx, -hw - 5); ctx.fill();
+    ctx.restore();
+    /* 太さバッジ */
+    var bc = it.thick === 40 ? '#E8590C' : it.thick === 25 ? '#D98E32' : '#7CB342';
+    ctx.fillStyle = bc;
+    ctx.beginPath(); ctx.arc(cx, -hw - 24, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(it.thick, cx, -hw - 20);
+  } else if (it.kind === 'bud') {
+    ctx.strokeStyle = '#5c9032'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 2); ctx.quadraticCurveTo(dir * 14, -4 + wob, dir * 24, -12 + wob); ctx.stroke();
+    ctx.fillStyle = '#7CB342';
+    ctx.beginPath(); ctx.ellipse(dir * 28, -18 + wob, 9, 5, dir * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(dir * 20, -6 + wob, 8, 4.4, dir * -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a5e06a';
+    ctx.beginPath(); ctx.ellipse(dir * 28, -19 + wob, 4, 2, dir * 0.6, 0, Math.PI * 2); ctx.fill();
+    var tw = 0.5 + Math.sin(t * 5 + it.slot) * 0.5;
+    ctx.fillStyle = 'rgba(255,255,190,' + (0.4 + tw * 0.6) + ')';
+    drawSparkle(ctx, dir * 36, -28 + wob, 5);
+    ctx.fillStyle = '#2E5E3A'; ctx.font = '900 10px sans-serif';
+    ctx.fillText('新芽', dir * 24, 16);
+  } else { /* nest */
+    ctx.strokeStyle = '#7a5220'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dir * 34, wob); ctx.stroke();
+    ctx.fillStyle = '#8a6430';
+    ctx.beginPath(); ctx.ellipse(dir * 34, wob - 4, 17, 9, 0, 0, Math.PI); ctx.fill();
+    ctx.strokeStyle = '#6d4a1c'; ctx.lineWidth = 1.4;
+    for (var s2 = 0; s2 < 3; s2++) {
+      ctx.beginPath(); ctx.arc(dir * 34, wob - 4 + s2 * 2, 15 - s2 * 2, 0.15, Math.PI - 0.15); ctx.stroke();
+    }
+    var hop = Math.abs(Math.sin(t * 4 + it.slot)) * 2;
+    ctx.fillStyle = '#E8590C';
+    ctx.beginPath(); ctx.arc(dir * 34, wob - 13 - hop, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd28f';
+    ctx.beginPath(); ctx.moveTo(dir * 40, wob - 14 - hop);
+    ctx.lineTo(dir * 45, wob - 12 - hop); ctx.lineTo(dir * 40, wob - 10 - hop); ctx.fill();
+    ctx.fillStyle = '#2b2418';
+    ctx.beginPath(); ctx.arc(dir * 36, wob - 15 - hop, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2E5E3A'; ctx.font = '900 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('鳥の巣', dir * 34, 16);
+  }
+  ctx.restore();
+}
+/* ---- 切り株断面・落下枝・果実 ---- */
+function drawStumps(dt) {
+  for (var i = stumps.length - 1; i >= 0; i--) {
+    var s = stumps[i]; s.t += dt;
+    if (s.t > 2.2) { stumps.splice(i, 1); continue; }
+    ctx.save(); ctx.translate(s.x, s.y);
+    ctx.globalAlpha = Math.max(0, Math.min(1, (2.2 - s.t) / 0.6));
+    var hw = s.hw;
+    ctx.fillStyle = '#8a5a2b';
+    ctx.fillRect(0, -hw, s.dir * 10, hw * 2);
+    ctx.fillStyle = '#e8c58a';
+    ctx.beginPath(); ctx.ellipse(s.dir * 10, 0, hw * 0.45, hw, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#c49a5e'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(s.dir * 10, 0, hw * 0.26, hw * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+    if (s.gold && s.t < 0.55) {
+      var k = s.t / 0.55;
+      ctx.strokeStyle = 'rgba(255,205,80,' + (1 - k) + ')'; ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.arc(s.dir * 10, 0, 8 + k * 30, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function drawFallers(dt) {
+  for (var i = fallers.length - 1; i >= 0; i--) {
+    var f = fallers[i]; f.t += dt;
+    if (f.t > 1.1) { fallers.splice(i, 1); continue; }
+    f.vy += 700 * dt; f.y += f.vy * dt; f.rot += f.vr * dt;
+    ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f.t / 1.1);
+    ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    ctx.fillStyle = '#8a5a2b';
+    ctx.fillRect(0, -f.hw, f.dir * f.len2, f.hw * 2);
+    ctx.fillStyle = '#2E5E3A';
+    ctx.beginPath(); ctx.arc(f.dir * f.len2, 0, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7CB342';
+    ctx.beginPath(); ctx.arc(f.dir * (f.len2 - 8), -8, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+function drawFruits(t, dt) {
+  for (var i = 0; i < fruitsOnTree.length; i++) {
+    var fr = fruitsOnTree[i]; fr.t += dt;
+    var k = Math.min(1, fr.t / 0.5);
+    var sc2 = easeBack(k);
+    var sw = Math.sin(t * 2 + fr.ph) * 0.08;
+    ctx.save(); ctx.translate(fr.x, fr.y); ctx.rotate(sw); ctx.scale(sc2, sc2);
+    ctx.strokeStyle = '#5c9032'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, -2); ctx.stroke();
+    var fg = ctx.createRadialGradient(-3, 2, 2, 0, 6, 13);
+    fg.addColorStop(0, '#ffb054'); fg.addColorStop(1, '#E8590C');
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.ellipse(0, 6, 8.5, 11, 0.18, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(-3, 1, 2.6, 4, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7CB342';
+    ctx.beginPath(); ctx.ellipse(3, -11, 5, 2.6, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+/* ---- ハシゴ・落下演出 ---- */
+function drawLadderFx(t, dt) {
+  if (fx.fallT > 0) {
+    fx.fallT -= dt;
+    var el = K.FALL_LOCK - Math.max(0, fx.fallT);
+    ctx.save();
+    if (el < 0.55) { /* 落ちる */
+      var k = el / 0.55;
+      var ny = fx.ladderY + (GROUND_Y - 24 - fx.ladderY) * k * k;
+      var nx2 = TRUNK_X + fx.ladderSide * (46 - k * 14);
+      ctx.translate(nx2, ny); ctx.rotate(k * 9.5);
+      drawNishie(ctx, 0, 30, 0.72, 'sad', t);
+    } else { /* 包帯ぐるぐる＋星 */
+      drawNishie(ctx, TRUNK_X + fx.ladderSide * 34, GROUND_Y + 6, 0.78, 'bandage', t);
+      for (var s3 = 0; s3 < 3; s3++) {
+        var a3 = t * 4 + s3 * 2.1;
+        ctx.fillStyle = 'rgba(255,215,90,.9)';
+        drawStar(ctx, TRUNK_X + fx.ladderSide * 34 + Math.cos(a3) * 30,
+          GROUND_Y - 69 + Math.sin(a3) * 8, 7);
+      }
+    }
+    ctx.restore();
+    return true; /* ニシー本体は描かない */
+  }
+  if (fx.ladderT > 0) {
+    fx.ladderT -= dt;
+    var wob2 = Math.sin(t * 22) * 0.055;
+    var lx = TRUNK_X + fx.ladderSide * 44;
+    ctx.save();
+    ctx.translate(TRUNK_X + fx.ladderSide * 10, GROUND_Y + 4);
+    ctx.rotate(fx.ladderSide * -0.24 + wob2);
+    var lh = GROUND_Y - fx.ladderY + 30;
+    ctx.strokeStyle = '#b98b3e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(-13, -lh); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(13, -lh); ctx.stroke();
+    ctx.lineWidth = 4;
+    for (var r2 = 1; r2 * 34 < lh; r2++) {
+      ctx.beginPath(); ctx.moveTo(-13, -r2 * 34); ctx.lineTo(13, -r2 * 34); ctx.stroke();
+    }
+    drawNishie(ctx, 0, -lh + 40, 0.6, 'sad', t);
+    ctx.restore();
+    /* 警告 */
+    if ((t * 3 | 0) % 2 === 0) {
+      ctx.font = '900 15px sans-serif'; ctx.textAlign = 'center';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(28,43,51,.9)';
+      ctx.strokeText('！グラグラ！', lx, fx.ladderY - 46);
+      ctx.fillStyle = '#ffd24a';
+      ctx.fillText('！グラグラ！', lx, fx.ladderY - 46);
+    }
+    return true;
+  }
+  return false;
+}
+/* ---- HUD ---- */
+var TOOL_BTNS = [
+  { id: 'futomaru', x: 12, y: 672, w: 192, h: 60 },
+  { id: 'lr', x: 216, y: 672, w: 192, h: 60 }
+];
+function drawToolIcon(c, id, x, y, s) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  c.lineCap = 'round';
+  if (id === 'futomaru' || id === 'chargepro' || id === 'mini600') {
+    /* テコ式太枝切鋏 */
+    c.strokeStyle = '#c23a0a'; c.lineWidth = 5;
+    c.beginPath(); c.moveTo(-14, 16); c.lineTo(-4, -2); c.stroke();
+    c.beginPath(); c.moveTo(14, 16); c.lineTo(4, -2); c.stroke();
+    c.fillStyle = '#AEB6BB'; c.strokeStyle = '#7d868c'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(-3, -3); c.quadraticCurveTo(-12, -14, -3, -20);
+    c.quadraticCurveTo(0, -12, 0, -4); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(3, -3); c.quadraticCurveTo(12, -14, 3, -20);
+    c.quadraticCurveTo(0, -12, 0, -4); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#E8590C';
+    c.beginPath(); c.arc(0, -3, 3, 0, Math.PI * 2); c.fill();
+    if (id === 'chargepro') {
+      c.fillStyle = '#2b2b23'; c.fillRect(-9, 8, 18, 9);
+      /* 稲妻マーク */
+      c.fillStyle = '#ffd24a';
+      c.beginPath(); c.moveTo(1, 9); c.lineTo(-3, 13); c.lineTo(0, 13);
+      c.lineTo(-1, 16.5); c.lineTo(3.5, 12); c.lineTo(0.5, 12); c.closePath(); c.fill();
+    }
+  } else if (id === 'lr' || id === 'nobinobi') {
+    /* 高枝切（八角ポール＋刃） */
+    c.strokeStyle = '#D98E32'; c.lineWidth = 5;
+    c.beginPath(); c.moveTo(-10, 20); c.lineTo(6, -10); c.stroke();
+    c.strokeStyle = '#b06f1e'; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(-8, 20); c.lineTo(8, -10); c.stroke();
+    c.fillStyle = '#AEB6BB'; c.strokeStyle = '#7d868c'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(6, -10); c.quadraticCurveTo(16, -18, 10, -24);
+    c.quadraticCurveTo(4, -18, 5, -11); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(6, -10); c.quadraticCurveTo(-2, -20, 3, -25);
+    c.quadraticCurveTo(8, -18, 7, -11); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#E8590C';
+    c.beginPath(); c.arc(6, -10, 2.6, 0, Math.PI * 2); c.fill();
+  } else if (id === 'edauchi') {
+    /* 鋸 */
+    c.fillStyle = '#c23a0a'; c.fillRect(-16, 8, 10, 6);
+    c.fillStyle = '#AEB6BB'; c.strokeStyle = '#7d868c'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(-6, 8); c.quadraticCurveTo(10, -2, 18, -14);
+    c.lineTo(14, -18); c.quadraticCurveTo(2, -6, -6, 8); c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = '#7d868c';
+    for (var z = 0; z < 5; z++) {
+      c.beginPath(); c.moveTo(-2 + z * 4, 5 - z * 4); c.lineTo(0 + z * 4, 7 - z * 4); c.stroke();
+    }
+  }
+  c.restore();
+}
+function drawHUD(t) {
+  /* 時間 */
+  var tm = Math.ceil(st.time);
+  var low = st.time <= 10;
+  var pl = low ? 1 + Math.sin(t * 10) * 0.08 : 1;
+  ctx.save();
+  ctx.translate(W / 2, 34); ctx.scale(pl, pl);
+  ctx.fillStyle = 'rgba(28,43,51,.72)';
+  ctx.beginPath(); ctx.roundRect(-44, -20, 88, 40, 20); ctx.fill();
+  ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = low ? '#ff6a3c' : '#F6EFE3';
+  ctx.fillText(tm + '', 0, 8);
+  ctx.font = 'bold 9px sans-serif'; ctx.fillStyle = 'rgba(246,239,227,.7)';
+  ctx.fillText('TIME', 0, 17);
+  ctx.restore();
+  /* スコア */
+  ctx.font = '900 20px sans-serif'; ctx.textAlign = 'left';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(28,43,51,.8)';
+  ctx.strokeText(st.score + '', 14, 78);
+  ctx.fillStyle = '#F6EFE3'; ctx.fillText(st.score + '', 14, 78);
+  ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = 'rgba(28,43,51,.7)';
+  ctx.fillText('SCORE', 14, 91);
+  /* 果実カウント（ミニ果実アイコン＋数） */
+  ctx.save(); ctx.translate(22, 108);
+  var mg = ctx.createRadialGradient(-2, -2, 1, 0, 0, 8);
+  mg.addColorStop(0, '#ffb054'); mg.addColorStop(1, '#E8590C');
+  ctx.fillStyle = mg;
+  ctx.beginPath(); ctx.ellipse(0, 0, 6.4, 8, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7CB342';
+  ctx.beginPath(); ctx.ellipse(2.5, -7.5, 3.6, 1.9, -0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.font = '900 16px sans-serif'; ctx.textAlign = 'left';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(28,43,51,.8)';
+  ctx.strokeText('× ' + st.fruits, 34, 114);
+  ctx.fillStyle = '#F6EFE3'; ctx.fillText('× ' + st.fruits, 34, 114);
+  ctx.font = 'bold 9px sans-serif'; ctx.fillStyle = 'rgba(28,43,51,.7)';
+  ctx.fillText('収穫（果実）', 14, 126);
+  /* コンボ */
+  if (st.combo >= 2) {
+    fx.comboPop = Math.max(0, fx.comboPop - 0.04);
+    var cs = 1 + fx.comboPop * 0.5;
+    ctx.save(); ctx.translate(370, 78); ctx.scale(cs, cs);
+    ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(28,43,51,.85)';
+    ctx.strokeText(st.combo + '', 0, 0);
+    ctx.fillStyle = '#ffd24a'; ctx.fillText(st.combo + '', 0, 0);
+    ctx.font = '900 10px sans-serif';
+    ctx.strokeText('COMBO', 0, 13);
+    ctx.fillStyle = '#F6EFE3'; ctx.fillText('COMBO', 0, 13);
+    ctx.restore();
+  }
+  /* 充電ゲージ */
+  var gy = 656;
+  ctx.fillStyle = 'rgba(28,43,51,.55)';
+  ctx.beginPath(); ctx.roundRect(60, gy - 7, 300, 12, 6); ctx.fill();
+  var gv = C.isFever(st) ? st.fever / K.FEVER_TIME : st.gauge / K.GAUGE_MAX;
+  var gw = 296 * Math.min(1, gv);
+  if (gw > 2) {
+    var gg = ctx.createLinearGradient(62, 0, 62 + gw, 0);
+    if (C.isFever(st)) { gg.addColorStop(0, '#ffd24a'); gg.addColorStop(1, '#E8590C'); }
+    else { gg.addColorStop(0, '#7CB342'); gg.addColorStop(1, '#ffd24a'); }
+    ctx.fillStyle = gg;
+    ctx.beginPath(); ctx.roundRect(62, gy - 5, gw, 8, 4); ctx.fill();
+  }
+  ctx.font = '900 10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#F6EFE3';
+  ctx.fillText(C.isFever(st) ? TX.toolFever + ' 発動中!' : '充電ゲージ', W / 2, gy - 12);
+  /* 道具ボタン */
+  TOOL_BTNS.forEach(function (b) {
+    var act = st.tool === b.id;
+    var fever = b.id === 'futomaru' && C.isFever(st);
+    ctx.save();
+    ctx.translate(b.x + b.w / 2, b.y + b.h / 2 + (act ? -3 : 0));
+    if (fever) { var fp = 1 + Math.sin(t * 9) * 0.03; ctx.scale(fp, fp); }
+    ctx.fillStyle = act ? (fever ? '#E8590C' : '#2E5E3A') : 'rgba(28,43,51,.62)';
+    ctx.beginPath(); ctx.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, 16); ctx.fill();
+    ctx.lineWidth = act ? 3 : 1.5;
+    ctx.strokeStyle = act ? (fever ? '#ffd24a' : '#7CB342') : 'rgba(246,239,227,.3)';
+    ctx.stroke();
+    if (fx.toolFlash > 0 && act) {
+      ctx.fillStyle = 'rgba(255,255,255,' + fx.toolFlash * 0.5 + ')';
+      ctx.beginPath(); ctx.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, 16); ctx.fill();
+    }
+    drawToolIcon(ctx, fever ? 'chargepro' : b.id, -b.w / 2 + 32, 4, 0.92);
+    ctx.font = '900 15px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = act ? '#fff' : 'rgba(246,239,227,.75)';
+    var nm = b.id === 'futomaru' ? (fever ? TX.toolFever : TX.toolFutomaru) : TX.toolLR;
+    ctx.fillText(nm, -b.w / 2 + 58, 0);
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillStyle = act ? 'rgba(255,255,255,.85)' : 'rgba(246,239,227,.55)';
+    ctx.fillText(b.id === 'futomaru' ? (fever ? '40mmも一撃!' : '低所/長押しテコ40mm') : '高所も地面から安全',
+      -b.w / 2 + 58, 16);
+    ctx.restore();
+  });
+  /* テコ チャージ中ゲージ */
+  if (fx.charging && fx.chargeItem) {
+    var it2 = fx.chargeItem, gm2 = branchGeom(it2);
+    var pr = Math.min(1, fx.chargeT);
+    ctx.save();
+    ctx.translate(gm2.cutX, it2.y - 44);
+    ctx.strokeStyle = 'rgba(28,43,51,.5)'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+    ctx.strokeStyle = pr >= K.CHARGE_NEED ? '#ffd24a' : '#E8590C'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI / 2, -Math.PI / 2 + pr * Math.PI * 2); ctx.stroke();
+    ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(pr >= K.CHARGE_NEED ? '離せ!' : 'テコ!', 0, 4);
+    ctx.restore();
+  }
+  /* フィーバーバナー */
+  if (fx.feverBanner > 0) {
+    var fb = fx.feverBanner;
+    var bx = fb > 0.8 ? (fb - 0.8) / 0.2 * -420 : fb < 0.15 ? (1 - fb / 0.15) * 420 : 0;
+    ctx.save(); ctx.translate(bx, 0);
+    ctx.fillStyle = 'rgba(232,89,12,.92)';
+    ctx.fillRect(0, 330, W, 62);
+    ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(TX.feverMsg, W / 2, 368);
+    ctx.restore();
+  }
+  /* 中央ヒント（落下時など） */
+  if (fx.hintT > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, fx.hintT);
+    ctx.font = '900 19px sans-serif'; ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(28,43,51,.9)';
+    ctx.strokeText(fx.hint, W / 2, 300);
+    ctx.fillStyle = '#ffd24a'; ctx.fillText(fx.hint, W / 2, 300);
+    ctx.restore();
+  }
+}
+/* ---- 入力 ---- */
+function toLogical(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+function hitTool(p) {
+  for (var i = 0; i < TOOL_BTNS.length; i++) {
+    var b = TOOL_BTNS[i];
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return b.id;
+  }
+  return null;
+}
+function hitItem(p) {
+  var best = null, bd = 1e9;
+  for (var i = 0; i < st.items.length; i++) {
+    var it = st.items[i];
+    if (!it) continue;
+    var gm = branchGeom(it);
+    var x0 = Math.min(gm.baseX, gm.tipX) - 16, x1 = Math.max(gm.baseX, gm.tipX) + 24;
+    if (p.x >= x0 && p.x <= x1 && Math.abs(p.y - it.y) <= 34) {
+      var d = Math.abs(p.x - gm.cutX) + Math.abs(p.y - it.y) * 0.3;
+      if (d < bd) { bd = d; best = it; }
+    }
+  }
+  return best;
+}
+function switchTool(id) {
+  if (st.tool === id) return;
+  st.tool = id;
+  fx.toolFlash = 1; fx.mood = 'point'; fx.moodT = 0.5;
+  se.swap();
+  cancelCharge();
+}
+function cancelCharge() { fx.charging = false; fx.chargeItem = null; fx.chargeT = 0; }
+var chargeTick = 0;
+cv.addEventListener('pointerdown', function (e) {
+  unlockAudio();
+  if (scene !== 'play' || paused) return;
+  var p = toLogical(e);
+  var tb = hitTool(p);
+  if (tb) { se.btn(); switchTool(tb); return; }
+  if (st.over || st.lock > 0) return;
+  var it = hitItem(p);
+  if (!it) { addLeaves(p.x, p.y, 3); return; }
+  /* 低所×太丸×40mm＝長押しテコ */
+  if (st.tool === 'futomaru' && !C.isFever(st) && it.zone === 'low' &&
+      it.kind === 'branch' && it.thick > K.TAP_MAX) {
+    fx.charging = true; fx.chargeItem = it; fx.chargeT = 0; chargeTick = 0;
+    fx.pressP = p;
+    return;
+  }
+  resolveCut(it, p, 0);
+});
+cv.addEventListener('pointerup', function (e) {
+  if (scene !== 'play' || paused) return;
+  if (fx.charging && fx.chargeItem) {
+    var it = fx.chargeItem, ch = Math.min(1, fx.chargeT);
+    var p = fx.pressP || toLogical(e);
+    cancelCharge();
+    if (st.items[it.slot] === it) resolveCut(it, p, ch);
+  }
+});
+cv.addEventListener('pointercancel', cancelCharge);
+window.addEventListener('keydown', function (e) {
+  if (scene !== 'play') return;
+  if (e.key === '1') switchTool('futomaru');
+  if (e.key === '2') switchTool('lr');
+});
+/* ---- 切断結果 → 演出 ---- */
+function resolveCut(it, p, charge) {
+  var gm = branchGeom(it);
+  var off = p.x - gm.cutX;
+  var res = C.attemptCut(st, it, off, { charge: charge });
+  var cx = gm.cutX, cy = it.y;
+  if (res.type === 'cut') {
+    var gold = res.grade === 'JUST';
+    addChips(cx, cy, gold ? 26 : it.thick === 40 ? 20 : 12, gold);
+    addLeaves(gm.tipX, cy, 5);
+    stumps.push({ x: gm.baseX, y: cy, dir: it.side, hw: thickPx(it.thick) / 2 + 1, t: 0, gold: gold });
+    fallers.push({ x: cx, y: cy, dir: it.side, len2: it.len * (1 - it.cutT),
+      hw: thickPx(it.thick) / 2, vy: -60, rot: 0, vr: it.side * (2 + Math.random() * 2), t: 0 });
+    addFloat(cx, cy - 30, '+' + res.pts, gold ? '#ffd24a' : '#F6EFE3', gold);
+    if (gold) {
+      addFloat(cx, cy - 58, TX.justMsg, '#ffd24a', true);
+      addBurst(cx, cy, '#ffd76e', 10);
+      se.just(); fx.shake = Math.max(fx.shake, 3);
+      fx.mood = 'joy'; fx.moodT = 0.8;
+    } else {
+      addFloat(cx, cy - 52, res.grade, res.grade === 'GOOD' ? '#a5e06a' : '#F6EFE3');
+    }
+    if (it.thick === 40) { se.thick(); fx.shake = Math.max(fx.shake, 4); }
+    else se.snip();
+    /* 果実が実る */
+    for (var f2 = 0; f2 < res.fruit; f2++) {
+      fruitsOnTree.push({
+        x: gm.baseX + it.side * (14 + f2 * 16), y: cy + 14,
+        t: -f2 * 0.14, ph: Math.random() * 6.3
+      });
+      setTimeout(se.fruit, 200 + f2 * 160);
+    }
+    if (res.fruit > 0) addFloat(cx, cy + 6, '実がなったで！ +' + res.fruit, '#ffb054');
+    if (res.feverStart) {
+      fx.feverBanner = 1; se.fever(); fx.shake = Math.max(fx.shake, 5);
+      fx.mood = 'joy'; fx.moodT = 1.2;
+    }
+    if (st.combo >= 2) fx.comboPop = 1;
+  } else if (res.type === 'ladder') {
+    fx.ladderT = 1.25; fx.ladderY = it.y; fx.ladderSide = it.side;
+    addFloat(W / 2, 320, TX.ladderMsg, '#ffd24a', true);
+    se.ladder(); fx.shake = Math.max(fx.shake, 2.5);
+    fx.mood = 'sad'; fx.moodT = 1.2;
+  } else if (res.type === 'fall') {
+    fx.fallT = K.FALL_LOCK; fx.ladderY = it.y; fx.ladderSide = it.side; fx.ladderT = 0;
+    fx.hint = TX.fallHint; fx.hintT = K.FALL_LOCK;
+    addFloat(W / 2, 260, TX.fallMsg, '#ff8a5c', true);
+    se.fall(); fx.shake = 9;
+  } else if (res.type === 'forbidden') {
+    addBurst(cx, cy, '#ff6a3c', 8);
+    addFloat(cx, cy - 30, '-' + res.penalty, '#ff6a3c', true);
+    addFloat(cx, cy - 58, res.msg, '#ff8a5c');
+    se.bad(); fx.shake = Math.max(fx.shake, 5);
+    fx.mood = 'sad'; fx.moodT = 1;
+  } else if (res.type === 'tooThick') {
+    it.anim = 0.72; /* ぷるぷるバウンス */
+    addFloat(cx, cy - 34, res.msg, '#ffd24a');
+    se.thick();
+  } else if (res.type === 'wrongTool') {
+    addFloat(cx, cy - 34, res.msg, '#ffd24a');
+    se.bad();
+  }
+}
+/* ---- 画面遷移 ---- */
+function show(id, on) { $(id).classList.toggle('on', on); }
+function startGame() {
+  st = C.createGame();
+  fruitsOnTree = []; stumps = []; fallers = []; parts.length = 0; floats.length = 0;
+  fx.shake = 0; fx.ladderT = 0; fx.fallT = 0; fx.feverBanner = 0;
+  fx.hintT = 0; fx.mood = 'normal'; fx.moodT = 0;
+  cancelCharge();
+  for (var i = 0; i < C.SLOTS.length; i++) C.spawnBranch(st);
+  scene = 'play';
+  show('titleScr', false); show('resultScr', false); show('zukanScr', false);
+  if (!save.tut) openTutorial(); else paused = false;
+}
+/* ---- チュートリアル（初回のみ・3枚） ---- */
+var TUT = [
+  { mood: 'normal', txt: '低い枝は <b>太丸</b> でタップや！<br>40mmの太い枝は <b>長押し→テコゲージ</b> がたまったら離してバッサリやで！' },
+  { mood: 'point', txt: '高い枝はボタンで <b>のびのび高枝切</b> に持ち替えるんや！<br>ハシゴいらずで、<b>地面から安全</b>に切れるで。' },
+  { mood: 'joy', txt: '<b>新芽</b> と <b>鳥の巣</b> は切ったらアカンで！<br>ラインぴったり <b>JUST</b> で切ったら果実がたわわに実るで！' }
+];
+var tutIdx = 0;
+function openTutorial() {
+  paused = true; tutIdx = 0; show('tutScr', true); renderTut();
+}
+function renderTut() {
+  var t2 = TUT[tutIdx];
+  $('tutTxt').innerHTML = t2.txt;
+  $('tutNext').textContent = tutIdx === TUT.length - 1 ? 'はじめる！' : 'つぎへ';
+  var d = '';
+  for (var i = 0; i < TUT.length; i++) d += i === tutIdx ? '●' : '○';
+  $('tutDots').textContent = d;
+  var tc = $('tutNishie').getContext('2d');
+  tc.clearRect(0, 0, 140, 120);
+  drawNishie(tc, 70, 112, 0.85, t2.mood, gTime);
+}
+$('tutNext').addEventListener('click', function () {
+  se.btn(); tutIdx++;
+  if (tutIdx >= TUT.length) {
+    show('tutScr', false); paused = false;
+    save.tut = 1; storeSave(save);
+  } else renderTut();
+});
+/* ---- リザルト ---- */
+var resMood = 'normal';
+function finishGame() {
+  scene = 'result';
+  cancelCharge();
+  var fin = C.finalize(st);
+  var prevTotal = save.total, prevBest = save.best;
+  save.total += fin.total;
+  var isBest = fin.total > save.best;
+  if (isBest) save.best = fin.total;
+  storeSave(save);
+  var newUnlocks = C.unlockedZukan(save.total).filter(function (id) {
+    return C.unlockedZukan(prevTotal).indexOf(id) < 0;
+  });
+  se.finish();
+  $('resCutPts').textContent = fin.cutScore + ' pt';
+  $('resHarvest').textContent = '果実×' + fin.fruits + ' ＝ +' + fin.harvest + ' pt';
+  $('resCombo').textContent = fin.maxCombo + '';
+  $('resRank').textContent = 'ランク：' + fin.rank;
+  $('resBest').textContent = isBest ? '★ ベスト更新！ ' + fin.total + ' pt ★'
+    : 'ベスト ' + Math.max(prevBest, save.best) + ' pt';
+  $('resUnlock').innerHTML = newUnlocks.length
+    ? '図鑑解放！ ' + newUnlocks.map(function (id) {
+        return '「' + C.ZUKAN.filter(function (z) { return z.id === id; })[0].name + '」';
+      }).join('') : '';
+  resMood = (isBest || fin.rank === '職人' || fin.rank === '匠') ? 'joy'
+    : (fin.falls > 0 && fin.rank === '見習い') ? 'bandage' : 'normal';
+  show('resultScr', true);
+  /* スコアカウントアップ */
+  var el = $('resScore'), t0 = performance.now();
+  (function cnt(now) {
+    var k = Math.min(1, (now - t0) / 900);
+    el.textContent = Math.round(fin.total * easeOut(k)) + ' pt';
+    if (k < 1) requestAnimationFrame(cnt);
+  })(t0);
+  updateTitleBest();
+}
+/* ---- 図鑑 ---- */
+function openZukan() {
+  var ul = C.unlockedZukan(save.total);
+  $('zukanSub').textContent = '累計スコア ' + save.total + ' pt ／ 解放 ' + ul.length + '/' + C.ZUKAN.length;
+  var list = $('zukanList');
+  list.innerHTML = '';
+  C.ZUKAN.forEach(function (z) {
+    var got = ul.indexOf(z.id) >= 0;
+    var card = document.createElement('div');
+    card.className = 'zcard' + (got ? '' : ' locked');
+    var ic = document.createElement('canvas');
+    ic.width = 56; ic.height = 56; ic.className = 'zic';
+    var txt = document.createElement('div');
+    txt.innerHTML = '<div class="zn">' + (got ? z.name : '？？？') + '</div>' +
+      '<div class="zt">' + (got ? z.trivia : '累計 ' + z.need + ' pt で解放') + '</div>';
+    card.appendChild(ic); card.appendChild(txt);
+    list.appendChild(card);
+    var icc = ic.getContext('2d');
+    if (got) drawToolIcon(icc, z.id, 28, 32, 1.1);
+    else {
+      icc.fillStyle = 'rgba(246,239,227,.35)';
+      icc.font = '900 26px sans-serif'; icc.textAlign = 'center';
+      icc.fillText('?', 28, 38);
+    }
+  });
+  show('zukanScr', true);
+}
+$('startBtn').addEventListener('click', function () { unlockAudio(); se.btn(); startGame(); });
+$('zukanBtn').addEventListener('click', function () { unlockAudio(); se.btn(); openZukan(); });
+$('againBtn').addEventListener('click', function () { se.btn(); startGame(); });
+$('resZukanBtn').addEventListener('click', function () { se.btn(); openZukan(); });
+$('resTitleBtn').addEventListener('click', function () {
+  se.btn(); scene = 'title';
+  show('resultScr', false); show('titleScr', true);
+});
+$('zukanClose').addEventListener('click', function () { se.btn(); show('zukanScr', false); });
+function updateTitleBest() {
+  $('bestLine').textContent = save.best > 0
+    ? 'ベスト ' + save.best + ' pt ／ 累計 ' + save.total + ' pt'
+    : 'めざせ、匠の剪定！';
+}
+updateTitleBest();
+/* ---- タブ非表示でポーズ ---- */
+var hiddenPause = false;
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { hiddenPause = true; cancelCharge(); }
+  else { hiddenPause = false; last = performance.now(); }
+});
+/* ---- メインループ ---- */
+var last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (hiddenPause) return;
+  var dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  gTime += dt;
+  var t = gTime;
+  var playing = scene === 'play' && !paused;
+  if (playing) {
+    C.tick(st, dt);
+    /* スロット補充（少しずつ） */
+    spawnTick -= dt;
+    if (spawnTick <= 0) { C.spawnBranch(st); spawnTick = 0.22; }
+    for (var i = 0; i < st.items.length; i++) {
+      var it3 = st.items[i];
+      if (it3) { it3.age += dt; it3.anim = Math.min(1, it3.anim + dt * 3.2); }
+    }
+    if (fx.charging) {
+      fx.chargeT = Math.min(1, fx.chargeT + dt);
+      chargeTick -= dt;
+      if (chargeTick <= 0) { se.charge(fx.chargeT); chargeTick = 0.15; }
+    }
+    if (fx.moodT > 0) { fx.moodT -= dt; if (fx.moodT <= 0) fx.mood = 'normal'; }
+    if (fx.toolFlash > 0) fx.toolFlash = Math.max(0, fx.toolFlash - dt * 3);
+    if (fx.feverBanner > 0) fx.feverBanner = Math.max(0, fx.feverBanner - dt * 0.5);
+    if (fx.hintT > 0) fx.hintT -= dt;
+    if (st.over) { finishGame(); }
+  }
+  /* ---- 描画 ---- */
+  ctx.save();
+  if (fx.shake > 0) {
+    fx.shake = Math.max(0, fx.shake - dt * 18);
+    ctx.translate((Math.random() - 0.5) * fx.shake * 2, (Math.random() - 0.5) * fx.shake * 2);
+  }
+  drawBG(t);
+  drawTree(t);
+  if (scene === 'play' || scene === 'result') {
+    drawStumps(paused ? 0 : dt);
+    for (var j = 0; j < st.items.length; j++) {
+      if (st.items[j]) drawItem(st.items[j], t);
+    }
+    drawFruits(t, paused ? 0 : dt);
+    drawFallers(paused ? 0 : dt);
+    var nishieBusy = drawLadderFx(t, paused ? 0 : dt);
+    if (!nishieBusy) drawNishie(ctx, 64, GROUND_Y + 8, 0.86, fx.mood, t);
+    /* フィーバー中の空気感 */
+    if (C.isFever(st)) {
+      ctx.fillStyle = 'rgba(232,89,12,' + (0.05 + Math.sin(t * 8) * 0.03) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+    drawParts(paused ? 0 : dt);
+    if (scene === 'play') drawHUD(t);
+  } else {
+    /* タイトル背景: そよぐ果樹園＋ニシー */
+    drawNishie(ctx, 96, GROUND_Y + 8, 0.9, 'joy', t);
+    drawParts(dt);
+  }
+  ctx.restore();
+  /* タイトルのニシー小キャンバス */
+  if (scene === 'title' && $('titleScr').classList.contains('on')) {
+    var tc2 = $('titleNishie').getContext('2d');
+    tc2.clearRect(0, 0, 150, 120);
+    drawNishie(tc2, 75, 112, 0.88, 'normal', t);
+  }
+  if ($('tutScr').classList.contains('on')) renderTut();
+  if ($('resultScr').classList.contains('on')) {
+    var rc = $('resNishie').getContext('2d');
+    rc.clearRect(0, 0, 150, 110);
+    drawNishie(rc, 75, 104, 0.8, resMood, t);
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
