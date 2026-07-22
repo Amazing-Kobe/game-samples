@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ドローンおしごとダイアリー | TWSM そらあそびパーク</title>
+<style>
+:root{--sky-blue:#7EC8E3;--coral:#E07A5F;--cream:#FAF6F0;--navy:#2C3E66;--paper:#fdf8ef;--shadow:0 8px 24px rgba(44,62,102,.16);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{margin:0;padding:0;background:#e7ddd0;overscroll-behavior:none}
+#app{max-width:520px;margin:0 auto;min-height:100vh;background:linear-gradient(160deg,#f3ece0,#efe6d6);position:relative;padding-bottom:env(safe-area-inset-bottom)}
+.hdr{position:sticky;top:0;z-index:10;background:#fdf8efee;backdrop-filter:blur(6px);padding:calc(env(safe-area-inset-top) + 8px) 14px 8px;box-shadow:0 2px 10px rgba(44,62,102,.06)}
+.hdr .top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.hdr .day{font-weight:800;font-size:15px;color:var(--navy)}
+.hdr .wx{font-size:12px;font-weight:700;color:#8595ad;margin-left:auto}
+.hdr .batt{display:flex;gap:3px}
+.hdr .batt .b{width:16px;height:9px;border-radius:2px;background:#6fcf97;border:1px solid #4bb87a}
+.hdr .batt .b.off{background:#e0e6ee;border-color:#cdd6e0}
+.gauges{display:flex;gap:8px}
+.gauge{flex:1}
+.gauge .gl{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;margin-bottom:2px}
+.gauge .gl .v{color:var(--navy)}
+.gauge .bar{height:7px;background:#e7ddd0;border-radius:6px;overflow:hidden}
+.gauge .bar>i{display:block;height:100%;border-radius:6px;transition:width .5s}
+.g-ude i{background:linear-gradient(90deg,#7EC8E3,#4fb0d6)}
+.g-shin i{background:linear-gradient(90deg,#ffb54d,#ff9330)}
+.g-waku i{background:linear-gradient(90deg,#ff8fa3,#ff6b8a)}
+.body{padding:16px 16px 30px}
+.card{background:var(--paper);border-radius:18px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px;position:relative}
+.sora{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+.sora .av{width:46px;height:46px;flex:0 0 auto;border-radius:50%;background:linear-gradient(160deg,#ffe0c2,#ffd0a8);display:grid;place-items:center;overflow:hidden;position:relative}
+.sora .av svg{width:44px;height:44px}
+.sora .av img.avimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top}
+.jobcut{width:100%;border-radius:12px;display:block;margin-bottom:10px}
+.typeart{width:200px;height:auto;border-radius:16px;display:block;margin:0 auto 10px;box-shadow:var(--shadow)}
+.sora .sp{background:#fff;border-radius:14px 14px 14px 3px;padding:10px 13px;font-size:13.5px;line-height:1.55;font-weight:600;color:var(--navy);box-shadow:0 2px 8px rgba(44,62,102,.08);flex:1}
+.sora .sp .who{color:var(--coral);font-weight:800;font-size:10.5px;display:block;margin-bottom:1px}
+h2.t{margin:0 0 12px;font-size:19px;color:var(--navy);text-align:center}
+.jobs{display:flex;flex-direction:column;gap:10px}
+.job{background:#fff;border-radius:14px;padding:13px 14px;box-shadow:0 2px 8px rgba(44,62,102,.08);cursor:pointer;transition:.15s;border:2px solid transparent}
+.job:active{transform:scale(.985)}
+.job.locked{opacity:.5}
+.job .jt{font-weight:800;font-size:15px;color:var(--navy)}
+.job .jm{font-size:11.5px;color:#8595ad;font-weight:600;margin:3px 0 6px;line-height:1.4}
+.job .jf{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chip{font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px}
+.chip.ude{background:#e3f2fb;color:#3a8fc0}.chip.shin{background:#fff2df;color:#d98a2a}.chip.waku{background:#ffe8ee;color:#e0567a}
+.chip.rew{background:#eef7ee;color:#5aa86a;margin-left:auto}
+.chip.diff{background:#f0f0f4;color:#8595ad}
+.acts{display:flex;gap:8px;margin-top:12px}
+.act{flex:1;background:#fff;border:1.5px solid #e7ddd0;border-radius:12px;padding:10px 4px;text-align:center;font-weight:800;font-size:12px;color:var(--navy);cursor:pointer}
+.act .ai{font-size:18px;display:block}
+.act .ac{font-size:9.5px;color:#8595ad;margin-top:1px}
+.big{background:var(--coral);color:#fff;border:none;border-radius:24px;font-weight:800;font-size:16px;padding:14px 24px;box-shadow:0 6px 16px rgba(224,122,95,.35);cursor:pointer;width:100%}
+.big:active{transform:scale(.98)}
+.sub-b{background:#eef2f6;color:var(--navy);border:none;border-radius:20px;font-weight:800;font-size:14px;padding:11px 18px;cursor:pointer;margin-top:8px;width:100%}
+.mini{min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.mini .mq{font-size:15px;font-weight:800;color:var(--navy);text-align:center;line-height:1.5}
+.opts{display:flex;gap:10px;width:100%;flex-wrap:wrap;justify-content:center}
+.opt{flex:1;min-width:90px;background:#fff;border:2px solid #e7ddd0;border-radius:14px;padding:16px 8px;text-align:center;font-weight:800;font-size:14px;color:var(--navy);cursor:pointer;transition:.12s}
+.opt:active{transform:scale(.96)}
+.opt .oi{height:56px;display:grid;place-items:center}
+.grid{display:grid;gap:6px;width:100%;max-width:300px;margin:0 auto}
+.cell{aspect-ratio:1;background:#fff;border-radius:10px;display:grid;place-items:center;cursor:pointer;font-size:22px;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:.1s}
+.cell:active{transform:scale(.92)}
+.cell.hit{background:#c8f0d4;box-shadow:inset 0 0 0 2px #6fcf97}
+.timing{width:100%;max-width:320px}
+.timing .track{height:44px;background:#eef2f6;border-radius:12px;position:relative;overflow:hidden}
+.timing .zone{position:absolute;top:0;bottom:0;background:#c8f0d4}
+.timing .mk{position:absolute;top:-4px;bottom:-4px;width:5px;background:var(--coral);border-radius:3px}
+.diary-txt{background:#fffef9;border-left:4px solid var(--coral);border-radius:8px;padding:12px 14px;font-size:13.5px;line-height:1.7;color:#4a4030;font-weight:500}
+.diary-txt .dt{font-size:11px;color:#b0a48c;font-weight:800;margin-bottom:4px}
+.card-shelf{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.mini-card{width:30px;height:40px;border-radius:4px;background:#ffe8b0;box-shadow:0 1px 3px rgba(0,0,0,.15);display:grid;place-items:center;font-size:9px;font-weight:800;color:#a67c1a}
+.mini-card.locked{background:#e7ddd0;color:#c0b6a2}
+.result-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:12px}
+.result-card canvas{width:100%;display:block}
+.nameform{display:flex;flex-direction:column;gap:10px;align-items:center}
+.nameform input{font-size:16px;padding:10px 14px;border:2px solid #e7ddd0;border-radius:12px;text-align:center;width:180px;font-family:inherit;font-weight:700}
+.chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#6b7c96;font-weight:700}
+.chk input{width:20px;height:20px}
+.toolbar{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:12px;z-index:11}
+.back-b{background:#ffffffcc;border:none;border-radius:16px;font-weight:800;font-size:12px;color:#6b7c96;padding:7px 12px;box-shadow:var(--shadow);cursor:pointer}
+.timer-bar{height:6px;background:#e7ddd0;border-radius:6px;overflow:hidden;width:100%;max-width:300px}
+.timer-bar>i{display:block;height:100%;background:var(--coral);width:100%}
+.type-badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin:8px 0}
+.tb{width:26px;height:26px;border-radius:50%;background:#e7ddd0}
+.tb.on{background:linear-gradient(160deg,#ffd76a,#ff9d5a)}
+.mutebtn{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:12px;z-index:11;width:34px;height:34px;border-radius:50%;background:#ffffffcc;border:none;box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center;font-size:15px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header"></div>
+  <div class="body" id="screen"></div>
+  <button class="mutebtn" id="mute">♪</button>
+  <div class="toolbar" id="toolbar" style="display:none"><button class="back-b" id="home">‹ ハブ</button></div>
+</div>
+<script>
+const TW=(()=>{const K={settings:'twsm_settings',meta:'twsm_meta',hub:'twsm_hub',g1:'twsm_g1',g2:'twsm_g2',g3:'twsm_g3'};let mem={};function raw(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}}function put(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}function load(k,def){try{const v=JSON.parse(raw(k));return(v&&typeof v==='object')?Object.assign(JSON.parse(JSON.stringify(def)),v):JSON.parse(JSON.stringify(def))}catch(e){return JSON.parse(JSON.stringify(def))}}function save(k,o){put(k,JSON.stringify(o))}const settings=load(K.settings,{sound:true,autoText:false});function saveSettings(){save(K.settings,settings)}function meta(){var m=load(K.meta,{miles:0,badges:[],wallpapers:[],crossUnlocks:[]});if(typeof m.miles!=='number'||isNaN(m.miles))m.miles=Number(m.miles)||0;if(!Array.isArray(m.badges))m.badges=[];if(!Array.isArray(m.wallpapers))m.wallpapers=[];if(!Array.isArray(m.crossUnlocks))m.crossUnlocks=[];return m}function saveMeta(m){save(K.meta,m)}function addMiles(n){const m=meta();m.miles+=n;saveMeta(m);return m.miles}function grantBadge(id){const m=meta();if(!m.badges.includes(id)){m.badges.push(id);saveMeta(m);return true}return false}function hasBadge(id){return meta().badges.includes(id)}function unlock(id){const m=meta();if(!m.crossUnlocks.includes(id)){m.crossUnlocks.push(id);saveMeta(m);return true}return false}function hasUnlock(id){return meta().crossUnlocks.includes(id)}let ac=null,master=null;function audio(){if(!ac){try{const AC=window.AudioContext||window.webkitAudioContext;ac=new AC();master=ac.createGain();master.gain.value=settings.sound?0.6:0;master.connect(ac.destination)}catch(e){}}if(ac&&ac.state==='suspended')ac.resume();return ac}function bg(h){try{if(ac){if(h){if(ac.suspend)ac.suspend();}else{if(ac.resume)ac.resume();}}}catch(e){}}function setMute(m){settings.sound=!m;saveSettings();if(master&&ac)master.gain.setTargetAtTime(m?0:0.6,ac.currentTime,0.01)}function tone(freq,dur,opt={}){const c=audio();if(!c||!settings.sound)return;const o=c.createOscillator(),g=c.createGain();o.type=opt.type||'sine';o.frequency.value=freq;if(opt.to)o.frequency.exponentialRampToValueAtTime(opt.to,c.currentTime+dur);const v=opt.vol==null?0.3:opt.vol;g.gain.value=v;g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+dur);o.connect(g);g.connect(master);o.start();o.stop(c.currentTime+dur)}function chord(fs,dur,opt={}){fs.forEach((f,i)=>setTimeout(()=>tone(f,dur,opt),i*(opt.stagger||60)))}return{K,load,save,settings,saveSettings,meta,saveMeta,addMiles,grantBadge,hasBadge,unlock,hasUnlock,audio,setMute,bg,tone,chord}})();
+
+/* ===== game3 ドローンおしごとダイアリー ===== */
+(function(){
+const scr=document.getElementById('screen'),hdrEl=document.getElementById('header');
+const isQuick=/mode=quick/.test(location.search);
+document.getElementById('home').onclick=goHome;
+document.getElementById('toolbar').style.display='block';
+document.getElementById('mute').onclick=()=>{TW.audio();TW.setMute(TW.settings.sound);document.getElementById('mute').textContent=TW.settings.sound?'♪':'✕';if(TW.settings.sound)TW.tone(700,0.1,{vol:.14});};
+document.getElementById('mute').textContent=TW.settings.sound?'♪':'✕';
+function goHome(){document.body.style.transition='opacity .3s';document.body.style.opacity=0;setTimeout(()=>location.href='index.html',300);}
+
+const DEF={day:0,params:{ude:30,shinrai:30,waku:30},battery:3,playerName:'わたし',namePrinted:false,diary:[],cards:[],quizPool:{cleared:[],wrong:[]},totalJobs:0,quizCorrectTotal:0,endings:[],quickResult:null,readEvents:[],soraLove:0,loopCount:0,restBoost:false,mileBuffer:0,todayActed:false};
+let g=TW.load(TW.K.g3,DEF);
+
+/* ---- content data ---- */
+const JOBS=[
+ {id:1,nm:'棚田の空撮',mini:'pick',ax:'waku',req:40,rew:'普通',desc:'いい構図の写真をえらぶ'},
+ {id:2,nm:'橋の点検',mini:'find',ax:'ude',req:40,rew:'普通',desc:'ヒビを見つけてタップ'},
+ {id:3,nm:'山の診療所へお届け',mini:'deliver',ax:'shinrai',req:40,rew:'普通',desc:'荷物をとどける'},
+ {id:4,nm:'迷子の子やぎ捜索',mini:'find',ax:'shinrai',req:45,rew:'普通',desc:'熱をおびた場所をさがす',variant:'thermal'},
+ {id:5,nm:'田んぼの生育チェック',mini:'find',ax:'ude',req:45,rew:'普通',desc:'色のちがう区画をさがす',variant:'color'},
+ {id:6,nm:'結婚式の空撮',mini:'timing',ax:'waku',req:50,rew:'高',desc:'花吹雪の瞬間にシャッター'},
+ {id:7,nm:'資材運搬（25kg級）',mini:'deliver',ax:'ude',req:70,rew:'特高',desc:'重い機体で運ぶ',variant:'heavy'},
+ {id:8,nm:'夜景撮影（神戸）',mini:'pick',ax:'waku',req:50,rew:'高',desc:'いい露出をえらぶ'},
+ {id:9,nm:'ソーラーパネル点検',mini:'find',ax:'ude',req:50,rew:'高',desc:'汚れをさがしてタップ',variant:'dirt'},
+ {id:10,nm:'山林の測量',mini:'timing',ax:'ude',req:55,rew:'高',desc:'ルート通過のタイミング',variant:'route'},
+ {id:11,nm:'牧場の見回り',mini:'count',ax:'shinrai',req:45,rew:'普通',desc:'羊の数をかぞえる'},
+ {id:12,nm:'花火大会の会場チェック',mini:'find',ax:'shinrai',req:55,rew:'高',desc:'危険物をさがす',variant:'danger'},
+ {id:13,nm:'コウノトリの観察記録',mini:'pick',ax:'waku',req:50,rew:'高',desc:'そっと近づく（2周目〜）',hidden:true},
+ {id:14,nm:'テレビ局の取材協力',mini:'pick',ax:'all',req:60,rew:'特高',desc:'インタビュー対応（2周目〜）',hidden:true}
+];
+const QUIZ=[
+ {th:'飛行高度',q:'ドローンを飛ばしていい高さの目安は、地表からおよそ何mまで？',a:['150m未満','500mまで','制限なし'],c:0,exp:'原則150m未満。それ以上は特別な許可が必要なんよ。'},
+ {th:'飲酒操縦',q:'お酒を飲んだあとにドローンを操縦してもいい？',a:['絶対だめ','少しならOK','翌朝ならOK'],c:0,exp:'飲酒後の操縦は法律で禁止。人も機体もあぶないからね。'},
+ {th:'夜間飛行',q:'夜にドローンを飛ばすには？',a:['国の承認が必要','自由にOK','ライトがあればOK'],c:0,exp:'夜間飛行は承認が必要。だからこのゲームの夜景撮影も「承認を得た想定」なんよ。'},
+ {th:'目視外',q:'ドローンを見えない所まで飛ばすには？',a:['承認が必要','双眼鏡があればOK','自由'],c:0,exp:'目視外飛行も承認が必要。スクールでしっかり学べるよ。'},
+ {th:'人口集中地区',q:'人がたくさん住む地区（DID）の上空は？',a:['許可が必要','いつでもOK','昼だけOK'],c:0,exp:'人口集中地区は許可が必要。神戸の街なかもそう。'},
+ {th:'イベント上空',q:'お祭りやイベントの人混みの上は？',a:['原則とばせない','自由','高ければOK'],c:0,exp:'原則NG。だからゲームの花火大会チェックも「承認を得た想定」なんよ。'},
+ {th:'飛行前点検',q:'飛ばす前にすることは？',a:['機体の点検','いきなり飛ばす','充電だけ'],c:0,exp:'毎回の点検が基本。プロほど確認をていねいにするよ。'},
+ {th:'バッテリー',q:'バッテリーで気をつけることは？',a:['残量に余裕をもつ','ギリギリまで使う','関係ない'],c:0,exp:'余裕をもった運用が安全のコツ。'},
+ {th:'天気と風',q:'強い風の日は？',a:['無理せず中止も','必ず飛ばす','関係ない'],c:0,exp:'風は大敵。中止する勇気も大事な判断力よ。'},
+ {th:'プライバシー',q:'空撮で気をつけることは？',a:['人の家や顔に配慮','自由に撮る','高ければOK'],c:0,exp:'プライバシーへの配慮は必須。信頼される飛ばし方をね。'},
+ {th:'登録と保険',q:'機体について正しいのは？',a:['登録が必要','登録は不要','保険は禁止'],c:0,exp:'機体登録が必要。万一にそなえた保険も安心につながる。'},
+ {th:'資格の種類',q:'国家資格の等級は？',a:['一等と二等がある','一等だけ','資格はない'],c:0,exp:'一等と二等があるよ。TWSMはどちらも学べる！'}
+];
+const EVENTS=[
+ {id:1,t:'配達先のおばあちゃんから、お礼にと梨が届いた。あまい。',p:{shinrai:5}},
+ {id:2,t:'子どもたちがドローンに手をふってくれた。こっちも笑顔。',p:{waku:5}},
+ {id:3,t:'直したばかりの橋を、人が渡っていくのを見かけた。じん、とくる。',p:{shinrai:8}},
+ {id:4,t:'（梨の食べくらべ）届けた梨、品種で味がちがう。おもしろい。',p:{waku:5},need:'g1_pear'},
+ {id:5,t:'SNSにあげた空撮が、ちょっとだけバズった。うれしい。',p:{waku:8}},
+ {id:6,t:'そら「私も新人のころ、木にひっかけてなあ…」失敗談で少し安心した。',p:{},love:1},
+ {id:7,t:'一等資格のパンフレットを、つい眺めてしまった。いつかは。',p:{waku:3}},
+ {id:8,t:'先輩卒業生が開業した話を聞いた。道はいろいろあるんやなあ。',p:{shinrai:3}},
+ {id:9,t:'機体をていねいに手入れした。愛着がわく。',p:{ude:3}},
+ {id:10,t:'天気図をながめて、明日の風を読んでみた。',p:{ude:3}},
+ {id:11,t:'星がきれいな夜。ドローンで撮ってみたくなった。',p:{waku:3}},
+ {id:12,t:'ご近所さんに挨拶。「がんばってな」と声をかけられた。',p:{shinrai:3}},
+ {id:13,t:'プロペラに小傷を発見→整備で解決。ヒヤリを未然にふせいだ。',p:{ude:5}},
+ {id:14,t:'明日の依頼が急にキャンセル…と思ったら代打の話がきた。',p:{}},
+ {id:15,t:'雨予報。てるてる坊主を作ってみた。効くかな？',p:{},sunny:true},
+ {id:16,t:'そら「あなた、ほんまに伸びたわ。その調子！」応援がしみる。',p:{ude:2,shinrai:2,waku:2},love:1}
+];
+const TYPES=[
+ {id:'ace',nm:'職人肌エース',pros:'あなたの操縦、教官が欲しがります。',weak:'ただし充電を忘れがち',aff:'まちの相談役',course:'一等コース（実務で活きる高難度）',col:'#4fb0d6'},
+ {id:'hero',nm:'地域のヒーロー',pros:'あなたが飛ぶと、まちが笑顔になる。',weak:'頼まれると断れない',aff:'好奇心パイロット',course:'二等コース＋地域連携',col:'#ff9330'},
+ {id:'artist',nm:'そらの芸術家',pros:'あなたのファインダーは、そらを絵にする。',weak:'夢中になると時間を忘れる',aff:'職人肌エース',course:'二等コース＋空撮ワーク',col:'#ff6b8a'},
+ {id:'captain',nm:'バランス型キャプテン',pros:'現場が一番ほしい人材、それがあなた。',weak:'完璧主義でたまに疲れる',aff:'のんびり見習い',course:'一等コース（現場リーダー向き）',col:'#6fcf97'},
+ {id:'slow',nm:'のんびり見習い',pros:'あわてない。そらは逃げません。',weak:'お昼寝が長い',aff:'バランス型キャプテン',course:'二等コース（週末2日〜）',col:'#a8b5c8'},
+ {id:'mech',nm:'努力の整備士',pros:'コツコツ派。上達曲線は裏切らない。',weak:'心配性で二度見しがち',aff:'そらの芸術家',course:'二等コース＋点検実務',col:'#7a9ac0'},
+ {id:'consult',nm:'まちの相談役',pros:'技術より先に、人に好かれるタイプ。',weak:'自分のことは後回し',aff:'職人肌エース',course:'二等コース＋地域連携',col:'#e0a05f'},
+ {id:'curious',nm:'好奇心パイロット',pros:'「やってみたい」が最強のエンジン。',weak:'説明書は読まない派',aff:'地域のヒーロー',course:'二等コース（まずは体験）',col:'#c087d0'}
+];
+const LP='https://www.twsm-japan.com/ドローン国家資格/コース一覧受講料金';
+const LINE='https://lin.ee/t0ENMjq';
+
+/* ---- header ---- */
+function renderHeader(show){
+ if(!show){hdrEl.innerHTML='';return;}
+ const wx=g._weather||'はれ';
+ hdrEl.innerHTML=`<div class="hdr">
+  <div class="top"><span class="day">Day ${g.day} / 7</span>
+   <span class="wx">${wx==='あめ'?'☂ あめ':wx==='くもり'?'☁ くもり':'☀ はれ'}</span>
+   <div class="batt">${[0,1,2].map(i=>`<div class="b ${i<g.battery?'':'off'}"></div>`).join('')}</div></div>
+  <div class="gauges">
+   ${gauge('ude','うで',g.params.ude)}${gauge('shin','しんらい',g.params.shinrai)}${gauge('waku','わくわく',g.params.waku)}
+  </div></div>`;
+}
+function gauge(cls,label,v){return `<div class="gauge g-${cls}"><div class="gl"><span>${label}</span><span class="v">${Math.round(v)}</span></div><div class="bar"><i style="width:${Math.min(100,v)}%"></i></div></div>`;}
+const SORA_IMG={normal:'G3-01_sora_normal',happy:'G3-01_sora_smile',sad:'G3-01_sora_trouble'};
+function soraSay(txt,mood){const f=SORA_IMG[mood||'normal']||SORA_IMG.normal;return `<div class="sora"><div class="av">${soraSvg(mood)}<img class="avimg" src="assets/opt/${f}.webp" alt="" onerror="this.remove()"></div><div class="sp"><span class="who">教官 そら</span>${txt}</div></div>`;}
+function soraSvg(mood){const m=mood||'normal';const mouth=m==='happy'?'M16 27q6 5 12 0':m==='sad'?'M17 28q5 -4 10 0':'M17 27h10';return `<svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="22" fill="#ffe0c2"/><path d="M8 16a14 12 0 0128 0v3H8z" fill="#5a4636"/><rect x="9" y="9" width="26" height="8" rx="4" fill="#E07A5F"/><circle cx="22" cy="24" r="12" fill="#ffeeda"/><circle cx="17" cy="22" r="2" fill="#3a2e22"/><circle cx="27" cy="22" r="2" fill="#3a2e22"/><path d="${mouth}" stroke="#c9694f" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="14" cy="26" r="2.5" fill="#ffb0a0" opacity=".5"/><circle cx="30" cy="26" r="2.5" fill="#ffb0a0" opacity=".5"/></svg>`;}
+
+/* ================= FLOW ================= */
+function start(){
+ if(isQuick){quickStart();return;}
+ if(g.day>0&&g.day<8&&!g._finished){ renderHeader(true); if(g._nightDoneDay===g.day) resumeAfterNight(); else morning(); return; }
+ // fresh — clear run-state so a finished/late-loaded save starts truly new
+ g=TW.load(TW.K.g3,DEF); g.day=0; g._finished=false; g._nightDoneDay=undefined;
+ g.params={ude:30,shinrai:30,waku:30}; g.battery=3; g.diary=[]; g.mileBuffer=0;
+ renderHeader(false);
+ scr.innerHTML=`<div class="card">${soraSay('7日間、いっしょにドローンのお仕事、やってみよう！わたしは教官のそら。前は事務職やってん。23歳で転職して、今3年目。あなたも、きっと大丈夫。','happy')}</div>
+   <div class="card"><div style="font-size:13.5px;color:#6b7c96;font-weight:600;line-height:1.7;text-align:center">養父のスクールを拠点に、1日1件のお仕事に挑戦。<br>7日目に、あなたの<b style="color:var(--coral)">パイロット適性</b>を診断します。</div></div>
+   <button class="big" id="go">1日目をはじめる ▶</button>
+   <button class="sub-b" id="home2">ハブへもどる</button>`;
+ document.getElementById('go').onclick=()=>{TW.audio();nextDay();};
+ document.getElementById('home2').onclick=goHome;
+}
+function resumeDay(){morning();}
+function resumeAfterNight(){
+ renderHeader(true);
+ scr.innerHTML=`<div class="card"><h2 class="t">Day ${g.day} は おわりました</h2><div style="text-align:center;color:#6b7c96;font-weight:600;font-size:13px">記録ずみ。つづきから再開します。</div></div><button class="big" id="nn2">${g.day>=7?'7日間をふりかえる ▶':'つぎの日へ ▶'}</button><button class="sub-b" id="home5">ハブへもどる</button>`;
+ document.getElementById('nn2').onclick=()=>{TW.audio();nextDay();};
+ document.getElementById('home5').onclick=goHome;
+}
+
+function nextDay(){
+ g.day++; g.battery=3; g.todayActed=false;
+ g.restBoost=!!g._restPending; g._restPending=false; // rest boosts the NEXT day
+ // weather
+ const r=Math.random(); g._weather=g._forceSunny?'はれ':(r<0.18?'あめ':r<0.35?'くもり':'はれ'); g._forceSunny=false;
+ g._dayEndMile=0;
+ TW.save(TW.K.g3,g);
+ if(g.day>7){finale();return;}
+ renderHeader(true);
+ morning();
+}
+
+function morning(){
+ renderHeader(true);
+ if(g._weather==='あめ'){ rainyDay(); return; }
+ // choose 3 jobs — cache per day so small actions/rest don't re-roll the board
+ let three;
+ if(g._jobsDay===g.day && Array.isArray(g._todayJobs) && g._todayJobs.length===3){
+   three=g._todayJobs;
+ } else {
+   const avail=JOBS.filter(j=>!j.hidden||g.loopCount>0);
+   let pool=[...avail];
+   three=[];
+   while(three.length<3&&pool.length){const i=Math.floor(Math.random()*pool.length);const j=pool.splice(i,1)[0];if(j.req<=70||g.params[j.ax==='all'?'ude':j.ax]>=60)three.push(j);}
+   while(three.length<3&&avail.length)three.push(avail[Math.floor(Math.random()*avail.length)]);
+   g._todayJobs=three; g._jobsDay=g.day;
+ }
+ let cards=three.map((j,idx)=>{
+   const axName={ude:'うで',shinrai:'しんらい',waku:'わくわく',all:'全部'}[j.ax];
+   const p=j.ax==='all'?Math.min(g.params.ude,g.params.shinrai,g.params.waku):g.params[j.ax];
+   const can=g.battery>=2;
+   return `<div class="job ${can?'':'locked'}" data-i="${idx}"><div class="jt">${j.nm}</div><div class="jm">${j.desc}</div>
+    <div class="jf"><span class="chip ${j.ax==='waku'?'waku':j.ax==='shinrai'?'shin':'ude'}">${axName} +</span><span class="chip diff">必要 ${j.req}</span><span class="chip rew">報酬 ${j.rew}</span></div></div>`;
+ }).join('');
+ scr.innerHTML=`<div class="card">${soraSay(dayMsg(),'normal')}</div>
+   <h2 class="t">今日のおしごとボード</h2>
+   <div style="font-size:11.5px;color:#8595ad;font-weight:700;text-align:center;margin-bottom:8px">バッテリー <b>${g.battery}</b>／3 ・ おしごと=2 つかう</div>
+   <div class="jobs">${cards}</div>
+   <div class="acts">
+     <div class="act" data-a="train"><span class="ai">🛠</span>練習<span class="ac">うで+ (電1)</span></div>
+     <div class="act" data-a="walk"><span class="ai">🚶</span>さんぽ<span class="ac">わくわく+ (電1)</span></div>
+     <div class="act" data-a="rest"><span class="ai">☕</span>休憩<span class="ac">明日+補正</span></div>
+     <div class="act" data-a="end"><span class="ai">🌙</span>1日おわり<span class="ac">夜へ</span></div>
+   </div>`;
+ scr.querySelectorAll('.job').forEach(el=>{if(!el.classList.contains('locked'))el.onclick=()=>doJob(g._todayJobs[+el.dataset.i]);});
+ scr.querySelectorAll('.act').forEach(el=>el.onclick=()=>smallAct(el.dataset.a));
+}
+function dayMsg(){
+ const m=['さあ、今日もいこか！','どのお仕事にする？あなたの得意をのばそ。','無理せんでええからね。楽しむのが一番。','だいぶ様子が分かってきたやろ？','あと少し。悔いのないように、いこ！','いよいよ大詰め。あなたらしく。','最終日！7日間の集大成、みせてな。'];
+ return m[Math.min(g.day-1,6)];
+}
+
+function smallAct(a){
+ TW.audio();
+ if(a==='end'){night();return;}
+ if(g.battery<1){toast('バッテリーが足りない…');return;}
+ if(a==='train'){g.battery--;const ax=pickWeakest();g.params[ax]=Math.min(100,g.params[ax]+5);TW.tone(700,0.1,{vol:.15});toast(( {ude:'うで',shinrai:'しんらい',waku:'わくわく'}[ax])+' +5');}
+ else if(a==='walk'){g.battery--;g.params.waku=Math.min(100,g.params.waku+4);g._walkBonus=true;TW.tone(760,0.1,{vol:.15});toast('わくわく +4');}
+ else if(a==='rest'){g._restPending=true;TW.tone(560,0.12,{vol:.14});toast('ゆっくり休んだ。明日のミニ操作に+補正');}
+ TW.save(TW.K.g3,g);
+ renderHeader(true);
+ if(g.battery<2)morning(); else morning();
+}
+function pickWeakest(){const p=g.params;let ax='ude',mn=p.ude;if(p.shinrai<mn){mn=p.shinrai;ax='shinrai';}if(p.waku<mn){mn=p.waku;ax='waku';}return ax;}
+
+/* ---- job minigames ---- */
+let jobCtx=null;
+function doJob(job){
+ if(g.battery<2){toast('バッテリーが足りない（2ひつよう）');return;}
+ g.battery-=2; g.todayActed=true;
+ jobCtx={job,done:false};
+ TW.save(TW.K.g3,g);
+ renderHeader(true);
+ const runner={pick:miniPick,find:miniFind,timing:miniTiming,count:miniCount,deliver:miniDeliver}[job.mini];
+ runner(job,(quality)=>finishJob(job,quality));
+}
+function jobShell(job,inner){
+ scr.innerHTML=`<div class="card"><div style="font-weight:800;font-size:16px;color:var(--navy);text-align:center;margin-bottom:2px">${job.nm}</div><div style="font-size:11.5px;color:#8595ad;font-weight:700;text-align:center;margin-bottom:10px">${job.desc}</div><div class="mini" id="mini">${inner}</div></div>`;
+}
+// pick: choose best of 3
+function miniPick(job,cb){
+ const good=Math.floor(Math.random()*3);
+ const labels=job.variant==='route'?['ルートA','ルートB','ルートC']:['①','②','③'];
+ jobShell(job,`<div class="mq">${job.id===8?'いちばん映える露出はどれ？':job.id===13?'子を おどろかせずに 近づくには？':job.id===14?'いちばん良い受け答えは？':'いちばん良い構図はどれ？'}</div>
+  <div class="opts">${[0,1,2].map(i=>`<div class="opt" data-i="${i}"><div class="oi">${pickIcon(job,i,good)}</div>${job.id===14?['ていねいに','早口で','だまる'][i]:labels[i]}</div>`).join('')}</div>`);
+ document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{const i=+o.dataset.i;const q=i===good?'great':(Math.random()<.5?'ok':'fail');TW.tone(i===good?900:400,0.1,{vol:.16});cb(q);});
+}
+function pickIcon(job,i,good){
+ // real skill cue: the "good" frame is well-composed (level, subject on the right third).
+ // each wrong one has ONE visible flaw a careful eye can catch.
+ let tilt=0,subX=46,subR=8,horizon=34,sun=1;
+ if(i!==good){
+   const flaw=(i*7+good)%3;
+   if(flaw===0)tilt=0.20;            // 傾いた水平
+   else if(flaw===1){subX=10;subR=5;} // 被写体が端で小さい
+   else{horizon=47;sun=0;}            // 空が狭く平凡な構図
+ }
+ const g=`<g transform="rotate(${(tilt*57).toFixed(1)} 35 26)"><rect x="-6" y="${horizon}" width="82" height="${58-horizon}" fill="#bfe6c9"/><circle cx="${subX}" cy="${horizon-5}" r="${subR}" fill="#8fce7a"/>${sun?'<circle cx="14" cy="14" r="5" fill="#ffe08a"/>':''}</g>`;
+ return `<svg width="70" height="52" viewBox="0 0 70 52"><clipPath id="cp${i}"><rect x="2" y="2" width="66" height="48" rx="6"/></clipPath><rect x="2" y="2" width="66" height="48" rx="6" fill="#eaf4fb" stroke="#cfe0ee"/><g clip-path="url(#cp${i})">${g}</g></svg>`;
+}
+// find: tap N targets in grid within time
+function miniFind(job,cb){
+ const N=3, size=16, total=16;
+ const targets=new Set();while(targets.size<N)targets.add(Math.floor(Math.random()*total));
+ let found=0,time=8;
+ const icon=job.variant==='thermal'?'🔥':job.variant==='color'?'🟩':job.variant==='dirt'?'⬛':job.variant==='danger'?'⚠':'✕';
+ jobShell(job,`<div class="mq">${job.variant==='thermal'?'熱いところ':job.variant==='color'?'色のちがう区画':job.variant==='dirt'?'汚れ':job.variant==='danger'?'危険物':'ヒビ'}を ${N}つ 見つけてタップ！</div>
+  <div class="timer-bar"><i id="tb"></i></div>
+  <div class="grid" id="grid" style="grid-template-columns:repeat(4,1fr)">${Array.from({length:total},(_,i)=>`<div class="cell" data-i="${i}"></div>`).join('')}</div>`);
+ const cells=[...document.querySelectorAll('.cell')];
+ // reveal targets subtly: give a faint hint by tiny dot only when tapped correct; players must hunt. Add mild visual noise.
+ cells.forEach(c=>{const i=+c.dataset.i; c.onclick=()=>{
+   if(c.classList.contains('hit'))return;
+   if(targets.has(i)){c.classList.add('hit');c.textContent=icon;found++;TW.tone(800+found*80,0.08,{vol:.14});if(found>=N){clearInterval(iv);const q=time>4?'great':'ok';cb(q);}}
+   else{TW.tone(300,0.1,{type:'square',vol:.1});time=Math.max(0,time-1.2);}
+ };});
+ // to be findable without pure luck, briefly flash targets at start
+ setTimeout(()=>{targets.forEach(i=>{cells[i].style.background='#fff2cf';});setTimeout(()=>{cells.forEach((c,i)=>{if(!c.classList.contains('hit'))c.style.background='';});},900);},200);
+ const tb=document.getElementById('tb');const t0=time;
+ const iv=setInterval(()=>{time-=0.1;tb.style.width=Math.max(0,time/t0*100)+'%';if(time<=0){clearInterval(iv);cb(found>=2?'ok':'fail');}},100);
+}
+// timing: marker sweeps, tap in zone
+function miniTiming(job,cb){
+ jobShell(job,`<div class="mq">${job.variant==='route'?'ルート上を通る瞬間にタップ！':'いい瞬間にタップ！'}</div>
+  <div class="timing"><div class="track"><div class="zone" id="zone"></div><div class="mk" id="mk"></div></div></div>
+  <button class="big" id="shoot" style="max-width:200px">タップ！</button>`);
+ const zoneW=22+Math.random()*10, zoneL=25+Math.random()*40;
+ const zone=document.getElementById('zone');zone.style.left=zoneL+'%';zone.style.width=zoneW+'%';
+ const mk=document.getElementById('mk');let pos=0,dir=1,speed=70+g.day*6;let raf;
+ let last=performance.now();
+ function step(t){const dt=(t-last)/1000;last=t;pos+=dir*speed*dt;if(pos>100){pos=100;dir=-1;}if(pos<0){pos=0;dir=1;}mk.style.left=pos+'%';raf=requestAnimationFrame(step);}
+ raf=requestAnimationFrame(step);
+ document.getElementById('shoot').onclick=()=>{cancelAnimationFrame(raf);const inZone=pos>=zoneL&&pos<=zoneL+zoneW;const center=Math.abs(pos-(zoneL+zoneW/2))<zoneW*0.3;TW.tone(inZone?1000:350,0.1,{vol:.16});cb(center?'great':inZone?'ok':'fail');};
+}
+// count: show items briefly then ask
+function miniCount(job,cb){
+ const n=4+Math.floor(Math.random()*5);
+ jobShell(job,`<div class="mq">羊は何匹いた？よく見て…</div><div id="field" style="position:relative;width:100%;max-width:300px;height:150px;background:#eaf6ea;border-radius:12px;overflow:hidden"></div>`);
+ const field=document.getElementById('field');
+ for(let i=0;i<n;i++){const s=document.createElement('div');s.textContent='🐑';s.style.cssText=`position:absolute;font-size:26px;left:${10+Math.random()*80}%;top:${10+Math.random()*70}%`;field.appendChild(s);}
+ setTimeout(()=>{
+   const opts=[n-1,n,n+1,n+2].sort(()=>Math.random()-.5);
+   document.getElementById('mini').innerHTML=`<div class="mq">羊は何匹いた？</div><div class="opts">${opts.map(o=>`<div class="opt" data-n="${o}" style="min-width:60px">${o}匹</div>`).join('')}</div>`;
+   document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{const val=+o.dataset.n;TW.tone(val===n?900:400,0.1,{vol:.16});cb(val===n?'great':Math.abs(val-n)===1?'ok':'fail');});
+ },1600);
+}
+// deliver: short hold-fly through gate
+function miniDeliver(job,cb){
+ const heavy=job.variant==='heavy';
+ jobShell(job,`<div class="mq">${heavy?'重いよ！押して高さをキープ':'押して上昇・はなして下降'}<br>ゲートをくぐってゴールへ</div>
+  <canvas id="jc" width="300" height="180" style="width:100%;max-width:320px;background:linear-gradient(#bfe3f5,#eaf6fb);border-radius:12px;touch-action:none"></canvas>`);
+ const c=document.getElementById('jc'),x=c.getContext('2d');
+ let dy=90,vy=0,hold=false,gx=320,goal=false,t=0,passed=0,gates=[{x:320,gap:70,y:50},{x:520,gap:70,y:80}];
+ const winUp=()=>{hold=false;};
+ c.addEventListener('pointerdown',e=>{e.preventDefault();hold=true;});
+ c.addEventListener('pointerup',e=>{e.preventDefault();hold=false;});
+ c.addEventListener('pointercancel',()=>{hold=false;});
+ window.addEventListener('pointerup',winUp);
+ let last=performance.now(),raf,done=false;
+ function step(ts){const dt=Math.min(0.05,(ts-last)/1000);last=ts;t+=dt;
+   vy+=(hold?-(heavy?520:640):(heavy?520:380))*dt;vy=Math.max(-260,Math.min(260,vy));dy+=vy*dt;
+   if(dy<12){dy=12;vy=0;}if(dy>168){dy=168;vy=0;}
+   gates.forEach(gt=>{gt.x-=90*dt;});
+   x.clearRect(0,0,300,180);
+   x.fillStyle='#7fc99a';x.fillRect(0,172,300,8);
+   gates.forEach(gt=>{if(gt.x>-20&&gt.x<300){x.fillStyle='#c98f5a';x.fillRect(gt.x,0,10,gt.y);x.fillRect(gt.x,gt.y+gt.gap,10,180-gt.y-gt.gap);
+     if(Math.abs(gt.x-60)<6&&!gt.scored){gt.scored=true;if(dy>gt.y&&dy<gt.y+gt.gap){passed++;TW.tone(800,0.08,{vol:.12});}else{TW.tone(300,0.1,{vol:.1});}}}});
+   // drone
+   x.save();x.translate(60,dy);x.fillStyle='#fff';x.fillRect(-14,-9,28,18);x.fillStyle='#E07A5F';x.fillRect(-14,-1,28,9);x.fillStyle='#37507d';x.fillRect(-16,-11,6,4);x.fillRect(10,-11,6,4);x.restore();
+   if(gates.every(gt=>gt.x<-20)&&!done){done=true;cancelAnimationFrame(raf);window.removeEventListener('pointerup',winUp);const q=passed>=2?'great':passed===1?'ok':'fail';setTimeout(()=>cb(q),300);return;}
+   raf=requestAnimationFrame(step);
+ }
+ raf=requestAnimationFrame(step);
+}
+
+function finishJob(job,quality){
+ // param threshold effect
+ const ax=job.ax==='all'?pickWeakest():job.ax;
+ const p=g.params[ax];
+ let boost=g.restBoost?0.12:0;g.restBoost=false;
+ let effect=(quality==='great'?0.85:quality==='ok'?0.55:0.2)+boost+(p-job.req)/200;
+ let result= effect>0.7?'大成功':effect>0.4?'成功':'しっぱい';
+ // apply params: main +gain, sub +subGain
+ const gain=result==='大成功'?12:result==='成功'?8:2;
+ const subGain=result==='大成功'?6:result==='成功'?4:0;
+ const addP=(k,v)=>g.params[k]=Math.max(0,Math.min(100,g.params[k]+v));
+ if(job.ax==='all'){['ude','shinrai','waku'].forEach(k=>addP(k,gain));}
+ else{
+   addP(job.ax,gain);
+   const subMap={ude:'shinrai',shinrai:'waku',waku:'ude'};
+   addP(subMap[job.ax],subGain);
+   if(result==='しっぱい'&&job.ax==='shinrai')addP('shinrai',-3);
+ }
+ // mile + counters
+ const mile=result==='大成功'?15:result==='成功'?10:5;
+ g.mileBuffer+=mile; g.totalJobs++;
+ g._lastJobResult={job,result};
+ // fail streak safety
+ g._failStreak=result==='しっぱい'?(g._failStreak||0)+1:0;
+ // badge
+ if(g.totalJobs>=20&&TW.grantBadge('b13'))queueBadge('はたらきもの');
+ TW.save(TW.K.g3,g);
+ renderHeader(true);
+ jobResult(job,result,mile);
+}
+const JOB_IMG={1:'job01_tanada',2:'job02_bridge',3:'job03_clinic',4:'job04_goat',5:'job05_rice',6:'job06_wedding',7:'job07_cargo',8:'job08_night',9:'job09_solar',10:'job10_survey',11:'job11_sheep',12:'job12_hanabi',13:'job13_stork',14:'job14_tv'};
+function jobResult(job,result,mile){
+ const mood=result==='大成功'?'happy':result==='しっぱい'?'sad':'normal';
+ const say=result==='大成功'?'完璧やん！おみごと！':result==='成功'?'うん、ちゃんとできてた。':'ドンマイ！失敗も経験。明日リベンジしよ。';
+ const cut=JOB_IMG[job.id]?`<img class="jobcut" src="assets/opt/G3-02_${JOB_IMG[job.id]}.webp" alt="" onerror="this.remove()">`:'';
+ scr.innerHTML=`<div class="card">${cut}<div style="text-align:center"><div style="font-size:13px;color:#8595ad;font-weight:800">${job.nm}</div>
+   <div style="font-size:26px;font-weight:800;color:${result==='大成功'?'#ff9330':result==='成功'?'#4fb0d6':'#8595ad'};margin:6px 0">${result}！</div>
+   <div style="font-size:12px;color:#6b7c96;font-weight:700">マイル +${mile}</div></div>
+   ${soraSay(say,mood)}</div>
+   <button class="big" id="cont">つづける ▶</button>`;
+ if(result==='大成功')confetti();
+ document.getElementById('cont').onclick=()=>{TW.audio();afterJob();};
+}
+function afterJob(){
+ // battery may remain 1 -> allow one small act, else night
+ if(g.battery>=1){morningSmallOnly();}
+ else night();
+}
+function morningSmallOnly(){
+ renderHeader(true);
+ scr.innerHTML=`<div class="card">${soraSay('バッテリーが1つ残ってる。最後にどうする？','normal')}
+   <div class="acts">
+     <div class="act" data-a="train"><span class="ai">🛠</span>練習<span class="ac">うで+</span></div>
+     <div class="act" data-a="walk"><span class="ai">🚶</span>さんぽ<span class="ac">わくわく+</span></div>
+     <div class="act" data-a="end"><span class="ai">🌙</span>1日おわり</div>
+   </div></div>`;
+ scr.querySelectorAll('.act').forEach(el=>el.onclick=()=>{if(el.dataset.a==='end')night();else smallActOnce(el.dataset.a);});
+}
+function smallActOnce(a){TW.audio();g.battery--;if(a==='train'){const ax=pickWeakest();g.params[ax]=Math.min(100,g.params[ax]+5);toast('うで系 +5');}else{g.params.waku=Math.min(100,g.params.waku+4);toast('わくわく +4');}TW.tone(700,0.1,{vol:.14});TW.save(TW.K.g3,g);renderHeader(true);night();}
+
+/* ---- rainy day = quiz ---- */
+function rainyDay(){
+ renderHeader(true);
+ scr.innerHTML=`<div class="card">${soraSay('今日は雨。飛ばせへんから、座学の日にしよ。スキルアップ講習、いくで！','normal')}</div>`;
+ setTimeout(()=>runQuiz(()=>{ // after quiz go to night
+   night();
+ }),400);
+}
+let quizState=null;
+function runQuiz(done){
+ // pick a theme not cleared, else random
+ let theme=QUIZ.find(q=>!g.quizPool.cleared.includes(q.th));
+ if(!theme)theme=QUIZ[Math.floor(Math.random()*QUIZ.length)];
+ // build 3 questions from same theme? We have 1 per theme in data; treat as 3 sub-Qs by using theme q plus 2 generated -> simplify: 3 different themes as a "set"
+ const set=[];const used=new Set();
+ // first the target theme, then 2 more uncleared/random
+ set.push(theme);used.add(theme.th);
+ while(set.length<3){const q=QUIZ[Math.floor(Math.random()*QUIZ.length)];if(!used.has(q.th)){used.add(q.th);set.push(q);}}
+ let idx=0,correct=0;
+ function ask(){
+   const q=set[idx];
+   // shuffle options so the answer isn't always the same position
+   const shuf=q.a.map((a,i)=>({a,ok:i===q.c})).sort(()=>Math.random()-0.5);
+   scr.innerHTML=`<div class="card"><div style="text-align:center;font-size:12px;color:#8595ad;font-weight:800;margin-bottom:6px">スキルアップ講習 (${idx+1}/3)</div>
+     ${soraSay(q.q,'normal')}
+     <div class="opts" style="flex-direction:column">${shuf.map((o,i)=>`<div class="opt" data-ok="${o.ok?1:0}" style="width:100%;text-align:left;padding:14px 16px">${o.a}</div>`).join('')}</div></div>`;
+   document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{
+     const ok=o.dataset.ok==='1';
+     if(ok){correct++;g.quizCorrectTotal++;o.style.background='#c8f0d4';TW.tone(900,0.1,{vol:.16});}
+     else{o.style.background='#ffd5d5';document.querySelector('.opt[data-ok="1"]').style.background='#c8f0d4';TW.tone(350,0.15,{type:'square',vol:.14});}
+     document.querySelectorAll('.opt').forEach(x=>x.onclick=null);
+     scr.querySelector('.card').innerHTML+=`<div style="margin-top:10px;font-size:12.5px;color:#6b7c96;font-weight:600;line-height:1.6;background:#fffef7;border-radius:10px;padding:10px">${q.exp}</div><button class="big" id="qn" style="margin-top:10px">${idx<2?'つぎの問題 ▶':'結果へ'}</button>`;
+     document.getElementById('qn').onclick=()=>{idx++;if(idx<3)ask();else quizDone();};
+   });
+ }
+ function quizDone(){
+   // params
+   const add=correct*3;['ude','shinrai','waku'].forEach(k=>g.params[k]=Math.min(100,g.params[k]+correct));
+   // theme cleared -> card if all correct in target theme(s): here if correct==3 grant a card
+   let gotCard=false;
+   if(correct===3){ const ti=QUIZ.findIndex(x=>x.th===set[0].th); const cardId=ti>=0?ti+1:(g.cards.length%12)+1; if(!g.cards.includes(cardId)){g.cards.push(cardId);gotCard=true;} set.forEach(q=>{if(!g.quizPool.cleared.includes(q.th))g.quizPool.cleared.push(q.th);}); }
+   if(g.cards.length>=12&&TW.grantBadge('b12'))queueBadge('まめちしき博士');
+   if(g.quizCorrectTotal>=30&&TW.grantBadge('b14'))queueBadge('ものしりさん');
+   TW.save(TW.K.g3,g);
+   scr.innerHTML=`<div class="card"><div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">${correct}/3 せいかい！</div>
+     <div style="font-size:12px;color:#6b7c96;font-weight:700;margin:6px 0">全パラメータ +${correct}</div>
+     ${gotCard?`<div style="margin:10px 0"><div class="mini-card" style="margin:0 auto;width:44px;height:60px;font-size:11px">📖<br>NEW</div><div style="font-size:11px;color:#8595ad;font-weight:700;margin-top:4px">まめちしきカード獲得！(${g.cards.length}/12)</div></div>`:''}
+     </div>${soraSay(correct===3?'全問正解！ばっちりやん。':'よう学んだね。知識は力になるよ。','happy')}
+     <div style="font-size:11px;color:#8595ad;text-align:center;font-weight:600">もっと知りたい？ → TWSMの国家資格問題集で本格的に学べます</div></div>
+     <button class="big" id="qd">よるへ ▶</button>`;
+   if(gotCard)confetti();
+   document.getElementById('qd').onclick=()=>{TW.audio();done();};
+ }
+ ask();
+}
+
+/* ---- night event ---- */
+function night(){
+ renderHeader(true);
+ // idempotency: never commit the same day's night twice (reload/tab-return safe)
+ if(g._nightDoneDay===g.day){ resumeAfterNight(); return; }
+ // day-end miles
+ g.mileBuffer+=25;
+ // pick event
+ let ev=null;
+ const avail=EVENTS.filter(e=>(!e.need||TW.hasUnlock(e.need))&&!g.readEvents.includes(e.id));
+ const pool=avail.length?avail:EVENTS.filter(e=>(!e.need||TW.hasUnlock(e.need)));
+ if(Math.random()<0.85&&pool.length){ev=pool[Math.floor(Math.random()*pool.length)];}
+ if(ev){
+   if(!g.readEvents.includes(ev.id))g.readEvents.push(ev.id);
+   Object.entries(ev.p||{}).forEach(([k,v])=>g.params[k]=Math.min(100,g.params[k]+v));
+   if(ev.love)g.soraLove=(g.soraLove||0)+ev.love;
+   if(ev.sunny)g._forceSunny=true;
+ }
+ // no-job day: a small trust cost (休む勇気も物語に)
+ if(!g.todayActed && g._weather!=='あめ') g.params.shinrai=Math.max(0,g.params.shinrai-2);
+ // write diary
+ const entry=makeDiary(ev);
+ g.diary.push(entry);
+ // commit day miles (mark day as committed so reload cannot double-add)
+ const dayMiles=g.mileBuffer;g.mileBuffer=0;
+ g._nightDoneDay=g.day;
+ TW.addMiles(dayMiles);
+ TW.save(TW.K.g3,g);
+ renderHeader(true);
+ scr.innerHTML=`<div class="card"><h2 class="t">${g.day}日目の夜</h2>
+   ${ev?`<div style="background:#2c3e66;color:#fff;border-radius:14px;padding:16px;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px">🌙 ${ev.t}</div>`:`<div style="text-align:center;color:#8595ad;font-size:13px;font-weight:600;margin-bottom:12px">しずかな夜。ゆっくり休もう。</div>`}
+   <div class="diary-txt"><div class="dt">📔 きょうの日記</div>${entry}</div>
+   <div style="text-align:center;font-size:12px;color:#6fcf97;font-weight:800;margin-top:10px">＋${dayMiles} マイル</div></div>
+   <button class="big" id="nn">${g.day>=7?'7日間をふりかえる ▶':'つぎの日へ ▶'}</button>`;
+ document.getElementById('nn').onclick=()=>{TW.audio();flushBadges();nextDay();};
+}
+function makeDiary(ev){
+ const r=g._lastJobResult;const wx=g._weather;
+ let s='';
+ if(wx==='あめ')s='雨の一日。座学でルールを学んだ。飛べない日も、ちゃんと前に進んでる気がする。';
+ else if(r&&r.result){const verb=r.result==='大成功'?'うまくいった':r.result==='成功'?'なんとかこなせた':'うまくいかなかった';s=`${r.job.nm}に挑戦。${verb}。`;s+=r.result==='しっぱい'?'くやしいけど、そらさんが「経験やで」と笑ってくれた。':'ちょっとずつ、できることが増えていく。';}
+ else s='今日はのんびり。焦らずいこう、と自分に言い聞かせた。';
+ g._lastJobResult=null;
+ return s;
+}
+
+/* ---- finale ---- */
+function finale(){
+ renderHeader(false);
+ // name input first
+ scr.innerHTML=`<div class="card"><h2 class="t">7日間、おつかれさま</h2>
+   ${soraSay('よう頑張ったね。最後に、診断書の宛名を教えて。ニックネームでええよ。','happy')}
+   <div class="nameform">
+     <input id="pname" maxlength="6" placeholder="ニックネーム" value="${g.playerName==='わたし'?'':g.playerName}">
+     <label class="chk"><input type="checkbox" id="printname"> 診断カードに名前をのせる</label>
+     <button class="big" id="diag">適性を診断する ▶</button>
+   </div></div>`;
+ document.getElementById('diag').onclick=()=>{
+   TW.audio();
+   const v=document.getElementById('pname').value.trim();
+   g.playerName=v||'わたし';
+   g.namePrinted=document.getElementById('printname').checked;
+   showDiagnosis();
+ };
+}
+function judgeType(){
+ const {ude,shinrai,waku}=g.params;
+ if(ude>=80)return 'ace';
+ if(shinrai>=80)return 'hero';
+ if(waku>=80)return 'artist';
+ if(ude>=60&&shinrai>=60&&waku>=60)return 'captain';
+ if(ude<45&&shinrai<45&&waku<45)return 'slow';
+ // max value — tiebreak order per spec: しんらい→わくわく→うで
+ const mx=Math.max(ude,shinrai,waku);
+ if(shinrai===mx)return 'consult';
+ if(waku===mx)return 'curious';
+ return 'mech';
+}
+function showDiagnosis(){
+ const typeId=judgeType();
+ const type=TYPES.find(t=>t.id===typeId);
+ // record
+ const firstTime=!g.endings.includes(typeId);
+ if(firstTime)g.endings.push(typeId);
+ g.loopCount++;g.day=8;g._finished=true;
+ // miles: ending +50, first diag type +50
+ let miles=50+(firstTime?50:0);
+ TW.addMiles(miles);
+ if(TW.grantBadge('b11'))queueBadge('7日間完走');
+ if(g.endings.length>=8&&TW.grantBadge('b15'))queueBadge('全タイプコンプ');
+ TW.unlock('g3_skin');
+ TW.save(TW.K.g3,g);
+ renderHeader(false);
+ scr.innerHTML=`<div style="text-align:center;padding:8px 0"><div style="font-size:12px;color:#8595ad;font-weight:800">あなたのパイロット適性は…</div></div>
+   <img class="typeart" src="assets/opt/G3-03_type_${typeId}.webp" alt="" onerror="this.remove()">
+   <div class="result-card"><canvas id="rc" width="360" height="500"></canvas></div>
+   <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sub-b" id="dl" style="margin:0">画像を保存</button><button class="sub-b" id="share" style="margin:0">シェア</button></div>
+   <div class="card"><div style="font-size:12px;color:#8595ad;font-weight:800;text-align:center;margin-bottom:6px">7日間の日記</div>
+     <div style="max-height:150px;overflow-y:auto">${g.diary.map((d,i)=>`<div class="diary-txt" style="margin-bottom:6px"><div class="dt">Day ${i+1}</div>${d}</div>`).join('')}</div></div>
+   <div class="card" style="background:linear-gradient(160deg,#2c3e66,#3a5288)">
+     <div style="color:#fff;font-size:15px;font-weight:800;text-align:center;line-height:1.6;margin-bottom:12px">診断のつづきは、<b style="color:#ffd76a">本物のそら</b>で。<br>まずは気軽に、見学から。</div>
+     <button class="big" id="cta1" style="background:#ffd76a;color:#6b4e12">見学にいってみる（無料・約30分）</button>
+     <button class="big" id="cta2" style="background:#06C755;margin-top:8px">LINEでタイプ別ガイドをもらう</button>
+     <div style="color:#ffffffcc;font-size:11px;text-align:center;font-weight:600;margin-top:8px">あなたに近い学び方：${type.course}</div>
+   </div>
+   <button class="sub-b" id="replay">もう一度あそぶ（2周目は隠しおしごと解放）</button>
+   <button class="sub-b" id="home3">ハブへもどる</button>`;
+ drawResultCard(type);
+ document.getElementById('dl').onclick=()=>downloadCard(type);
+ document.getElementById('share').onclick=()=>{const txt=`わたしのパイロット適性は【${type.nm}】でした🚁 #TWSM #ドローン適性診断`;const url='https://www.twsm-japan.com/';if(navigator.share)navigator.share({text:txt,url}).catch(()=>{});else{try{navigator.clipboard.writeText(txt+' '+url)}catch(e){}toast('シェア文をコピーしました');}};
+ document.getElementById('cta1').onclick=()=>window.open(LP,'_blank','noopener');
+ document.getElementById('cta2').onclick=()=>window.open(LINE,'_blank','noopener');
+ document.getElementById('replay').onclick=()=>{TW.audio();g.day=0;g._finished=false;g._nightDoneDay=undefined;g.diary=[];g.params={ude:30,shinrai:30,waku:30};g.battery=3;TW.save(TW.K.g3,g);start();};
+ document.getElementById('home3').onclick=goHome;
+ confetti();
+ flushBadges();
+}
+let cardType=null;
+function drawResultCard(type){
+ const c=document.getElementById('rc');if(!c)return;const x=c.getContext('2d');cardType=type;
+ const W=360,H=500;
+ // bg
+ const g2=x.createLinearGradient(0,0,0,H);g2.addColorStop(0,type.col);g2.addColorStop(1,'#fff');x.fillStyle=g2;x.fillRect(0,0,W,H);
+ x.fillStyle='#ffffff';roundr(x,16,70,W-32,H-90,20);x.fill();
+ // header
+ x.fillStyle='#fff';x.font='bold 13px sans-serif';x.textAlign='center';x.fillText('TWSM ドローン適性診断',W/2,32);
+ if(g.namePrinted&&g.playerName!=='わたし'){x.fillText(g.playerName+' さんの結果',W/2,52);}
+ // type illustration circle
+ x.fillStyle=type.col;x.beginPath();x.arc(W/2,140,48,0,7);x.fill();
+ x.fillStyle='#fff';x.font='bold 40px sans-serif';x.fillText(type.nm.slice(0,1),W/2,155);
+ // type name
+ x.fillStyle='#2C3E66';x.font='bold 24px sans-serif';x.fillText(type.nm,W/2,220);
+ // pros
+ x.fillStyle='#5a6a86';x.font='bold 14px sans-serif';wrap(x,type.pros,W/2,250,W-70,20);
+ // weak / aff
+ x.fillStyle='#8595ad';x.font='13px sans-serif';
+ x.fillText('弱点：'+type.weak,W/2,320);
+ x.fillText('相性のいいタイプ：'+type.aff,W/2,344);
+ // params mini
+ const pr=g.params;x.font='bold 12px sans-serif';x.textAlign='left';
+ drawMiniBar(x,40,375,'うで',pr.ude,'#4fb0d6');drawMiniBar(x,40,398,'しんらい',pr.shinrai,'#ff9330');drawMiniBar(x,40,421,'わくわく',pr.waku,'#ff6b8a');
+ // search-window motif (stands in for QR — closes the SNS→site loop on story shares)
+ x.fillStyle='#eef2f6';roundr(x,40,438,W-80,26,13);x.fill();
+ x.strokeStyle='#c8d2de';x.lineWidth=1.5;roundr(x,40,438,W-80,26,13);x.stroke();
+ x.strokeStyle='#8595ad';x.lineWidth=2;x.beginPath();x.arc(58,451,5,0,7);x.moveTo(62,455);x.lineTo(67,460);x.stroke();
+ x.fillStyle='#6b7c96';x.textAlign='left';x.font='bold 11px sans-serif';x.fillText('TWSM そらあそびパーク で検索',74,455);
+ // footer
+ x.fillStyle='#2C3E66';x.textAlign='center';x.font='bold 11px sans-serif';x.fillText('診断のつづきは、本物のそらで。',W/2,482);
+ x.fillStyle='#8595ad';x.font='10px sans-serif';x.fillText('TWSM-JAPAN 養父本校・神戸三宮校',W/2,495);
+}
+function drawMiniBar(x,px,py,label,v,col){x.fillStyle='#8595ad';x.textAlign='left';x.fillText(label,px,py);x.fillStyle='#eef2f6';roundr(x,px+70,py-10,200,12,6);x.fill();x.fillStyle=col;roundr(x,px+70,py-10,200*Math.min(100,v)/100,12,6);x.fill();x.fillStyle='#2C3E66';x.textAlign='right';x.fillText(Math.round(v),px+290,py);x.textAlign='left';}
+function wrap(x,text,cx,cy,maxw,lh){const words=text.split('');let line='',y=cy;for(let i=0;i<words.length;i++){const test=line+words[i];if(x.measureText(test).width>maxw){x.fillText(line,cx,y);line=words[i];y+=lh;}else line=test;}x.fillText(line,cx,y);}
+function roundr(x,px,py,w,h,r){x.beginPath();x.moveTo(px+r,py);x.arcTo(px+w,py,px+w,py+h,r);x.arcTo(px+w,py+h,px,py+h,r);x.arcTo(px,py+h,px,py,r);x.arcTo(px,py,px+w,py,r);x.closePath();}
+function downloadCard(type){
+ const c=document.getElementById('rc');
+ try{const url=c.toDataURL('image/png');const a=document.createElement('a');a.href=url;a.download='TWSM_適性診断_'+type.nm+'.png';document.body.appendChild(a);a.click();a.remove();toast('画像を保存しました（長押し保存も可）');}
+ catch(e){toast('保存できませんでした');}
+}
+
+/* ================= QUICK MODE ================= */
+const QUICK_Q=[
+ {q:'休日の予定は？',a:['きっちり立てる','なりゆきで',],ax:['ude','waku']},
+ {q:'新しいことへの一歩は？',a:['まず調べる','とりあえずやる'],ax:['ude','waku']},
+ {q:'人に頼られると？',a:['つい引き受ける','自分優先も大事'],ax:['shinrai','ude']},
+ {q:'写真を撮るなら？',a:['景色や空','人や思い出'],ax:['waku','shinrai']},
+ {q:'コツコツ作業は？',a:['嫌いじゃない','飽きちゃうかも'],ax:['ude','waku']}
+];
+function quickStart(){
+ document.body.classList.add('quick');
+ g={...DEF};g.params={ude:30,shinrai:30,waku:30};
+ renderHeader(false);
+ scr.innerHTML=`<div class="card">${soraSay('3分でわかる、そら適性診断。気楽に答えてな！','happy')}</div><button class="big" id="qs">はじめる ▶</button><button class="sub-b" id="qh">ハブへ</button>`;
+ document.getElementById('qs').onclick=()=>{TW.audio();quickAsk(0);};
+ document.getElementById('qh').onclick=goHome;
+}
+function quickAsk(i){
+ if(i>=QUICK_Q.length){quickQuiz(0);return;}
+ const q=QUICK_Q[i];
+ scr.innerHTML=`<div class="card"><div style="text-align:center;font-size:12px;color:#8595ad;font-weight:800;margin-bottom:8px">しつもん ${i+1}/${QUICK_Q.length}</div>
+   <div style="font-size:17px;font-weight:800;color:var(--navy);text-align:center;margin-bottom:16px">${q.q}</div>
+   <div class="opts" style="flex-direction:column">${q.a.map((a,k)=>`<div class="opt" data-k="${k}" style="width:100%;padding:16px">${a}</div>`).join('')}</div></div>`;
+ document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{const k=+o.dataset.k;g.params[q.ax[k]]+=14;TW.tone(800,0.08,{vol:.14});quickAsk(i+1);});
+}
+function quickQuiz(i){
+ const set=[QUIZ[0],QUIZ[1],QUIZ[2]];
+ if(i>=set.length){quickResult();return;}
+ const q=set[i];
+ const shuf=q.a.map((a,idx)=>({a,ok:idx===q.c})).sort(()=>Math.random()-0.5);
+ scr.innerHTML=`<div class="card"><div style="text-align:center;font-size:12px;color:#8595ad;font-weight:800;margin-bottom:6px">入門クイズ ${i+1}/3</div>${soraSay(q.q,'normal')}
+   <div class="opts" style="flex-direction:column">${shuf.map(o=>`<div class="opt" data-ok="${o.ok?1:0}" style="width:100%;text-align:left;padding:14px 16px">${o.a}</div>`).join('')}</div></div>`;
+ document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{if(o.dataset.ok==='1'){g.params.ude+=6;g.params.shinrai+=6;TW.tone(900,0.1,{vol:.15});o.style.background='#c8f0d4';}else{TW.tone(350,0.12,{type:'square',vol:.12});o.style.background='#ffd5d5';}document.querySelectorAll('.opt').forEach(x=>x.onclick=null);setTimeout(()=>quickQuiz(i+1),450);});
+}
+function quickResult(){
+ const typeId=judgeType();const type=TYPES.find(t=>t.id===typeId);
+ const saved=TW.load(TW.K.g3,DEF);
+ saved.quickResult=typeId;
+ if(!(saved.endings||[]).length){}
+ TW.save(TW.K.g3,saved);
+ TW.addMiles(30);
+ renderHeader(false);
+ scr.innerHTML=`<div style="text-align:center;padding:8px 0"><div style="font-size:12px;color:#8595ad;font-weight:800">あなたのパイロット適性は…</div></div>
+   <img class="typeart" src="assets/opt/G3-03_type_${typeId}.webp" alt="" onerror="this.remove()">
+   <div class="result-card"><canvas id="rc" width="360" height="500"></canvas></div>
+   <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sub-b" id="dl" style="margin:0">画像を保存</button><button class="sub-b" id="share" style="margin:0">シェア</button></div>
+   <div class="card" style="text-align:center">${soraSay('これはクイック版。7日間の物語をあそぶと、"本当のあなた"がもっとくわしく分かるよ！','happy')}
+     <button class="big" id="full">7日間フル版をあそぶ ▶</button></div>
+   <div class="card" style="background:linear-gradient(160deg,#2c3e66,#3a5288)"><div style="color:#fff;font-weight:800;text-align:center;font-size:14px;margin-bottom:10px">気になったら、見学から。</div>
+     <button class="big" id="cta1" style="background:#ffd76a;color:#6b4e12">見学にいってみる（無料）</button>
+     <button class="big" id="cta2" style="background:#06C755;margin-top:8px">LINEで質問する</button></div>
+   <button class="sub-b" id="home4">ハブへもどる</button>`;
+ g.namePrinted=false;g.playerName='わたし';
+ drawResultCard(type);
+ document.getElementById('dl').onclick=()=>downloadCard(type);
+ document.getElementById('share').onclick=()=>{const txt=`わたしのパイロット適性は【${type.nm}】でした🚁 #TWSM #ドローン適性診断`;const url='https://www.twsm-japan.com/';if(navigator.share)navigator.share({text:txt,url}).catch(()=>{});else{try{navigator.clipboard.writeText(txt+' '+url)}catch(e){}toast('コピーしました');}};
+ document.getElementById('full').onclick=()=>{location.href='diary.html';};
+ document.getElementById('cta1').onclick=()=>window.open(LP,'_blank','noopener');
+ document.getElementById('cta2').onclick=()=>window.open(LINE,'_blank','noopener');
+ document.getElementById('home4').onclick=goHome;
+ confetti();
+}
+
+/* ---- fx/util ---- */
+function vib(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
+function confetti(){vib(15);const box=document.createElement('div');box.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden';document.body.appendChild(box);const cols=['#ffd76a','#ff8f5a','#7ec8e3','#6fcf97'];const canAnim=typeof document.createElement('div').animate==='function';for(let i=0;i<40;i++){const p=document.createElement('div');const s=6+Math.random()*6;p.style.cssText=`position:absolute;top:-10px;left:${Math.random()*100}%;width:${s}px;height:${s}px;background:${cols[i%4]};border-radius:2px;transform:rotate(${Math.random()*360}deg);transition:transform 1.6s ease-in,opacity 1.6s`;box.appendChild(p);const dur=1200+Math.random()*1200;if(canAnim){p.animate([{transform:`translateY(0) rotate(0)`},{transform:`translateY(${window.innerHeight+40}px) rotate(${Math.random()*720}deg)`}],{duration:dur,easing:'ease-in'});}else{requestAnimationFrame(()=>{p.style.transform=`translateY(${window.innerHeight+40}px) rotate(${Math.random()*720}deg)`;p.style.opacity='0';});}setTimeout(()=>p.remove(),dur);}setTimeout(()=>box.remove(),2600);TW.chord([660,880,1100,1320],0.2,{type:'triangle',vol:.14});}
+let badgeQueue=[];
+function queueBadge(n){badgeQueue.push(n);}
+function flushBadges(){badgeQueue.forEach((n,i)=>setTimeout(()=>toast('バッジ獲得：'+n,'#ffb54d'),i*850));badgeQueue=[];}
+function toast(m,c){const t=document.createElement('div');t.textContent=m;t.style.cssText=`position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:${c||'#2C3E66'};color:#fff;padding:11px 18px;border-radius:20px;font-weight:800;font-size:13px;z-index:50;box-shadow:var(--shadow);max-width:88%;text-align:center`;document.body.appendChild(t);setTimeout(()=>t.remove(),2000);}
+document.addEventListener('visibilitychange',()=>{TW.bg(document.hidden);});
+
+start();
+})();
+</script>
+</body>
+</html>
