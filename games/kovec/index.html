@@ -62,7 +62,7 @@ button,a{font:inherit}
   linear-gradient(90deg,rgba(255,255,255,.84) 0%,rgba(239,255,255,.55) 48%,rgba(229,253,255,.03) 82%),
   linear-gradient(0deg,rgba(230,253,255,.58) 0%,rgba(255,255,255,0) 54%)}
 /* スマホ：左＝バッジ＋ロゴ／右＝あそぶボタン。重なりを起こさない列構成にする */
-.card .txt{position:absolute;left:12px;right:128px;top:10px;z-index:2;width:auto}
+.card .txt{position:absolute;left:12px;right:104px;top:10px;z-index:2;width:auto}
 .card .age{display:inline-flex;align-items:center;min-height:24px;font-size:11.5px;font-weight:900;
   border-radius:999px;padding:3px 10px;margin-bottom:4px;color:var(--age-ink,#174F63);
   background:var(--age-color,#FF5F91);border:2px solid rgba(255,255,255,.96);
@@ -70,19 +70,19 @@ button,a{font:inherit}
   box-shadow:0 4px 0 var(--age-shadow,#B83363),0 6px 13px rgba(25,61,85,.24)}
 .card .age::before{content:"★";margin-right:5px;color:#FFF36F;font-size:10px;line-height:1;
   text-shadow:0 1px 2px rgba(85,47,0,.42)}
-.card .game-logo{display:block;width:100%;max-width:190px;height:auto;margin:-2px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
+.card .game-logo{display:block;width:100%;max-width:240px;height:auto;margin:-2px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
 .card .desc{display:none;font-size:12px;line-height:1.38;margin-top:3px;color:#245A65;
   text-shadow:0 1px 0 rgba(255,255,255,.88)}
-.card .prog{position:absolute;left:14px;right:132px;bottom:8px;font-size:11.5px;font-weight:800;
+.card .prog{position:absolute;left:14px;right:108px;bottom:8px;font-size:11.5px;font-weight:800;
   color:#114B35;text-shadow:none;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.92);border-radius:999px;padding:3px 8px;
   box-shadow:0 3px 9px rgba(11,82,96,.14);backdrop-filter:blur(5px)}
 .card .go{position:absolute;right:10px;bottom:8px;z-index:2;display:inline-flex;align-items:center;
-  justify-content:center;gap:8px;min-width:118px;min-height:50px;color:#5A1E0C;background:linear-gradient(180deg,#FFB36F 0%,#FF713B 58%,#EA4925 100%);
-  border:2px solid #fff;font-size:13px;font-weight:900;border-radius:999px;letter-spacing:.07em;
+  justify-content:center;gap:6px;min-width:94px;min-height:44px;color:#5A1E0C;background:linear-gradient(180deg,#FFB36F 0%,#FF713B 58%,#EA4925 100%);
+  border:2px solid #fff;font-size:12px;font-weight:900;border-radius:999px;letter-spacing:.05em;
   text-shadow:0 1px 0 #FFD7BC,0 0 5px rgba(255,255,255,.72);
   box-shadow:0 5px 0 #B83E20,0 0 0 2px rgba(255,255,255,.40),0 9px 20px rgba(97,45,22,.32)}
-.card .go::after{content:"▶";display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;
+.card .go::after{content:"▶";display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;
   border-radius:50%;color:#7B3517;background:linear-gradient(180deg,#FFF88A,#FFD52F);
   border:1.5px solid rgba(255,255,255,.95);box-shadow:0 2px 0 #C98C00,0 3px 7px rgba(91,49,7,.24);text-shadow:none}
 .card:hover .go,.card:focus-visible .go{transform:translateY(-2px);box-shadow:0 7px 0 #B83E20,0 0 0 3px rgba(255,255,255,.48),0 13px 25px rgba(97,45,22,.36)}
@@ -134,7 +134,8 @@ button,a{font:inherit}
     max-width:calc(100% - 126px);color:#153D45;background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.9);
     border-radius:9px;padding:4px 7px;text-shadow:none;box-shadow:0 3px 10px rgba(8,75,91,.13);backdrop-filter:blur(5px)}
   .card .prog{left:18px;right:auto;bottom:17px;max-width:calc(100% - 160px);font-size:11px}
-  .card .go{right:14px;bottom:12px;min-width:118px;min-height:48px;font-size:14px}
+  .card .go{right:14px;bottom:12px;min-width:118px;min-height:48px;font-size:14px;gap:8px;letter-spacing:.07em}
+  .card .go::after{width:25px;height:25px}
   #foot{position:absolute;left:50%;right:auto;bottom:var(--safe-bottom);transform:translateX(-50%);
     width:max-content;max-width:calc(100vw - 32px);font-size:11px;line-height:1.55;padding:6px 18px}
   #foot b{font-size:12px}
