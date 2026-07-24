@@ -11,12 +11,13 @@
     --orange:#F5A623; --cyan:#3EC8E0; --ink:#24332B;
   }
   *{ margin:0; padding:0; box-sizing:border-box; }
+  /* スマホのブラウザUI（戻るボタン）が隠れないよう 100svh に収める */
   html,body{ height:100%; background:
       linear-gradient(rgba(216,250,255,.36),rgba(92,197,211,.28)),
-      url('assets/card_grid.jpg') center/cover no-repeat #A6E5EE; overflow:hidden;
+      url('assets/card_grid.jpg') center/cover no-repeat #A6E5EE; overflow:hidden; overscroll-behavior:none;
     font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
     touch-action:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; color:var(--cream); }
-  #stage{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #stage{ position:fixed; inset:0; height:100%; height:100svh; display:flex; align-items:center; justify-content:center; }
   #box{ position:relative; }
   canvas{ display:block; border-radius:6px; }
 
@@ -527,15 +528,20 @@ if (typeof window !== 'undefined'){ (function(){
 var VW = 420, VH = 740, SCALE = 1, DPR = 1;
 var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 var box = document.getElementById('box');
+var stageEl = document.getElementById('stage');
 function fit(){
-  SCALE = Math.min(innerWidth / VW, innerHeight / VH, 1.25); /* 拡大上限1.25(他ゲーム統一) */
+  /* #stage は 100svh。innerHeight だとブラウザUIが畳まれた分まで広がってしまう */
+  var vw = stageEl.clientWidth || innerWidth, vh = stageEl.clientHeight || innerHeight;
+  SCALE = Math.min(vw / VW, vh / VH, 1.25); /* 拡大上限1.25(他ゲーム統一) */
   DPR = Math.min(devicePixelRatio || 1, 2);
   cv.style.width = VW * SCALE + 'px'; cv.style.height = VH * SCALE + 'px';
   box.style.width = VW * SCALE + 'px'; box.style.height = VH * SCALE + 'px';
   cv.width = Math.round(VW * SCALE * DPR); cv.height = Math.round(VH * SCALE * DPR);
   ctx.setTransform(SCALE * DPR, 0, 0, SCALE * DPR, 0, 0);
 }
-addEventListener('resize', fit); fit();
+addEventListener('resize', fit); addEventListener('orientationchange', fit);
+if(window.visualViewport) visualViewport.addEventListener('resize', fit);
+fit();
 
 /* ---------- 配色 ---------- */
 var COL = {

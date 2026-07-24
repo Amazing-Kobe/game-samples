@@ -10,7 +10,10 @@
   --orange:#F5A623; --cyan:#3EC8E0; --ink:#24332B;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{width:100%;height:100%;overflow:hidden;}
+/* スマホのブラウザUI（戻るボタン）が隠れないよう、
+   ゲーム画面は「ツールバー表示時の高さ = 100svh」に収める。
+   overscroll-behavior:none でラバーバンドによるツールバー畳み込みも防ぐ。 */
+html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none;}
 body{
   background:
     linear-gradient(rgba(220,251,255,.38),rgba(117,212,222,.28)),
@@ -18,7 +21,7 @@ body{
   font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
   display:flex;align-items:center;justify-content:center;
   touch-action:none;user-select:none;-webkit-user-select:none;
-  position:fixed;inset:0;
+  position:fixed;inset:0;height:100%;height:100svh;
 }
 #stage{width:420px;height:740px;position:relative;flex:none;transform-origin:center center;}
 #game{width:420px;height:740px;display:block;touch-action:none;border-radius:14px;box-shadow:0 12px 34px rgba(15,103,119,.22);}
@@ -460,10 +463,17 @@ if (typeof window !== 'undefined'){ (function(){
   /* ウィンドウ中央フィット */
   var stage = document.getElementById('stage');
   function fit(){
-    var s = Math.min(window.innerWidth / W, window.innerHeight / H, 1.25);
+    /* body は 100svh（ブラウザUI表示時の高さ）。innerHeight を使うと
+       ツールバーが畳まれた分まで広がり、戻るボタンの領域を奪ってしまう */
+    var vw = document.body.clientWidth || window.innerWidth;
+    var vh = document.body.clientHeight || window.innerHeight;
+    var s = Math.min(vw / W, vh / H, 1.25);
     stage.style.transform = 'scale(' + s + ')';
   }
-  window.addEventListener('resize', fit); fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', fit);
+  if(window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  fit();
 
   /* ---- 保存 ---- */
   var SAVE_KEY = 'kobec_catch_save', TUT_KEY = 'kobec_catch_tut', MUTE_KEY = 'kobec_mute';

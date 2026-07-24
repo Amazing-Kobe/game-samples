@@ -10,14 +10,16 @@
   --flame:#F5A623; --cyan:#3EC8E0; --ink:#24332B;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:
+/* スマホのブラウザUI（戻るボタン）が隠れないよう 100svh に収める */
+html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none;background:
   linear-gradient(rgba(221,250,255,.36),rgba(106,205,216,.28)),
   url('assets/card_plant.jpg') center/cover no-repeat #B4EAF1;
   font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif;
   touch-action:none;user-select:none;-webkit-user-select:none}
-#wrap{position:fixed;left:50%;top:50%;transform-origin:center center}
-#stage{position:relative;width:420px;height:740px;background:var(--cream);overflow:hidden;
-  border-radius:6px;box-shadow:0 12px 36px rgba(13,93,109,.24)}
+#wrap{position:fixed;left:0;top:0;width:100%;height:100%;height:100svh;
+  display:flex;align-items:center;justify-content:center}
+#stage{position:relative;flex:none;width:420px;height:740px;background:var(--cream);overflow:hidden;
+  transform-origin:center center;border-radius:6px;box-shadow:0 12px 36px rgba(13,93,109,.24)}
 canvas{display:block}
 #cv{position:absolute;left:0;top:0}
 #panel{position:absolute;left:0;top:360px;width:420px;height:380px;padding:10px 12px 12px;
@@ -268,8 +270,14 @@ var stage=document.getElementById('stage'),wrap=document.getElementById('wrap');
 var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 var W=420,CH=360,dpr=Math.min(2,window.devicePixelRatio||1);
 cv.width=W*dpr;cv.height=CH*dpr;cv.style.width=W+'px';cv.style.height=CH+'px';ctx.scale(dpr,dpr);
-function fit(){var s=Math.min(1.25,Math.min(innerWidth/420,innerHeight/740));wrap.style.transform='translate(-50%,-50%) scale('+s+')'}
-addEventListener('resize',fit);fit();
+function fit(){
+  /* #wrap は 100svh。innerHeight だとブラウザUIが畳まれた分まで広がってしまう */
+  var vw=wrap.clientWidth||innerWidth,vh=wrap.clientHeight||innerHeight;
+  var s=Math.min(1.25,Math.min(vw/420,vh/740));stage.style.transform='scale('+s+')';
+}
+addEventListener('resize',fit);addEventListener('orientationchange',fit);
+if(window.visualViewport)visualViewport.addEventListener('resize',fit);
+fit();
 
 /* ---------- サウンド ---------- */
 var AC=null,muted=LS.getItem('kobec_mute')==='1';

@@ -14,38 +14,45 @@
   --safe-left:max(14px,env(safe-area-inset-left));
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:#BCECF5;
+/* スマホでは通常のスクロール文書として扱う。
+   height:100% + overflow:hidden にするとページが一切スクロールできず、
+   iOS/Android がいったん隠したブラウザのツールバー（戻るボタン）を
+   復帰できなくなるため、ここでは絶対に固定しない。 */
+html,body{width:100%;background:#BCECF5;-webkit-text-size-adjust:100%;
   font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic',sans-serif}
-body{color:#fff;touch-action:manipulation}
+body{color:#fff;touch-action:manipulation;overflow-x:hidden}
 button,a{font:inherit}
-#wrap{position:fixed;left:50%;top:50%;transform-origin:center center}
-#stage{position:relative;width:420px;height:740px;overflow:hidden;border-radius:8px;
-  box-shadow:0 18px 52px rgba(4,72,94,.28);background:#BCECF5;isolation:isolate;
-  -webkit-user-select:none;user-select:none}
+#wrap{position:relative;width:100%;transform-origin:center center}
+#stage{position:relative;width:100%;min-height:100vh;min-height:100svh;overflow:hidden;
+  background:#BCECF5;isolation:isolate;-webkit-user-select:none;user-select:none}
 #stage::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(255,255,255,0) 58%,rgba(20,126,143,.12) 100%)}
 #bg{position:absolute;inset:0;width:100%;height:100%;z-index:0}
-#ui{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;
-  padding:calc(var(--safe-top) + 2px) 20px var(--safe-bottom)}
+#ui{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;min-height:100svh;
+  padding:calc(var(--safe-top) + 4px) 16px calc(var(--safe-bottom) + 14px)}
 #logo{width:100%;text-align:center;margin-top:0;filter:drop-shadow(0 7px 18px rgba(14,104,124,.22))}
 #logo .co{display:inline-flex;align-items:center;min-height:28px;color:#125773;font-size:11px;font-weight:800;
   border:1px solid rgba(255,255,255,.88);background:rgba(255,255,255,.76);backdrop-filter:blur(10px);
   border-radius:999px;padding:4px 16px;letter-spacing:.16em}
-#logo .main-logo{display:block;width:310px;max-width:100%;height:auto;margin:3px auto -2px;
+#logo .main-logo{display:block;width:min(92vw,380px);max-width:100%;height:auto;margin:4px auto -2px;
   animation:parkLogoIn .8s cubic-bezier(.2,1.45,.35,1) both}
 @keyframes parkLogoIn{from{opacity:0;transform:scale(.55) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}
-#logo .sub{font-size:11px;color:#125773;display:inline-block;margin-top:6px;font-weight:800;
-  border-radius:999px;padding:4px 13px;letter-spacing:.09em;background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.9)}
-#mascotBox{display:none;position:absolute;right:4px;top:145px;width:100px;height:116px;pointer-events:none;z-index:4;
+#logo .sub{font-size:12px;color:#125773;display:inline-block;margin-top:7px;font-weight:800;
+  border-radius:999px;padding:5px 14px;letter-spacing:.09em;background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.9)}
+/* スマホ：コベッくんと吹き出しを通常フローの1行に並べる（重なり・見切れ防止） */
+#hero{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px}
+#mascotBox{display:block;flex:0 0 auto;width:clamp(108px,29vw,140px);aspect-ratio:1/1.14;height:auto;
+  pointer-events:auto;z-index:4;
   filter:drop-shadow(0 10px 16px rgba(5,99,112,.28));transition:filter .2s ease}
-#greet{display:none;position:absolute;right:102px;top:154px;z-index:5;background:rgba(255,255,255,.96);
-  border:2px solid var(--cyan);border-radius:14px;padding:8px 11px;font-size:11px;font-weight:800;
-  color:#11355D;max-width:190px;line-height:1.5;opacity:0;transition:opacity .45s ease;
+#greet{display:block;flex:1 1 auto;min-width:0;z-index:5;background:rgba(255,255,255,.96);
+  border:2px solid var(--cyan);border-radius:14px;padding:9px 12px;font-size:12.5px;font-weight:800;
+  color:#11355D;line-height:1.5;opacity:0;transition:opacity .45s ease;position:relative;
   box-shadow:0 8px 22px rgba(0,13,56,.28)}
-#greet::after{content:"";position:absolute;right:-14px;top:18px;border:7px solid transparent;
+#greet::after{content:"";position:absolute;right:-14px;top:20px;border:7px solid transparent;
   border-left-color:var(--cyan)}
-#cards{width:100%;display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.card{position:relative;display:block;width:100%;height:140px;overflow:hidden;border-radius:17px;
+#cards{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:11px}
+.card{position:relative;display:block;width:100%;height:158px;height:clamp(150px,19svh,172px);overflow:hidden;border-radius:17px;
   color:#10465A;text-decoration:none;background:#DFF8FA;border:2px solid rgba(255,255,255,.92);
   box-shadow:0 8px 22px rgba(7,91,111,.25),inset 0 0 0 1px rgba(49,189,204,.16);
   transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
@@ -54,7 +61,8 @@ button,a{font:inherit}
 .card .shade{position:absolute;inset:0;background:
   linear-gradient(90deg,rgba(255,255,255,.84) 0%,rgba(239,255,255,.55) 48%,rgba(229,253,255,.03) 82%),
   linear-gradient(0deg,rgba(230,253,255,.58) 0%,rgba(255,255,255,0) 54%)}
-.card .txt{position:absolute;left:14px;right:14px;top:11px;z-index:2;width:auto}
+/* スマホ：左＝バッジ＋ロゴ／右＝あそぶボタン。重なりを起こさない列構成にする */
+.card .txt{position:absolute;left:12px;right:128px;top:10px;z-index:2;width:auto}
 .card .age{display:inline-flex;align-items:center;min-height:24px;font-size:11.5px;font-weight:900;
   border-radius:999px;padding:3px 10px;margin-bottom:4px;color:var(--age-ink,#174F63);
   background:var(--age-color,#FF5F91);border:2px solid rgba(255,255,255,.96);
@@ -62,15 +70,15 @@ button,a{font:inherit}
   box-shadow:0 4px 0 var(--age-shadow,#B83363),0 6px 13px rgba(25,61,85,.24)}
 .card .age::before{content:"★";margin-right:5px;color:#FFF36F;font-size:10px;line-height:1;
   text-shadow:0 1px 2px rgba(85,47,0,.42)}
-.card .game-logo{display:block;width:145px;height:auto;margin:-7px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
+.card .game-logo{display:block;width:100%;max-width:190px;height:auto;margin:-2px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
 .card .desc{display:none;font-size:12px;line-height:1.38;margin-top:3px;color:#245A65;
   text-shadow:0 1px 0 rgba(255,255,255,.88)}
-.card .prog{position:absolute;left:14px;right:124px;bottom:2px;font-size:11.5px;font-weight:800;
+.card .prog{position:absolute;left:14px;right:132px;bottom:8px;font-size:11.5px;font-weight:800;
   color:#114B35;text-shadow:none;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.92);border-radius:999px;padding:3px 8px;
   box-shadow:0 3px 9px rgba(11,82,96,.14);backdrop-filter:blur(5px)}
-.card .go{position:absolute;right:9px;bottom:8px;z-index:2;display:inline-flex;align-items:center;
-  justify-content:center;gap:8px;min-width:108px;min-height:44px;color:#5A1E0C;background:linear-gradient(180deg,#FFB36F 0%,#FF713B 58%,#EA4925 100%);
+.card .go{position:absolute;right:10px;bottom:8px;z-index:2;display:inline-flex;align-items:center;
+  justify-content:center;gap:8px;min-width:118px;min-height:50px;color:#5A1E0C;background:linear-gradient(180deg,#FFB36F 0%,#FF713B 58%,#EA4925 100%);
   border:2px solid #fff;font-size:13px;font-weight:900;border-radius:999px;letter-spacing:.07em;
   text-shadow:0 1px 0 #FFD7BC,0 0 5px rgba(255,255,255,.72);
   box-shadow:0 5px 0 #B83E20,0 0 0 2px rgba(255,255,255,.40),0 9px 20px rgba(97,45,22,.32)}
@@ -87,8 +95,13 @@ button,a{font:inherit}
 #foot b{font-size:12px;color:#126046}
 
 @media (min-width:900px){
-  #wrap{inset:0;left:0;top:0;transform:none!important}
+  html,body{height:100%;overflow:hidden}
+  #wrap{position:fixed;inset:0;left:0;top:0;transform:none!important}
   #stage{width:100%;height:100%;min-height:620px;border-radius:0;box-shadow:none}
+  #ui{position:absolute;inset:0;min-height:0}
+  #hero{display:block;width:auto;margin:0}
+  #mascotBox{position:absolute;aspect-ratio:auto}
+  #greet{position:absolute;flex:none}
   #stage::before{background:
     radial-gradient(circle at 50% 32%,rgba(255,255,255,.12),rgba(255,255,255,0) 31%),
     linear-gradient(180deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,0) 56%,rgba(13,115,135,.14) 100%)}
@@ -158,8 +171,10 @@ button,a{font:inherit}
         <img class="main-logo" src="assets/titles/eco-game-park.png" alt="コベック エコ・ゲームパーク">
         <span class="sub">神戸から始める ECOLOGY</span>
       </header>
-      <div id="greet" role="status" aria-live="polite"></div>
-      <canvas id="mascotBox" role="button" tabindex="0" aria-label="コベッくん。押すとスターショー"></canvas>
+      <div id="hero">
+        <div id="greet" role="status" aria-live="polite"></div>
+        <canvas id="mascotBox" role="button" tabindex="0" aria-label="コベッくん。押すとスターショー"></canvas>
+      </div>
       <nav id="cards" aria-label="ゲームを選ぶ"></nav>
       <footer id="foot">
         <b>バイオガスKOBE</b>（神戸市兵庫区遠矢浜町）<br>
@@ -180,11 +195,11 @@ if(window.CanvasRenderingContext2D&&!CanvasRenderingContext2D.prototype.roundRec
 var wrap=document.getElementById('wrap'),stage=document.getElementById('stage');
 var dpr=Math.min(2,window.devicePixelRatio||1),desktop=false,reduceMotion=false;
 try{reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
+/* スマホは等倍のレスポンシブ表示（scale で画面に固定しない）。
+   固定するとページがスクロールできず、ブラウザの戻るボタンが戻らなくなる。 */
 function fit(){
   desktop=window.innerWidth>=900;
-  if(desktop){wrap.style.transform='none'}
-  else{var s=Math.min(1.25,Math.min(window.innerWidth/420,window.innerHeight/740));
-    wrap.style.transform='translate(-50%,-50%) scale('+s+')'}
+  wrap.style.transform='none';
   resizeCanvases();
 }
 
@@ -299,14 +314,23 @@ mascotImg.onerror=function(){useMascot=false;paintMascot(performance.now())};
 mascotImg.src='assets/mascot_v2.png?v=20260715c';
 var greet=document.getElementById('greet');
 var greets=['ワイはコベッくん！ すきなゲームをえらんでな！','食べもののごみが電気になるって、知っとった？','バイオガスKOBEは1日60トンのごみを受け入れとるで！'];
-greet.textContent=greets[Math.floor(Math.random()*greets.length)];
+var gi=Math.floor(Math.random()*greets.length);
+greet.textContent=greets[gi];
 var mascotBurstAt=-99999,greetHideTimer=0;
 setTimeout(function(){greet.style.opacity='1'},reduceMotion?0:650);
-greetHideTimer=setTimeout(function(){greet.style.opacity='0'},reduceMotion?5000:6500);
+/* スマホは吹き出しが通常フローにあるため、消すと空白が残る。
+   消さずにセリフを巡回させる（PCは従来どおりフェードアウト） */
+function cycleGreet(){
+  if(window.innerWidth>=900){greet.style.opacity='0';return}
+  greet.style.opacity='0';
+  setTimeout(function(){gi=(gi+1)%greets.length;greet.textContent=greets[gi];greet.style.opacity='1'},reduceMotion?0:480);
+  greetHideTimer=setTimeout(cycleGreet,7000);
+}
+greetHideTimer=setTimeout(cycleGreet,reduceMotion?5000:6500);
 function triggerMascotShow(){
   mascotBurstAt=performance.now();
   greet.textContent='スター発電、いっくでー！ ★';greet.style.opacity='1';
-  clearTimeout(greetHideTimer);greetHideTimer=setTimeout(function(){greet.style.opacity='0'},2400);
+  clearTimeout(greetHideTimer);greetHideTimer=setTimeout(cycleGreet,2400);
 }
 mb.addEventListener('click',triggerMascotShow);
 mb.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();triggerMascotShow()}});
@@ -411,10 +435,23 @@ function paintMascot(now){
     }
     drawMascotPass('rgba(7,73,83,.38)',9,5);
     drawMascotPass('rgba(255,255,255,.72)',5,0);
+  }else{
+    /* 立ち絵が読み込めない端末でもキャラクターを必ず表示する */
+    m2.save();m2.shadowColor='rgba(8,92,112,.22)';m2.shadowBlur=16;m2.shadowOffsetY=7;
+    var halo2=m2.createRadialGradient(x,cy-hr*.12,hr*.08,x,cy,hr);
+    halo2.addColorStop(0,'rgba(255,255,255,.98)');halo2.addColorStop(.72,'rgba(239,253,255,.94)');halo2.addColorStop(1,'rgba(206,247,250,.90)');
+    m2.fillStyle=halo2;m2.beginPath();m2.arc(x,cy,hr,0,Math.PI*2);m2.fill();m2.restore();
+    m2.save();m2.lineWidth=Math.max(3,hr*.035);m2.strokeStyle='#FFD447';
+    m2.beginPath();m2.arc(x,cy,hr,0,Math.PI*2);m2.stroke();m2.restore();
+    drawMetankun(m2,x,cy,hr*1.55);
   }
 }
 var resizeTimer=0;
-window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(fit,80)});
+function scheduleFit(){clearTimeout(resizeTimer);resizeTimer=setTimeout(fit,80)}
+window.addEventListener('resize',scheduleFit);
+window.addEventListener('orientationchange',scheduleFit);
+/* 文字の読み込みやアドレスバーの開閉でステージ高が変わってもキャンバスを追従させる */
+if(window.ResizeObserver){try{new ResizeObserver(scheduleFit).observe(stage)}catch(e){}}
 fit();
 var lastFrame=0;
 function loop(now){if(now-lastFrame>=33){drawScene(now);lastFrame=now}requestAnimationFrame(loop)}
