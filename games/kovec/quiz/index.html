@@ -1,0 +1,3575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>コベック たんけんクイズ 〜バイオガスKOBEを うごかせ！〜</title>
+<style>
+:root{
+  --cream:#F6F3EA; --green:#1D5C3C; --leaf:#7CC24E; --blue:#2E7CB8;
+  --flame:#F5A623; --cyan:#3EC8E0; --ink:#24332B;
+  --ok:#3FA757; --ng:#E0604A;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#0f1a14}
+body{
+  font-family:'Hiragino Maru Gothic ProN','ヒラギノ丸ゴ ProN W4','BIZ UDGothic','Hiragino Sans',sans-serif;
+  color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none;
+}
+ruby rt{font-size:.5em;font-weight:600;letter-spacing:0;opacity:.85;transform:translateY(.15em)}
+
+#wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+/* フィット倍率は CSS 変数で持つ。shake のキーフレームが transform を
+   丸ごと上書きして scale を消してしまうため、両方を必ず一緒に指定すること。 */
+#stage{
+  width:420px;height:740px;position:relative;overflow:hidden;
+  background:var(--cream);transform-origin:center center;
+  transform:scale(var(--fit,1));
+  box-shadow:0 12px 48px rgba(0,0,0,.45);border-radius:2px;
+}
+
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+
+/* ---------- shared bits ---------- */
+.btn{
+  border:none;border-radius:14px;font-family:inherit;font-weight:700;color:#fff;
+  background:var(--green);cursor:pointer;position:relative;
+  box-shadow:0 4px 0 rgba(0,0,0,.18);transition:transform .08s ease,box-shadow .08s ease;
+  min-height:44px;
+}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.btn.ghost{background:#fff;color:var(--green);border:2px solid var(--green);box-shadow:0 4px 0 rgba(29,92,60,.2)}
+.btn.flame{background:var(--flame);color:#3b2a08}
+.btn.blue{background:var(--blue)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+
+.iconbtn{
+  position:absolute;top:9px;width:36px;height:36px;border-radius:12px;border:none;
+  background:rgba(255,255,255,.86);color:var(--green);font-size:17px;font-weight:800;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.15);font-family:inherit;
+}
+.iconbtn.left{left:9px;width:auto;padding:0 12px;font-size:14px}
+.iconbtn.right{right:9px}
+
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.055)}}
+@keyframes floatUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.82)}70%{transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{
+  0%,100%{transform:scale(var(--fit,1)) translateX(0)}
+  20%{transform:scale(var(--fit,1)) translateX(-7px)}
+  40%{transform:scale(var(--fit,1)) translateX(6px)}
+  60%{transform:scale(var(--fit,1)) translateX(-4px)}
+  80%{transform:scale(var(--fit,1)) translateX(3px)}}
+@keyframes sheen{0%{background-position:-160% 0}100%{background-position:260% 0}}
+@keyframes bobY{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.shake{animation:shake .34s ease}
+
+/* ---------- title ---------- */
+#scTitle{background:linear-gradient(#cfe9f5 0%,#eaf4e6 52%,#F6F3EA 100%)}
+#titleArt{position:absolute;inset:0;background-size:cover;background-position:center top;z-index:0}
+#titleArt::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,52,78,.06) 0%,rgba(255,255,255,.04) 42%,rgba(246,243,234,.30) 100%)}
+#titleFall{position:absolute;inset:0;z-index:1}
+#titleInner{position:relative;z-index:2;display:flex;flex-direction:column;height:100%;padding:26px 24px 22px}
+.parkBack{position:absolute;left:12px;top:12px;z-index:6;display:inline-flex;align-items:center;justify-content:center;
+  min-height:34px;padding:5px 11px;border:1.5px solid rgba(255,255,255,.94);border-radius:999px;
+  color:#125773;background:rgba(255,255,255,.88);box-shadow:0 5px 14px rgba(8,76,101,.18);
+  text-decoration:none;font-size:11px;font-weight:900;letter-spacing:.02em;backdrop-filter:blur(6px)}
+.parkBack:active{transform:scale(.96)}
+.parkBack:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.tl-kicker{
+  align-self:center;background:var(--flame);color:#3b2a08;font-weight:800;font-size:12.5px;
+  padding:5px 15px;border-radius:99px;letter-spacing:.06em;box-shadow:0 3px 0 rgba(0,0,0,.15)
+}
+.tl-logo-wrap{margin-top:9px;display:flex;justify-content:center;filter:drop-shadow(0 8px 10px rgba(2,38,64,.27))}
+.tl-logo-img{display:block;width:100%;max-width:380px;height:auto;object-fit:contain}
+.tl-sub{
+  margin-top:5px;text-align:center;font-size:14.5px;font-weight:800;color:var(--green);
+  background:rgba(255,255,255,.82);border-radius:99px;padding:6px 12px;align-self:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.09)
+}
+#titleMascot{position:absolute;left:50%;bottom:250px;width:132px;height:132px;margin-left:-66px;z-index:2;animation:bobY 3.1s ease-in-out infinite}
+#titleBtns{margin-top:auto;display:flex;flex-direction:column;gap:11px;position:relative;z-index:3}
+#btnStart{height:66px;font-size:23px;border-radius:19px;animation:pulse 1.7s ease-in-out infinite;
+  background:linear-gradient(180deg,#2a7a4f,#1D5C3C)}
+#btnStart::after{
+  content:'';position:absolute;inset:0;border-radius:19px;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.42) 50%,transparent 62%);
+  background-size:220% 100%;animation:sheen 3.4s linear infinite;
+}
+.tl-row{display:flex;gap:11px}
+.tl-row .btn{flex:1;height:47px;font-size:15px}
+#titleBest{
+  text-align:center;font-size:12.5px;color:var(--green);font-weight:700;
+  background:rgba(255,255,255,.78);border-radius:10px;padding:6px;min-height:26px
+}
+.tl-foot{text-align:center;font-size:10.5px;color:#5d6b61;margin-top:9px;line-height:1.55;position:relative;z-index:3}
+
+/* ---------- course select ---------- */
+#scCourse{background:var(--cream);padding:0 22px}
+.sec-head{
+  padding:22px 0 4px;text-align:center;
+}
+.sec-head h2{font-size:23px;color:var(--green);font-weight:900}
+.sec-head p{font-size:12.5px;color:#5d6b61;margin-top:7px;line-height:1.6}
+.courseCard{
+  border-radius:19px;padding:17px 17px 15px;color:#fff;cursor:pointer;border:none;
+  font-family:inherit;text-align:left;width:100%;box-shadow:0 5px 0 rgba(0,0,0,.16);
+  transition:transform .08s ease,box-shadow .08s ease;
+}
+.courseCard:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.16)}
+.courseCard.j{background:linear-gradient(140deg,#8ecf5f,#5fa83a)}
+.courseCard.m{background:linear-gradient(140deg,#3f8fc6,#255f92)}
+.cc-badge{display:inline-block;background:rgba(255,255,255,.26);border-radius:99px;padding:3px 11px;font-size:11.5px;font-weight:800}
+.cc-title{font-size:25px;font-weight:900;margin-top:9px;line-height:1.2}
+.cc-desc{font-size:12.5px;margin-top:8px;line-height:1.65;opacity:.96}
+#courseNote{margin-top:18px;background:#fff;border-radius:15px;padding:13px 15px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+#courseNote .cn-t{font-size:12px;font-weight:900;color:var(--green);margin-bottom:8px}
+#courseNote .cn-row{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;font-weight:700;
+  color:var(--ink);line-height:1.55;margin-bottom:6px}
+#courseNote .cn-row:last-child{margin-bottom:0}
+#courseNote .cn-ic{flex:0 0 20px;font-size:15px;line-height:1.3}
+
+/* ---------- tutorial ---------- */
+#scTut{background:rgba(15,26,20,.9);align-items:center;justify-content:center;padding:26px}
+#tutBox{background:var(--cream);border-radius:22px;padding:20px;width:100%;animation:popIn .3s ease both}
+#tutMascot{width:98px;height:98px;display:block;margin:0 auto 4px}
+#tutText{font-size:15.5px;line-height:1.85;color:var(--ink);min-height:118px;text-align:center;font-weight:600}
+#tutText b{color:var(--green);font-weight:900}
+#tutDots{display:flex;gap:7px;justify-content:center;margin:13px 0}
+#tutDots i{width:8px;height:8px;border-radius:99px;background:#cdd6ce}
+#tutDots i.on{background:var(--green);width:20px}
+#tutNext{width:100%;height:50px;font-size:16px}
+
+/* ---------- game ---------- */
+#scGame{background:var(--cream)}
+#gHead{height:52px;flex:0 0 52px;background:var(--green);display:flex;align-items:center;padding:0 8px;gap:8px;position:relative;z-index:5}
+/* タップ領域は最小44px（scale が掛かるので余裕をもたせる） */
+#gHead .hbtn{
+  width:44px;height:44px;border-radius:13px;border:none;background:rgba(255,255,255,.16);color:#fff;
+  font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;flex:0 0 44px
+}
+#gMeterWrap{flex:1;min-width:0}
+#gMeterTop{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;color:#cfe6d8;font-weight:700;margin-bottom:3px}
+#gMeterTop b{color:#fff;font-size:12px}
+#gMeter{height:9px;background:rgba(0,0,0,.26);border-radius:99px;overflow:hidden}
+#gMeterFill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--leaf));transition:width .5s cubic-bezier(.2,.9,.3,1)}
+
+#gRail{flex:0 0 30px;background:#174a30;display:flex;align-items:center;padding:0 9px;gap:4px;position:relative;z-index:4}
+/* 7エリアを旅している、が本作の核なので番号を出す */
+.railStep{flex:1;height:16px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9.5px;font-weight:900;color:rgba(255,255,255,.5)}
+.railStep.done{background:var(--leaf);color:#124a2c}
+.railStep.done::after{content:'✓';font-size:10px}
+.railStep.done > span{display:none}
+.railStep.cur{background:var(--flame);color:#3b2a08;box-shadow:0 0 0 2px rgba(245,166,35,.32)}
+
+#gArt{flex:0 0 168px;position:relative;overflow:hidden;background:#dbe9e0}
+#gArtImg{position:absolute;inset:0;background-size:cover;background-position:center 32%}
+#gArtCv{position:absolute;inset:0;width:100%;height:100%}
+#gArtScrim{position:absolute;left:0;right:0;bottom:0;height:58px;
+  background:linear-gradient(transparent,rgba(29,92,60,.82));display:flex;align-items:flex-end;padding:0 12px 8px;gap:8px}
+#gAreaNo{background:var(--flame);color:#3b2a08;font-size:11px;font-weight:900;border-radius:8px;padding:3px 8px;flex:0 0 auto}
+#gAreaName{color:#fff;font-size:15px;font-weight:900;text-shadow:0 2px 4px rgba(0,0,0,.4);line-height:1.25}
+
+#gTimer{flex:0 0 7px;background:#dfe6e0}
+#gTimerFill{height:100%;width:100%;background:linear-gradient(90deg,var(--leaf),var(--flame));transition:width .12s linear}
+#gTimerFill.warn{background:linear-gradient(90deg,var(--flame),var(--ng))}
+
+#gBody{flex:1;display:flex;flex-direction:column;padding:12px 15px 14px;min-height:0}
+#gQMeta{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#5d6b61;margin-bottom:7px;flex:0 0 auto}
+#gQNo{background:var(--green);color:#fff;border-radius:7px;padding:2px 8px;font-size:11px}
+.typeTag{background:#e3ece5;color:var(--green);border-radius:7px;padding:2px 8px}
+#gCombo{color:var(--flame);font-weight:900;font-size:12.5px;opacity:0;transition:opacity .2s}
+#gCombo.on{opacity:1}
+#gSec{margin-left:auto;font-size:12.5px;font-weight:900;color:#5d6b61}
+#gSec b{font-size:16px;color:var(--green)}
+#gSec.warn b{color:var(--ng)}
+
+#gQ{font-size:17.5px;font-weight:800;line-height:1.62;color:var(--ink);flex:0 0 auto;margin-bottom:8px}
+/* 出題形式ごとの操作説明。5形式あるので常設しないと初見で分からない */
+#gHint{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--blue);
+  background:#e8f1f8;border-radius:9px;padding:6px 10px;margin-bottom:9px;line-height:1.5;
+  display:flex;align-items:center;gap:6px}
+#gHint b{color:var(--flame);font-size:13px}
+#gHint.off{display:none}
+#gAns{flex:1;display:flex;flex-direction:column;gap:9px;min-height:0;overflow:hidden}
+
+.ansBtn{
+  border:2.5px solid #d5ded7;background:#fff;border-radius:15px;padding:12px 13px;font-family:inherit;
+  font-size:15.5px;font-weight:700;line-height:1.5;color:var(--ink);text-align:left;cursor:pointer;
+  display:flex;align-items:center;gap:11px;min-height:56px;transition:transform .08s,border-color .12s,background .12s
+}
+.ansBtn:active{transform:scale(.985)}
+.ansBtn .k{
+  flex:0 0 27px;height:27px;border-radius:9px;background:#eef3ef;color:var(--green);
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px
+}
+.ansBtn.ok{border-color:var(--ok);background:#eaf7ee}
+.ansBtn.ok .k{background:var(--ok);color:#fff}
+.ansBtn.ng{border-color:var(--ng);background:#fdeeeb;opacity:.72}
+.ansBtn.ng .k{background:var(--ng);color:#fff}
+.ansBtn.dim{opacity:.42}
+
+.tfWrap{display:flex;gap:11px;flex:1}
+.tfBtn{
+  flex:1;border:3px solid #d5ded7;background:#fff;border-radius:19px;font-family:inherit;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:transform .08s,border-color .12s,background .12s
+}
+.tfBtn:active{transform:scale(.97)}
+.tfBtn .mk{font-size:57px;font-weight:900;line-height:1}
+.tfBtn .lb{font-size:14px;font-weight:800;color:#5d6b61}
+.tfBtn.o .mk{color:var(--ok)} .tfBtn.x .mk{color:var(--ng)}
+.tfBtn.ok{border-color:var(--ok);background:#eaf7ee}
+.tfBtn.ng{border-color:var(--ng);background:#fdeeeb;opacity:.72}
+
+#sortStage{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
+#sortProg{font-size:11.5px;font-weight:800;color:#5d6b61;text-align:center;flex:0 0 auto}
+#sortProg b{color:var(--green);font-size:14px}
+#sortItem{
+  flex:1;display:flex;align-items:center;justify-content:center;background:#fff;border:3px dashed #cdd8d0;
+  border-radius:19px;font-size:20px;font-weight:900;color:var(--ink);text-align:center;padding:12px;
+  min-height:78px;animation:popIn .22s ease both;transition:transform .34s ease,opacity .34s ease
+}
+#sortItem.okFly{transform:scale(.86) translateY(26px);opacity:.25;border-color:var(--ok)}
+#sortItem.ngFly{transform:scale(.94);opacity:.35;border-color:var(--ng)}
+#sortBins{display:flex;gap:11px;flex:0 0 92px}
+.binBtn{
+  flex:1;border:3px solid var(--green);background:#fff;border-radius:17px;font-family:inherit;cursor:pointer;
+  font-size:14.5px;font-weight:800;color:var(--green);line-height:1.45;padding:9px;display:flex;
+  align-items:center;justify-content:center;text-align:center;transition:transform .08s,background .12s
+}
+.binBtn:active{transform:scale(.97);background:#eef7f0}
+.binBtn.hitOk{background:#eaf7ee;border-color:var(--ok);color:var(--ok)}
+.binBtn.hitNg{background:#fdeeeb;border-color:var(--ng);color:var(--ng)}
+
+#orderStage{flex:1;display:flex;flex-direction:column;gap:9px;min-height:0}
+#orderSlots{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+.slot{
+  border:2.5px dashed #cdd8d0;border-radius:12px;min-height:44px;display:flex;align-items:center;
+  gap:9px;padding:6px 10px;font-size:13.5px;font-weight:700;color:#9aa8a0;background:#fbfcfb
+}
+.slot.filled{border-style:solid;border-color:var(--green);background:#fff;color:var(--ink);cursor:pointer}
+.slot .n{flex:0 0 22px;height:22px;border-radius:7px;background:#eef3ef;color:var(--green);
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px}
+.slot.filled .n{background:var(--green);color:#fff}
+.slot.ok{border-color:var(--ok);background:#eaf7ee}
+.slot.ng{border-color:var(--ng);background:#fdeeeb}
+/* ルビ付きの長い選択肢で4枚目が切れて押せなくなるため、はみ出したらスクロールさせる */
+#orderPool{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;
+  overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.poolBtn{
+  border:2.5px solid var(--blue);background:#fff;border-radius:12px;padding:9px 11px;font-family:inherit;
+  font-size:13.5px;font-weight:700;line-height:1.45;color:var(--ink);text-align:left;cursor:pointer;
+  min-height:44px;flex:0 0 auto
+}
+.poolBtn:active{transform:scale(.985)}
+.poolBtn.used{visibility:hidden}
+
+#findStage{flex:1;display:flex;flex-direction:column;gap:9px;min-height:0}
+#findGrid{flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;min-height:0}
+.findCell{
+  border:2.5px solid #d5ded7;background:#fff;border-radius:13px;font-family:inherit;font-size:12px;
+  font-weight:700;line-height:1.35;color:var(--ink);cursor:pointer;padding:5px 4px;display:flex;
+  align-items:center;justify-content:center;text-align:center;position:relative;transition:transform .08s,border-color .12s,background .12s
+}
+.findCell:active{transform:scale(.96)}
+.findCell.sel{border-color:var(--flame);background:#fef4e3}
+.findCell.sel::after{content:'✓';position:absolute;top:2px;right:5px;color:var(--flame);font-size:14px;font-weight:900}
+.findCell.ok{border-color:var(--ok);background:#eaf7ee}
+.findCell.ng{border-color:var(--ng);background:#fdeeeb}
+.findCell.miss{border-color:var(--ok);background:#eaf7ee;opacity:.62}
+#findGo{flex:0 0 46px;font-size:15.5px}
+
+/* ---------- feedback overlay ---------- */
+#fb{
+  position:absolute;inset:0;z-index:20;display:none;flex-direction:column;justify-content:flex-end;
+  background:rgba(15,26,20,.55);padding:16px
+}
+#fb.on{display:flex}
+#fbCard{background:var(--cream);border-radius:22px;padding:15px 16px 14px;animation:floatUp .26s ease both;position:relative}
+#fbTop{display:flex;align-items:center;gap:11px}
+#fbMascot{width:62px;height:62px;flex:0 0 62px}
+#fbVerdict{font-size:25px;font-weight:900;line-height:1.15}
+#fbVerdict.ok{color:var(--ok)} #fbVerdict.ng{color:var(--ng)}
+#fbGain{font-size:12.5px;font-weight:800;color:var(--flame);margin-top:2px}
+#fbExpLab{font-size:11px;font-weight:900;color:#fff;background:var(--blue);border-radius:7px;padding:2px 8px;display:inline-block;margin:11px 0 6px}
+#fbExp{font-size:14px;line-height:1.78;font-weight:600;color:var(--ink)}
+#fbCardGot{
+  margin-top:10px;background:#fff;border:2.5px solid var(--flame);border-radius:13px;padding:8px 11px;
+  display:none;align-items:center;gap:9px;animation:popIn .3s ease both
+}
+#fbCardGot.on{display:flex}
+#fbCardGot .ic{font-size:19px}
+#fbCardGot .tx{font-size:12px;font-weight:800;color:var(--green);line-height:1.45}
+#fbCardGot .tx b{color:var(--flame)}
+#fbNext{width:100%;height:49px;font-size:16px;margin-top:12px;overflow:hidden}
+#fbAuto{position:absolute;left:0;bottom:0;height:4px;width:0;background:rgba(255,255,255,.55);border-radius:0 0 14px 14px}
+
+/* ---------- finale ---------- */
+#scFin{background:linear-gradient(#0e2033,#1b3f52 55%,#24332B);align-items:center;justify-content:center;padding:26px}
+#finArt{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.95}
+#finCv{position:absolute;inset:0;width:100%;height:100%}
+#finInner{position:relative;z-index:2;text-align:center}
+#finTitle{font-size:29px;font-weight:900;color:#fff;line-height:1.35;
+  text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 26px rgba(62,200,224,.6);animation:popIn .5s ease both}
+#finSub{font-size:14px;color:#cfe6d8;margin-top:14px;line-height:1.8;font-weight:700}
+#finSkip{margin-top:26px;font-size:12px;color:rgba(255,255,255,.62);font-weight:700;
+  opacity:0;transition:opacity .5s;letter-spacing:.08em}
+#finSkip.on{opacity:1;animation:pulse 1.9s ease-in-out infinite}
+
+/* 横持ち警告 */
+#rotate{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;
+  background:#14251c;color:#fff;text-align:center;font-size:19px;font-weight:800;line-height:1.9;padding:24px}
+body.landscapeWarn #rotate{display:flex}
+
+/* ---------- result ---------- */
+/* 注意: .screen{display:none} より ID セレクタが強い。
+   ここで display を書くと非表示画面が透けるので、必ず .on 側にだけ書くこと。 */
+/* body の touch-action:none は子孫のパンまで禁止する。
+   内部スクロールする画面では必ず pan-y を戻すこと（戻さないと
+   タッチ端末でリザルト下部のボタンに到達できなくなる）。 */
+#scResult{background:var(--cream);overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#scResult.on{display:block}
+#rsInner{padding:20px 18px 22px;min-height:100%;display:flex;flex-direction:column}
+#cert{
+  position:relative;border-radius:19px;overflow:hidden;background:var(--cream);
+  border:3px solid var(--green);box-shadow:0 6px 18px rgba(0,0,0,.14);animation:popIn .4s ease both
+}
+#certArt{position:absolute;inset:0;background-size:100% 100%;background-position:center}
+#certBody{position:relative;z-index:2;padding:19px 26px 17px;text-align:center}
+#certLab{font-size:11px;font-weight:900;letter-spacing:.22em;color:var(--green);opacity:.8}
+#certRank{font-size:31px;font-weight:900;color:var(--green);line-height:1.2;margin-top:7px;
+  text-shadow:0 2px 0 rgba(255,255,255,.9)}
+#certMedal{width:66px;height:66px;margin:8px auto 0}
+#certScore{font-size:13px;font-weight:800;color:var(--ink);margin-top:9px;line-height:1.75}
+#certScore em{font-style:normal;font-size:23px;color:var(--flame);font-weight:900}
+/* 学校で配る際に手書きできるよう名前欄を置く */
+#certName{margin-top:11px;font-size:11.5px;font-weight:800;color:var(--green);display:flex;
+  align-items:flex-end;gap:8px;justify-content:center}
+#certName .ln{flex:0 1 150px;border-bottom:1.5px solid rgba(29,92,60,.45);height:17px}
+#certDate{font-size:10.5px;color:#5d6b61;margin-top:9px;border-top:1px solid rgba(29,92,60,.22);padding-top:8px;line-height:1.6}
+
+#rsStats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.stat{background:#fff;border-radius:13px;padding:10px 12px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.stat .l{font-size:10.5px;font-weight:800;color:#5d6b61}
+.stat .v{font-size:19px;font-weight:900;color:var(--green);margin-top:2px}
+.stat .v small{font-size:11px;color:#5d6b61;font-weight:700}
+
+#rsImpact{
+  margin-top:11px;background:linear-gradient(135deg,#1D5C3C,#2a7a4f);color:#fff;border-radius:15px;
+  padding:13px 15px;font-size:13px;line-height:1.75;font-weight:700
+}
+#rsImpact b{color:var(--cyan);font-size:16px}
+#rsNewCards{margin-top:11px}
+#rsNewCards h3{font-size:12.5px;font-weight:900;color:var(--green);margin-bottom:7px}
+.miniCard{background:#fff;border-left:4px solid var(--flame);border-radius:9px;padding:7px 10px;
+  font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px;line-height:1.5}
+/* スクロールできてもできなくても主動線に届くよう、下端に貼り付ける */
+#rsBtns{margin-top:16px;display:flex;flex-direction:column;gap:9px;
+  position:sticky;bottom:0;padding:10px 0 6px;z-index:2;
+  background:linear-gradient(transparent,var(--cream) 26%)}
+#rsBtns .btn{height:50px;font-size:16px}
+.rs-row{display:flex;gap:9px}
+.rs-row .btn{flex:1;height:45px;font-size:14px}
+#rsFoot{text-align:center;font-size:10.5px;color:#5d6b61;margin-top:13px;line-height:1.6}
+
+/* ---------- cards / zukan ---------- */
+#scCards{background:var(--cream);overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#scCards.on{display:block}
+#cdInner{padding:0 16px 24px}
+/* 図鑑は縦に長いので、ヘッダを貼り付けて「もどる」を常に押せるようにする */
+#cdHead{display:flex;align-items:center;gap:10px;margin-bottom:5px;position:sticky;top:0;z-index:3;
+  background:var(--cream);padding:14px 0 6px;box-shadow:0 6px 10px -6px rgba(0,0,0,.12)}
+#cdHead h2{font-size:20px;font-weight:900;color:var(--green)}
+#cdTop{flex:0 0 44px;width:44px;height:44px;border-radius:13px;border:none;background:var(--green);
+  color:#fff;font-size:17px;font-weight:800;font-family:inherit;cursor:pointer}
+#cdCount{margin-left:auto;font-size:12px;font-weight:800;color:var(--flame)}
+#cdBar{height:8px;background:#dfe6e0;border-radius:99px;overflow:hidden;margin-bottom:13px}
+#cdBarFill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--leaf));border-radius:99px;width:0;transition:width .6s}
+.cdArea{margin-bottom:14px}
+.cdArea h3{font-size:12px;font-weight:900;color:#fff;background:var(--green);border-radius:8px;
+  padding:4px 10px;display:inline-block;margin-bottom:7px}
+.cdItem{background:#fff;border-radius:13px;padding:11px 13px;margin-bottom:7px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.cdItem .t{font-size:14px;font-weight:900;color:var(--green);display:flex;align-items:center;gap:7px}
+.cdItem .t .no{background:var(--flame);color:#3b2a08;border-radius:6px;padding:1px 7px;font-size:10.5px}
+.cdItem .b{font-size:12.5px;line-height:1.75;color:var(--ink);margin-top:6px;font-weight:600}
+.cdItem.locked{background:#e7ece8;box-shadow:none}
+.cdItem.locked .t{color:#9aa8a0}
+.cdItem.locked .b{color:#9aa8a0}
+#cdBack{width:100%;height:50px;font-size:16px;margin-top:6px}
+
+/* ---------- modal ---------- */
+/* confirm()/prompt() はキオスク・WebView で抑止されることがあり、
+   抑止時に false が返って「やめる」が永久に効かなくなる。自前で持つ。 */
+#modal{position:absolute;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(15,26,20,.72);padding:24px}
+#modal.on{display:flex}
+#modalBox{background:var(--cream);border-radius:20px;padding:19px 18px 16px;width:100%;animation:popIn .24s ease both}
+#modalTitle{font-size:19px;font-weight:900;color:var(--green);text-align:center}
+#modalBody{font-size:13px;font-weight:700;line-height:1.7;color:var(--ink);text-align:center;margin-top:9px}
+#modalInput{display:none;width:100%;margin-top:11px;font-family:inherit;font-size:11px;line-height:1.5;
+  border:2px solid #cdd8d0;border-radius:10px;padding:8px;resize:none;color:var(--ink);background:#fff;
+  word-break:break-all}
+#modalInput.on{display:block}
+#modalBtns{display:flex;gap:9px;margin-top:14px}
+#modalBtns .btn{flex:1;height:46px;font-size:15px}
+#modalBtns .btn.hide{display:none}
+
+/* ---------- fx ---------- */
+#fx{position:absolute;inset:0;z-index:30;pointer-events:none;width:100%;height:100%}
+/* 解説カードは画面下半分に出るので、コンボ表示は上に逃がす（重なると解説が読めない） */
+#toast{
+  position:absolute;left:50%;top:31%;transform:translate(-50%,-50%);z-index:40;pointer-events:none;
+  font-size:46px;font-weight:900;opacity:0;
+  text-shadow:0 2px 0 rgba(255,255,255,.85),0 4px 14px rgba(0,0,0,.35);
+}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+
+  <!-- ================= TITLE ================= -->
+  <section class="screen on" id="scTitle">
+    <div id="titleArt"></div>
+    <canvas id="titleFall"></canvas>
+    <img id="titleMascot" alt="">
+    <a class="parkBack" href="../index.html" aria-label="コベック エコ・ゲームパークへ戻る">← パークへ</a>
+    <div id="titleInner">
+      <div class="tl-kicker">神戸から始めるECOLOGY</div>
+      <h1 class="srOnly">コベック たんけんクイズ</h1>
+      <div class="tl-logo-wrap" aria-hidden="true">
+        <img class="tl-logo-img" src="assets/quiz_title_logo.png?v=20260726-1" alt="">
+      </div>
+      <div class="tl-sub">バイオガスKOBEを うごかせ！</div>
+      <div id="titleBtns">
+        <div id="titleBest"></div>
+        <button class="btn" id="btnStart">▶ はじめる</button>
+        <div class="tl-row">
+          <button class="btn ghost" id="btnCards">はかせカード</button>
+          <button class="btn ghost" id="btnMute">🔊 おと オン</button>
+        </div>
+        <button class="btn ghost" id="btnCode" style="height:38px;font-size:12.5px">ひきつぎコードを いれる</button>
+        <div class="tl-foot">
+          株式会社コベック様 バイオガスKOBE ／ 学習用デモ<br>
+          あそぶ時間の めやす：5〜10分
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COURSE ================= -->
+  <section class="screen" id="scCourse">
+    <div class="sec-head">
+      <h2>コースを えらぼう</h2>
+      <p>ぜんぶで 18もん。エリアを 7つ すすむと ゴールだよ。</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:13px;margin-top:16px">
+      <button class="courseCard j" data-course="junior">
+        <span class="cc-badge">1〜3年生むけ</span>
+        <div class="cc-title">ジュニアコース</div>
+        <div class="cc-desc">ぜんぶ ひらがな。じかんも ながめ。<br>はじめてでも だいじょうぶ！</div>
+      </button>
+      <button class="courseCard m" data-course="master">
+        <span class="cc-badge">4〜6年生むけ</span>
+        <div class="cc-title">マスターコース</div>
+        <div class="cc-desc">漢字にはふりがな付き。<br>くわしい数字の問題も出るよ。</div>
+      </button>
+    </div>
+    <div id="courseNote">
+      <div class="cn-t">クイズに せいかいすると…</div>
+      <div class="cn-row"><span class="cn-ic">⛽</span><span>ガスメーターが たまって 工場が うごく</span></div>
+      <div class="cn-row"><span class="cn-ic">🏅</span><span>はかせカードが もらえる（ぜんぶで 24まい）</span></div>
+      <div class="cn-row"><span class="cn-ic">🌃</span><span>さいごに 神戸の まちに あかりが つく</span></div>
+    </div>
+    <div style="margin-top:auto;padding-bottom:20px">
+      <button class="btn ghost" id="btnCourseBack" style="width:100%;height:46px;font-size:15px">← もどる</button>
+    </div>
+  </section>
+
+  <!-- ================= TUTORIAL ================= -->
+  <section class="screen" id="scTut">
+    <div id="tutBox">
+      <img id="tutMascot" alt="">
+      <div id="tutText"></div>
+      <div id="tutDots"><i class="on"></i><i></i><i></i></div>
+      <button class="btn" id="tutNext">つぎへ</button>
+    </div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section class="screen" id="scGame">
+    <div id="gHead">
+      <button class="hbtn" id="gBack" title="やめる">←</button>
+      <div id="gMeterWrap">
+        <div id="gMeterTop"><span>ガスメーター</span><span><b id="gMeterPct">0</b>%</span></div>
+        <div id="gMeter"><div id="gMeterFill"></div></div>
+      </div>
+      <button class="hbtn" id="gMute">🔊</button>
+    </div>
+    <div id="gRail"></div>
+    <div id="gArt">
+      <canvas id="gArtCv"></canvas>
+      <div id="gArtImg"></div>
+      <div id="gArtScrim"><span id="gAreaNo"></span><span id="gAreaName"></span></div>
+    </div>
+    <div id="gTimer"><div id="gTimerFill"></div></div>
+    <div id="gBody">
+      <div id="gQMeta">
+        <span id="gQNo"></span><span class="typeTag" id="gType"></span>
+        <span id="gCombo"></span>
+        <span id="gSec">のこり <b>--</b> びょう</span>
+      </div>
+      <div id="gQ"></div>
+      <div id="gHint"></div>
+      <div id="gAns"></div>
+    </div>
+
+    <div id="fb">
+      <div id="fbCard">
+        <div id="fbTop">
+          <img id="fbMascot" alt="">
+          <div>
+            <div id="fbVerdict"></div>
+            <div id="fbGain"></div>
+          </div>
+        </div>
+        <span id="fbExpLab">なるほど！</span>
+        <div id="fbExp"></div>
+        <div id="fbCardGot"><span class="ic">🏅</span><span class="tx"></span></div>
+        <button class="btn flame" id="fbNext">つぎへ ▶<i id="fbAuto"></i></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINALE ================= -->
+  <section class="screen" id="scFin">
+    <div id="finArt"></div>
+    <canvas id="finCv"></canvas>
+    <div id="finInner">
+      <div id="finTitle"></div>
+      <div id="finSub"></div>
+      <div id="finSkip">タップで すすむ</div>
+    </div>
+  </section>
+
+  <!-- ================= RESULT ================= -->
+  <section class="screen" id="scResult">
+    <div id="rsInner">
+      <div id="cert">
+        <div id="certArt"></div>
+        <div id="certBody">
+          <div id="certLab">に ん て い し ょ う</div>
+          <div id="certRank"></div>
+          <canvas id="certMedal" width="132" height="132"></canvas>
+          <div id="certScore"></div>
+          <div id="certName">おなまえ <span class="ln"></span></div>
+          <div id="certDate"></div>
+        </div>
+      </div>
+      <div id="rsStats"></div>
+      <div id="rsImpact"></div>
+      <div id="rsNewCards"></div>
+      <div id="rsBtns">
+        <button class="btn flame" id="rsAgain">▶ もういちど あそぶ</button>
+        <div class="rs-row">
+          <button class="btn ghost" id="rsCards">はかせカード</button>
+          <button class="btn ghost" id="rsTitle">タイトルへ</button>
+        </div>
+        <button class="btn ghost" id="rsCode" style="height:42px;font-size:13px">ひきつぎコードを みる</button>
+      </div>
+      <div id="rsFoot">
+        この画面を スクリーンショットで のこせるよ。<br>
+        株式会社コベック様 バイオガスKOBE ／ 学習用デモ
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CARDS ================= -->
+  <section class="screen" id="scCards">
+    <div id="cdInner">
+      <div id="cdHead">
+        <button id="cdTop" title="もどる">←</button>
+        <h2>はかせカード</h2>
+        <span id="cdCount"></span>
+      </div>
+      <div id="cdBar"><div id="cdBarFill"></div></div>
+      <div id="cdList"></div>
+      <button class="btn" id="cdBack">← もどる</button>
+    </div>
+  </section>
+
+  <div id="modal">
+    <div id="modalBox">
+      <div id="modalTitle"></div>
+      <div id="modalBody"></div>
+      <textarea id="modalInput" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div id="modalBtns">
+        <button class="btn ghost" id="modalNo"></button>
+        <button class="btn flame" id="modalYes"></button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="fx"></canvas>
+  <div id="toast"></div>
+</div></div>
+<div id="rotate">スマホは たてに<br>して あそんでね</div>
+
+<script>
+'use strict';
+(function(){
+
+/* ============================================================
+   DATA
+   ============================================================ */
+/* コベック たんけんクイズ 問題バンク
+ * カード24枚 / 問題56問（7エリア × junior4 × master4）
+ * ルビ記法: |漢字《かんじ》   junior には漢字を使わない
+ * 事実は クイズゲーム_ファクトシート.md のみを典拠とする
+ */
+
+var QUIZ_CARDS = [
+ {
+  "id": "c01",
+  "area": 1,
+  "title": "ごみを あつめる",
+  "body": "しょくひんこうじょうや コンビニエンスストア、スーパーマーケットで でた たべものの ごみが、バイオガスKOBEへ はこばれて きます。まちの ごみが エネルギーの もとに なります。"
+ },
+ {
+  "id": "c02",
+  "area": 1,
+  "title": "しょくひんロス",
+  "body": "まだ たべられるのに すてられて しまう たべものを しょくひんロスと いいます。へらす くふうが せかいじゅうで すすめられて います。"
+ },
+ {
+  "id": "c03",
+  "area": 1,
+  "title": "1にちに 60トン",
+  "body": "バイオガスKOBEは 1にちに 60トンの しょくひんはいきぶつを しょりします。ぞう10とうぶん くらいの おもさです(ぞう1とうを 6トンと した だいたいの けいさん)。"
+ },
+ {
+  "id": "c04",
+  "area": 1,
+  "title": "バイオガスKOBE",
+  "body": "こうべし ひょうごく とおやはまちょうに ある しせつです。2024ねん6がつから しょりを はじめ、2046ねん2がつまで つづける よていです。"
+ },
+ {
+  "id": "c05",
+  "area": 2,
+  "title": "うけいれホッパ",
+  "body": "はこばれてきた たべものの ごみを うけとめる いりぐちです。きょうきゅうコンベアが なまごみ ぶんべつそうちまで はこびます。"
+ },
+ {
+  "id": "c06",
+  "area": 2,
+  "title": "ふくろの ままOK",
+  "body": "ビニールぶくろや プラスチックの ようきに はいった ままでも うけいれられます。あとの そうちで ふくろや ようきを とりのぞける からです。"
+ },
+ {
+  "id": "c07",
+  "area": 2,
+  "title": "うけいれられる もの",
+  "body": "うけいれるのは しょくひんの ごみだけです。やさいくずや きげんぎれの しょくひん、しょくひんこうじょうで つかった あぶらなどが はいります。しょくひんに かんけいの ない ごみは うけいれません。"
+ },
+ {
+  "id": "c08",
+  "area": 3,
+  "title": "なまごみ ぶんべつき",
+  "body": "はっこうに むかない ビニールぶくろや プラスチックようきを とりのぞく そうちです。のこった なまごみだけが つぎへ すすみます。"
+ },
+ {
+  "id": "c09",
+  "area": 3,
+  "title": "はっこうに むかない",
+  "body": "ビニールや プラスチックは メタンきんが ぶんかい できません。ガスに ならないので、はっこうの まえに とりのぞきます。"
+ },
+ {
+  "id": "c10",
+  "area": 3,
+  "title": "つぎの タンクへ",
+  "body": "とりわけられた なまごみは げんりょうちょうせいそうへ おくられます。ここで はっこうの じゅんびを します。"
+ },
+ {
+  "id": "c11",
+  "area": 3,
+  "title": "ぶんべつの ちから",
+  "body": "たべものは びせいぶつの えさに なりますが、プラスチックは なりません。だから わけることが たいせつです。"
+ },
+ {
+  "id": "c12",
+  "area": 4,
+  "title": "ようき ぶんべつき",
+  "body": "すてられた のみものや かんづめを、なかみと ようきに わける きかいです。ひとが 1つずつ あけなくても すみます。"
+ },
+ {
+  "id": "c13",
+  "area": 4,
+  "title": "かん・ペット・かみ",
+  "body": "ようきは かん、ペットボトル、かみパックに わけられます。ざいりょうが ちがうので べつべつに あつめます。"
+ },
+ {
+  "id": "c14",
+  "area": 4,
+  "title": "なかみと ようき",
+  "body": "なかみの たべものや のみものは ガスの もとに なります。ようきは ようきとして あつめられます。"
+ },
+ {
+  "id": "c15",
+  "area": 5,
+  "title": "メタン はっこうそう",
+  "body": "ようりょう 3000りっぽうメートルの おおきな タンクです。25メートルプール(やく400りっぽうメートル)の 7はいぶんより おおきい くらいです(だいたいの けいさん)。"
+ },
+ {
+  "id": "c16",
+  "area": 5,
+  "title": "メタンきん",
+  "body": "めに みえない ちいさな いきものです。くうきの ない ところで、たべものの もとに なる ぶぶん(ゆうきぶん)を ぶんかいして メタンを つくる なかまです。"
+ },
+ {
+  "id": "c17",
+  "area": 5,
+  "title": "バイオガス",
+  "body": "メタンなどが まざった もえる ガスです。バイオガスKOBEの ガスは メタンの のうどが やく60パーセントです。"
+ },
+ {
+  "id": "c18",
+  "area": 5,
+  "title": "ぶんかいして ガスに",
+  "body": "メタンきんが なまごみの ゆうきぶんを ぶんかいすると バイオガスが できます。きんが はたらく じかんが ひつようです。"
+ },
+ {
+  "id": "c19",
+  "area": 6,
+  "title": "ガスホルダー",
+  "body": "ガスを ためて おく ための タンクで、600りっぽうメートル ためられます。いちど ためて から おくると、はつでんきへ いく ガスの いきおいが そろいます。"
+ },
+ {
+  "id": "c20",
+  "area": 6,
+  "title": "メタン のうど",
+  "body": "バイオガスKOBEの バイオガスは メタンが やく60パーセントです。はんぶんより すこし おおいくらいが もえる ガスです。"
+ },
+ {
+  "id": "c21",
+  "area": 6,
+  "title": "1にちの ガスりょう",
+  "body": "バイオガスの きょうきゅうりょうは 1にち やく6900ノルマルりっぽうメートル(にちへいきん)です。ノルマルりっぽうメートルは、ガスの おおさを あらわす たんいです。まいにち あんていして おくられて います。"
+ },
+ {
+  "id": "c22",
+  "area": 7,
+  "title": "はつでんき 1000キロワット",
+  "body": "おなじ しきちに ある バイオガスはつでんしょには 1000キロワットの はつでんきが 1き あります。バイオガスを もやして でんきを つくります。"
+ },
+ {
+  "id": "c23",
+  "area": 7,
+  "title": "まちの あかり",
+  "body": "1ねんかんの はつでんりょうは やく5000メガワットアワー、いっぱんかてい やく1500せたいぶんです。ごみが まちの あかりに なります。"
+ },
+ {
+  "id": "c24",
+  "area": 7,
+  "title": "だっしゅう せつび",
+  "body": "においを あつめて、びせいぶつの ちからと かっせいたんで きれいに してから そとの くうきへ だします。(せいぶつだっしゅうそうち・かっせいたんきゅうちゃくとう)"
+ }
+];
+
+var QUIZ_QUESTIONS = [
+ {
+  "id": "a1j1",
+  "area": 1,
+  "course": "junior",
+  "type": "choice3",
+  "q": "バイオガスKOBEに はこばれて くる ごみは どれ？",
+  "choices": [
+   "スーパーや コンビニの たべものの ごみ",
+   "こわれた じてんしゃ",
+   "こうえんの すな"
+  ],
+  "answer": 0,
+  "exp": "うけいれるのは しょくひんに かんけいの ある ごみだけです。メタンきんが ぶんかい できる ものしか ガスに ならないからです。",
+  "cardId": "c01"
+ },
+ {
+  "id": "a1j2",
+  "area": 1,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "まだ たべられるのに すてられて しまう たべものの ことを 「しょくひんロス」と いう。",
+  "answer": true,
+  "exp": "たべられる のに すてられる たべものが しょくひんロスです。つくるのに つかった みずや エネルギーも むだに なるので、へらす くふうが すすめられて います。",
+  "cardId": "c02"
+ },
+ {
+  "id": "a1j3",
+  "area": 1,
+  "course": "junior",
+  "type": "sort2",
+  "q": "たべものの ごみを なかまわけ しよう。",
+  "bins": [
+   "たべられた はずの もの",
+   "もとから たべない ところ"
+  ],
+  "items": [
+   {
+    "label": "きげんぎれの パン",
+    "bin": 0
+   },
+   {
+    "label": "たべのこした ごはん",
+    "bin": 0
+   },
+   {
+    "label": "うれのこった おべんとう",
+    "bin": 0
+   },
+   {
+    "label": "バナナの かわ",
+    "bin": 1
+   },
+   {
+    "label": "たまごの から",
+    "bin": 1
+   },
+   {
+    "label": "さかなの ほね",
+    "bin": 1
+   }
+  ],
+  "exp": "たべられたはず の ものが しょくひんロスです。どちらも バイオガスKOBEでは ガスの もとに なりますが、はじめから すてない ほうが もっと よい からです。",
+  "cardId": "c02"
+ },
+ {
+  "id": "a1j4",
+  "area": 1,
+  "course": "junior",
+  "type": "choice3",
+  "q": "バイオガスKOBEは 1にちに どれくらいの たべものの ごみを うけいれる？",
+  "choices": [
+   "1にちに 60キログラム",
+   "1にちに 60トン",
+   "1にちに 60グラム"
+  ],
+  "answer": 1,
+  "exp": "1にちに 60トンです。ぞう10とうぶん くらいの おもさに なります(ぞう1とうを 6トンと した だいたいの けいさん)。まちからは それだけ たくさんの ごみが でて いるのです。",
+  "cardId": "c03"
+ },
+ {
+  "id": "a1m1",
+  "area": 1,
+  "course": "master",
+  "type": "choice3",
+  "q": "バイオガスKOBEに |食品廃棄物《しょくひんはいきぶつ》を 出すのは 主に どこ？",
+  "choices": [
+   "食品|製造《せいぞう》工場や コンビニ、スーパー",
+   "|自動車《じどうしゃ》を つくる工場",
+   "けんせつ|現場《げんば》"
+  ],
+  "answer": 0,
+  "exp": "|受入元《うけいれもと》は 食品製造工場、コンビニエンスストア、スーパーマーケットなどです。食品を あつかう 場所から 出る ごみだけが |発酵《はっこう》の |原料《げんりょう》に なるからです。",
+  "cardId": "c01"
+ },
+ {
+  "id": "a1m2",
+  "area": 1,
+  "course": "master",
+  "type": "order",
+  "q": "食べ物の ごみが 電気に なるまでの 大きな 流れを 正しい |順《じゅん》に ならべよう。",
+  "steps": [
+   "お店や 工場で 食品の ごみが 出る",
+   "バイオガスKOBEへ はこばれる",
+   "メタン|発酵槽《はっこうそう》で バイオガスに なる",
+   "|発電機《はつでんき》で 電気に なる"
+  ],
+  "exp": "集める、ガスにする、電気にする、の順です。前の |工程《こうてい》で つくった ものが 次の 工程の 材料に なるので、|順番《じゅんばん》を 入れかえる ことは できません。",
+  "cardId": "c04"
+ },
+ {
+  "id": "a1m3",
+  "area": 1,
+  "course": "master",
+  "type": "findbad",
+  "q": "バイオガスKOBEでは 受け入れられない ものを 見つけよう。",
+  "grid": [
+   {
+    "label": "野菜くず",
+    "bad": false
+   },
+   {
+    "label": "|賞味期限《しょうみきげん》切れの パン",
+    "bad": false
+   },
+   {
+    "label": "ガラスの コップ",
+    "bad": true
+   },
+   {
+    "label": "食べ|残《のこ》しの ごはん",
+    "bad": false
+   },
+   {
+    "label": "|乾電池《かんでんち》",
+    "bad": true
+   },
+   {
+    "label": "ジュースの 中身",
+    "bad": false
+   },
+   {
+    "label": "古い 自転車",
+    "bad": true
+   },
+   {
+    "label": "魚の あら",
+    "bad": false
+   },
+   {
+    "label": "パンの みみ",
+    "bad": false
+   }
+  ],
+  "exp": "受け入れられるのは 食品|由来《ゆらい》の ものだけです。ガラスや |金属《きんぞく》は メタン|菌《きん》が 分解できず、ガスに ならないからです。",
+  "cardId": "c07"
+ },
+ {
+  "id": "a1m4",
+  "area": 1,
+  "course": "master",
+  "type": "truefalse",
+  "q": "バイオガスKOBEは 神戸市 |兵庫区《ひょうごく》に ある。",
+  "answer": true,
+  "exp": "|所在地《しょざいち》は 神戸市兵庫区 |遠矢浜町《とおやはまちょう》です。神戸で 出た ごみを 神戸で エネルギーに かえる ため、まちの 近くに つくられて います。",
+  "cardId": "c04"
+ },
+ {
+  "id": "a2j1",
+  "area": 2,
+  "course": "junior",
+  "type": "choice3",
+  "q": "はこばれてきた ごみが さいしょに はいる ところは？",
+  "choices": [
+   "うけいれホッパ",
+   "ガスホルダー",
+   "はつでんき"
+  ],
+  "answer": 0,
+  "exp": "うけいれホッパは こうじょうの いりぐちです。ここで うけとめてから、じゅんばんに つぎの そうちへ おくります。",
+  "cardId": "c05"
+ },
+ {
+  "id": "a2j2",
+  "area": 2,
+  "course": "junior",
+  "type": "order",
+  "q": "ごみが うけいれホッパから すすむ じゅんばんは？",
+  "steps": [
+   "トラックが ごみを おろす",
+   "うけいれホッパが うけとめる",
+   "きょうきゅうコンベアが はこぶ",
+   "なまごみ ぶんべつそうちへ"
+  ],
+  "exp": "ホッパで うけとめて から コンベアで はこびます。いちどに どっと おくらず すこしずつ ながす ことで、つぎの きかいが きちんと はたらけるからです。",
+  "cardId": "c05"
+ },
+ {
+  "id": "a2j3",
+  "area": 2,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "なまごみは ビニールぶくろに はいった ままでも、うけいれホッパに いれられる。",
+  "answer": true,
+  "exp": "ふくろや ようきに はいった ままでも うけいれられます。あとの そうちで ふくろを とりのぞける しくみに なって いるからです。",
+  "cardId": "c06"
+ },
+ {
+  "id": "a2j4",
+  "area": 2,
+  "course": "junior",
+  "type": "choice3",
+  "q": "うけいれホッパの つぎへ ごみを はこぶ ものは？",
+  "choices": [
+   "ながい ホース",
+   "ベルトの ような きょうきゅうコンベア",
+   "おおきな バケツ"
+  ],
+  "answer": 1,
+  "exp": "きょうきゅうコンベアが なまごみ ぶんべつそうちまで はこびます。ずっと うごきつづける ので、きまった りょうを ながしつづけられます。",
+  "cardId": "c05"
+ },
+ {
+  "id": "a2m1",
+  "area": 2,
+  "course": "master",
+  "type": "choice3",
+  "q": "受入ホッパが ビニール|袋《ふくろ》入りの ごみも 受け入れられるのは なぜ？",
+  "choices": [
+   "|袋《ふくろ》も メタン|菌《きん》が |分解《ぶんかい》できるから",
+   "|袋《ふくろ》の ほうが ガスに なりやすいから",
+   "あとの |生《なま》ごみ|分別装置《ぶんべつそうち》で |袋《ふくろ》を 取りのぞけるから"
+  ],
+  "answer": 2,
+  "exp": "|袋《ふくろ》や |容器《ようき》は |生《なま》ごみ|分別装置《ぶんべつそうち》で 取りのぞかれます。だから ごみを 出す人が 中身を 出す |手間《てま》を かけなくても 受け入れられます。",
+  "cardId": "c06"
+ },
+ {
+  "id": "a2m2",
+  "area": 2,
+  "course": "master",
+  "type": "findbad",
+  "q": "受入ホッパに 入れては いけない ものを 見つけよう。",
+  "grid": [
+   {
+    "label": "野菜くず",
+    "bad": false
+   },
+   {
+    "label": "|期限《きげん》切れの おべんとう",
+    "bad": false
+   },
+   {
+    "label": "ペンキの かん",
+    "bad": true
+   },
+   {
+    "label": "食べ残しの めん",
+    "bad": false
+   },
+   {
+    "label": "工場の 鉄くず",
+    "bad": true
+   },
+   {
+    "label": "てんぷらを あげた あとの |廃油《はいゆ》",
+    "bad": false
+   },
+   {
+    "label": "|飲《の》みのこしの ジュース",
+    "bad": false
+   },
+   {
+    "label": "石や |砂《すな》",
+    "bad": true
+   },
+   {
+    "label": "くだものの 皮",
+    "bad": false
+   }
+  ],
+  "exp": "受け入れが |許可《きょか》されて いるのは 食品|由来《ゆらい》の ものだけです。|薬品《やくひん》や |金属《きんぞく》、石は |分解《ぶんかい》されず、|発酵《はっこう》の じゃまに なります。",
+  "cardId": "c07"
+ },
+ {
+  "id": "a2m3",
+  "area": 2,
+  "course": "master",
+  "type": "sort2",
+  "q": "バイオガスKOBEに 持ちこめる ものと 持ちこめない ものに 分けよう。",
+  "bins": [
+   "持ちこめる",
+   "持ちこめない"
+  ],
+  "items": [
+   {
+    "label": "食品工場の 野菜くず",
+    "bin": 0
+   },
+   {
+    "label": "|賞味期限《しょうみきげん》切れの ジュース",
+    "bin": 0
+   },
+   {
+    "label": "てんぷらを あげた あとの |廃油《はいゆ》",
+    "bin": 0
+   },
+   {
+    "label": "食べ残しの カレー",
+    "bin": 0
+   },
+   {
+    "label": "こわれた |椅子《いす》",
+    "bin": 1
+   },
+   {
+    "label": "庭の 土",
+    "bin": 1
+   }
+  ],
+  "exp": "|許可《きょか》されて いるのは 食品|残《ざん》さや 食品|由来《ゆらい》の |動植物性残《どうしょくぶつせいざん》さ・|汚泥《おでい》・|廃油《はいゆ》などです。木や土は メタン|菌《きん》が |分解《ぶんかい》しにくく ガスに なりません。",
+  "cardId": "c07"
+ },
+ {
+  "id": "a2m4",
+  "area": 2,
+  "course": "master",
+  "type": "truefalse",
+  "q": "バイオガスKOBEは 神戸市から |一般廃棄物処分業《いっぱんはいきぶつしょぶんぎょう》の |許可《きょか》を 受けている。",
+  "answer": true,
+  "exp": "|一般《いっぱん》|廃棄物《はいきぶつ》|処分業許可《しょぶんぎょうきょか》（神戸市）と |産業廃棄物処分業《さんぎょうはいきぶつしょぶんぎょう》|許可《きょか》を 持って います。ごみを あつかうには |法律《ほうりつ》で 決められた 許可が いるからです。",
+  "cardId": "c07"
+ },
+ {
+  "id": "a3j1",
+  "area": 3,
+  "course": "junior",
+  "type": "findbad",
+  "q": "はっこうに むかない ものを さがそう。",
+  "grid": [
+   {
+    "label": "やさいくず",
+    "bad": false
+   },
+   {
+    "label": "ビニールぶくろ",
+    "bad": true
+   },
+   {
+    "label": "たべのこしの ごはん",
+    "bad": false
+   },
+   {
+    "label": "プラスチックの ようき",
+    "bad": true
+   },
+   {
+    "label": "バナナの かわ",
+    "bad": false
+   },
+   {
+    "label": "パンの きれはし",
+    "bad": false
+   },
+   {
+    "label": "ラップ",
+    "bad": true
+   },
+   {
+    "label": "さかなの ほね",
+    "bad": false
+   },
+   {
+    "label": "キャベツの しん",
+    "bad": false
+   }
+  ],
+  "exp": "ビニールや プラスチックは メタンきんが たべられません。ガスに ならない ばかりか はっこうの じゃまに なるので、さきに とりのぞきます。",
+  "cardId": "c09"
+ },
+ {
+  "id": "a3j2",
+  "area": 3,
+  "course": "junior",
+  "type": "choice3",
+  "q": "なまごみ ぶんべつそうちの しごとは？",
+  "choices": [
+   "はっこうに むかない ものを とりのぞく",
+   "なまごみを つめたく ひやす",
+   "なまごみに あじを つける"
+  ],
+  "answer": 0,
+  "exp": "ビニールや ようきを とりのぞいて、なまごみだけを つぎへ おくります。なまごみだけの ほうが メタンきんが よく はたらけるからです。",
+  "cardId": "c08"
+ },
+ {
+  "id": "a3j3",
+  "area": 3,
+  "course": "junior",
+  "type": "sort2",
+  "q": "なまごみと とりのぞく ものに わけよう。",
+  "bins": [
+   "なまごみ",
+   "とりのぞく"
+  ],
+  "items": [
+   {
+    "label": "やさいくず",
+    "bin": 0
+   },
+   {
+    "label": "たべのこし",
+    "bin": 0
+   },
+   {
+    "label": "くだものの かわ",
+    "bin": 0
+   },
+   {
+    "label": "ビニールぶくろ",
+    "bin": 1
+   },
+   {
+    "label": "プラスチックの ようき",
+    "bin": 1
+   },
+   {
+    "label": "ラップ",
+    "bin": 1
+   }
+  ],
+  "exp": "なまごみだけが ガスの もとに なります。ビニールや プラスチックは いくら まっても ぶんかい されないので、ここで とりのぞきます。",
+  "cardId": "c08"
+ },
+ {
+  "id": "a3j4",
+  "area": 3,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "とりのぞかれた ビニールぶくろも、なまごみと いっしょに はっこうそうへ おくられる。",
+  "answer": false,
+  "exp": "つぎへ すすむのは なまごみだけです。ビニールは メタンきんが ぶんかい できず、タンクの なかに のこって しまうからです。",
+  "cardId": "c10"
+ },
+ {
+  "id": "a3m1",
+  "area": 3,
+  "course": "master",
+  "type": "choice3",
+  "q": "生ごみ|分別装置《ぶんべつそうち》が 取りのぞくのは 主に どれ？",
+  "choices": [
+   "食べ物の 中の 水分",
+   "ビニール|袋《ふくろ》や プラスチック|容器《ようき》",
+   "食べ物の 中の |塩分《えんぶん》"
+  ],
+  "answer": 1,
+  "exp": "|発酵《はっこう》に 向かない ビニール|袋《ふくろ》や プラ|容器《ようき》を 取りのぞきます。メタン|菌《きん》は これらを |分解《ぶんかい》できず、|原料《げんりょう》に まざると じゃまに なるからです。",
+  "cardId": "c08"
+ },
+ {
+  "id": "a3m2",
+  "area": 3,
+  "course": "master",
+  "type": "findbad",
+  "q": "メタン|菌《きん》が 分解できない ものを 見つけよう。",
+  "grid": [
+   {
+    "label": "|白菜《はくさい》の しん",
+    "bad": false
+   },
+   {
+    "label": "|発泡《はっぽう》スチロールの トレー",
+    "bad": true
+   },
+   {
+    "label": "食べ残しの スープ",
+    "bad": false
+   },
+   {
+    "label": "輪ゴム",
+    "bad": true
+   },
+   {
+    "label": "みかんの 皮",
+    "bad": false
+   },
+   {
+    "label": "ごはん つぶ",
+    "bad": false
+   },
+   {
+    "label": "ビニールの ふくろ",
+    "bad": true
+   },
+   {
+    "label": "|豆腐《とうふ》",
+    "bad": false
+   },
+   {
+    "label": "肉の きれはし",
+    "bad": false
+   }
+  ],
+  "exp": "プラスチックや ゴムは、メタン|発酵槽《はっこうそう》の 中では |分解《ぶんかい》されません。食べ物と 見た目が にて いても、入れると そのまま |残《のこ》って しまいます。",
+  "cardId": "c09"
+ },
+ {
+  "id": "a3m3",
+  "area": 3,
+  "course": "master",
+  "type": "sort2",
+  "q": "|微生物《びせいぶつ》が |分解《ぶんかい》できる ものと できない ものに 分けよう。",
+  "bins": [
+   "|分解《ぶんかい》できる",
+   "|分解《ぶんかい》できない"
+  ],
+  "items": [
+   {
+    "label": "野菜くず",
+    "bin": 0
+   },
+   {
+    "label": "|賞味期限《しょうみきげん》切れの パン",
+    "bin": 0
+   },
+   {
+    "label": "食べ残しの ごはん",
+    "bin": 0
+   },
+   {
+    "label": "ビニール|袋《ふくろ》",
+    "bin": 1
+   },
+   {
+    "label": "ペットボトル",
+    "bin": 1
+   },
+   {
+    "label": "プラスチック|容器《ようき》",
+    "bin": 1
+   }
+  ],
+  "exp": "食べ物は |微生物《びせいぶつ》の えさに なりますが、プラスチックは なりません。この ちがいが ある から、|発酵《はっこう》の 前に 分ける |必要《ひつよう》が あります。",
+  "cardId": "c11"
+ },
+ {
+  "id": "a3m4",
+  "area": 3,
+  "course": "master",
+  "type": "choice3",
+  "q": "|生《なま》ごみ|分別装置《ぶんべつそうち》で 取り分けられた 生ごみは 次に どこへ 行く？",
+  "choices": [
+   "ガスホルダー",
+   "|脱臭設備《だっしゅうせつび》",
+   "|原料調整槽《げんりょうちょうせいそう》"
+  ],
+  "answer": 2,
+  "exp": "生ごみだけが |原料調整槽《げんりょうちょうせいそう》へ 送られます。|発酵《はっこう》の 前に |原料《げんりょう》の |状態《じょうたい》を そろえて おく ための |工程《こうてい》です。",
+  "cardId": "c10"
+ },
+ {
+  "id": "a4j1",
+  "area": 4,
+  "course": "junior",
+  "type": "sort2",
+  "q": "ようき ぶんべつきは なにと なにに わける？ なかまわけ しよう。",
+  "bins": [
+   "なかみ",
+   "ようき"
+  ],
+  "items": [
+   {
+    "label": "ジュース",
+    "bin": 0
+   },
+   {
+    "label": "かんづめの さかな",
+    "bin": 0
+   },
+   {
+    "label": "かんづめの コーン",
+    "bin": 0
+   },
+   {
+    "label": "あきかん",
+    "bin": 1
+   },
+   {
+    "label": "ペットボトル",
+    "bin": 1
+   },
+   {
+    "label": "かみパック",
+    "bin": 1
+   }
+  ],
+  "exp": "すてられた のみものや かんづめを なかみと ようきに わけます。なかみは ガスの もとに、ようきは ようきとして あつめられるからです。",
+  "cardId": "c12"
+ },
+ {
+  "id": "a4j2",
+  "area": 4,
+  "course": "junior",
+  "type": "choice3",
+  "q": "ようき ぶんべつきが あつかうのは どれ？",
+  "choices": [
+   "すてられた のみものや かんづめ",
+   "こわれた テレビ",
+   "きなくなった ふく"
+  ],
+  "answer": 0,
+  "exp": "のみものや かんづめは なかみと ようきが くっついて います。きかいで わけると、どちらも むだなく つかえるからです。",
+  "cardId": "c12"
+ },
+ {
+  "id": "a4j3",
+  "area": 4,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "ようき ぶんべつきは、かみパックも わけられる。",
+  "answer": true,
+  "exp": "かん・ペットボトル・かみパックの 3つに わけられます。ざいりょうが ちがう ので、べつべつに あつめた ほうが つぎに いかせるからです。",
+  "cardId": "c13"
+ },
+ {
+  "id": "a4j4",
+  "area": 4,
+  "course": "junior",
+  "type": "choice3",
+  "q": "かんづめの なかみは このあと どうなる？",
+  "choices": [
+   "そのまま すてられる",
+   "ガスを つくる もとに なる",
+   "ペットボトルに なる"
+  ],
+  "answer": 1,
+  "exp": "なかみは たべものなので メタンきんの えさに なります。だから ようきと わけて はっこうそうへ おくります。",
+  "cardId": "c14"
+ },
+ {
+  "id": "a4m1",
+  "area": 4,
+  "course": "master",
+  "type": "sort2",
+  "q": "|容器《ようき》分別機で 分けた あと、どちらの グループに 入る？",
+  "bins": [
+   "|容器《ようき》",
+   "中身"
+  ],
+  "items": [
+   {
+    "label": "アルミの かん",
+    "bin": 0
+   },
+   {
+    "label": "ペットボトル",
+    "bin": 0
+   },
+   {
+    "label": "紙パック",
+    "bin": 0
+   },
+   {
+    "label": "|賞味期限《しょうみきげん》切れの ジュース",
+    "bin": 1
+   },
+   {
+    "label": "|缶詰《かんづめ》の 魚",
+    "bin": 1
+   },
+   {
+    "label": "飲みのこしの お茶",
+    "bin": 1
+   }
+  ],
+  "exp": "|缶《かん》・ペットボトル・紙パックが |容器《ようき》、飲み物や 食べ物が 中身です。中身は |発酵《はっこう》の |原料《げんりょう》に なり、容器は 容器として あつめられます。",
+  "cardId": "c13"
+ },
+ {
+  "id": "a4m2",
+  "area": 4,
+  "course": "master",
+  "type": "choice3",
+  "q": "|賞味期限《しょうみきげん》切れの ジュースを 容器ごと 受け入れられるのは なぜ？",
+  "choices": [
+   "ペットボトルも ガスに なるから",
+   "中身だけ |自然《しぜん》に |蒸発《じょうはつ》するから",
+   "|容器《ようき》分別機が 中身と 容器に 分けられるから"
+  ],
+  "answer": 2,
+  "exp": "|機械《きかい》が 中身と |容器《ようき》を 分けます。人が 1本ずつ 開けなくても すむので、たくさんの ごみを まとめて あつかえます。",
+  "cardId": "c12"
+ },
+ {
+  "id": "a4m3",
+  "area": 4,
+  "course": "master",
+  "type": "findbad",
+  "q": "|発酵《はっこう》の |原料《げんりょう》に ならない ものを 見つけよう。",
+  "grid": [
+   {
+    "label": "|缶《かん》の 中の みかん",
+    "bad": false
+   },
+   {
+    "label": "アルミ|缶《かん》",
+    "bad": true
+   },
+   {
+    "label": "|牛乳《ぎゅうにゅう》の 中身",
+    "bad": false
+   },
+   {
+    "label": "ペットボトル",
+    "bad": true
+   },
+   {
+    "label": "スープの 中身",
+    "bad": false
+   },
+   {
+    "label": "紙パック",
+    "bad": true
+   },
+   {
+    "label": "|煮豆《にまめ》",
+    "bad": false
+   },
+   {
+    "label": "|缶詰《かんづめ》の 魚",
+    "bad": false
+   },
+   {
+    "label": "ジュース",
+    "bad": false
+   }
+  ],
+  "exp": "|原料《げんりょう》に なるのは 中身の 食べ物・飲み物だけです。|缶《かん》・ペットボトル・紙パックは |容器《ようき》分別機で 取り分けて、|容器《ようき》として あつめます。",
+  "cardId": "c14"
+ },
+ {
+  "id": "a4m4",
+  "area": 4,
+  "course": "master",
+  "type": "truefalse",
+  "q": "|容器《ようき》分別機は こわれた |家電《かでん》を 分ける ための |機械《きかい》 である。",
+  "answer": false,
+  "exp": "|容器《ようき》分別機は |廃棄《はいき》された |飲料《いんりょう》や |缶詰《かんづめ》を 中身と 容器に 分ける |機械《きかい》です。バイオガスKOBEが 受け入れるのは 食品|由来《ゆらい》の ものだけだからです。",
+  "cardId": "c12"
+ },
+ {
+  "id": "a5j1",
+  "area": 5,
+  "course": "junior",
+  "type": "choice3",
+  "q": "メタン はっこうそうの おおきさは どれくらい？",
+  "choices": [
+   "25メートルプール 7はいぶんより おおきい くらい",
+   "25メートルプール 1ぱいぶん くらい",
+   "おふろ 1ぱいぶん くらい"
+  ],
+  "answer": 0,
+  "exp": "ようりょうは 3000りっぽうメートルです。25メートルプール(やく400りっぽうメートル)の 7はいぶんより おおきい くらいに なります(だいたいの けいさん)。",
+  "cardId": "c15"
+ },
+ {
+  "id": "a5j2",
+  "area": 5,
+  "course": "junior",
+  "type": "order",
+  "q": "なまごみが バイオガスに なる じゅんばんは？",
+  "steps": [
+   "なまごみが はっこうそうに はいる",
+   "メタンきんが なまごみを ぶんかいする",
+   "バイオガスが できる"
+  ],
+  "exp": "メタンきんが なまごみを ぶんかいする ことで バイオガスが うまれます。きんが はたらく じかんが ひつような ので、すぐには できません。",
+  "cardId": "c18"
+ },
+ {
+  "id": "a5j3",
+  "area": 5,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "バイオガスを つくって いるのは、めに みえない ちいさな いきもの である。",
+  "answer": true,
+  "exp": "メタンきんという ちいさな いきものが はたらいて います。きかいが ガスを つくって いるのでは なく、いきものの ちからを かりて いるのです。",
+  "cardId": "c16"
+ },
+ {
+  "id": "a5j4",
+  "area": 5,
+  "course": "junior",
+  "type": "findbad",
+  "q": "はっこうそうに いれては いけない ものを さがそう。",
+  "grid": [
+   {
+    "label": "やさいくず",
+    "bad": false
+   },
+   {
+    "label": "はりがね",
+    "bad": true
+   },
+   {
+    "label": "たべのこし",
+    "bad": false
+   },
+   {
+    "label": "ガラスの かけら",
+    "bad": true
+   },
+   {
+    "label": "くだものの かわ",
+    "bad": false
+   },
+   {
+    "label": "おべんとうの ごはん",
+    "bad": false
+   },
+   {
+    "label": "ビニールの ふくろ",
+    "bad": true
+   },
+   {
+    "label": "みそしる",
+    "bad": false
+   },
+   {
+    "label": "パンの みみ",
+    "bad": false
+   }
+  ],
+  "exp": "メタンきんが たべられない ものは ガスに なりません。そのまま タンクの なかに のこって しまう ので、まえの そうちで とりのぞいて おきます。",
+  "cardId": "c09"
+ },
+ {
+  "id": "a5m1",
+  "area": 5,
+  "course": "master",
+  "type": "choice3",
+  "q": "メタン|発酵槽《はっこうそう》の |容量《ようりょう》は？",
+  "choices": [
+   "300㎥",
+   "3,000㎥",
+   "30,000㎥"
+  ],
+  "answer": 1,
+  "exp": "|容量《ようりょう》は 3,000㎥です。25メートルプール(約400㎥)の 7|杯《はい》分より 大きい くらい(|概算《がいさん》)で、この 中で メタン|菌《きん》が 時間を かけて |有機分《ゆうきぶん》を |分解《ぶんかい》して います。",
+  "cardId": "c15"
+ },
+ {
+  "id": "a5m2",
+  "area": 5,
+  "course": "master",
+  "type": "findbad",
+  "q": "メタン|菌《きん》の えさに ならない ものを 見つけよう。",
+  "grid": [
+   {
+    "label": "米つぶ",
+    "bad": false
+   },
+   {
+    "label": "|金属《きんぞく》の ふた",
+    "bad": true
+   },
+   {
+    "label": "キャベツの 葉",
+    "bad": false
+   },
+   {
+    "label": "|発泡《はっぽう》スチロール",
+    "bad": true
+   },
+   {
+    "label": "油の ついた ごはん",
+    "bad": false
+   },
+   {
+    "label": "魚の あら",
+    "bad": false
+   },
+   {
+    "label": "ビニールの ひも",
+    "bad": true
+   },
+   {
+    "label": "豆の |煮《に》もの",
+    "bad": false
+   },
+   {
+    "label": "パンの きれはし",
+    "bad": false
+   }
+  ],
+  "exp": "メタン|菌《きん》が ガスに できるのは、生き物が つくった |有機分《ゆうきぶん》だけです。|金属《きんぞく》や プラスチックは メタン菌の えさに ならないので、|発酵槽《はっこうそう》の 中に そのまま |残《のこ》ります。",
+  "cardId": "c16"
+ },
+ {
+  "id": "a5m3",
+  "area": 5,
+  "course": "master",
+  "type": "order",
+  "q": "メタン|発酵《はっこう》で ガスが できるまでの |順《じゅん》に ならべよう。",
+  "steps": [
+   "|原料調整槽《げんりょうちょうせいそう》で 生ごみを ととのえる",
+   "メタン|発酵槽《はっこうそう》へ 送る",
+   "メタン|菌《きん》が |有機分《ゆうきぶん》を 分解する",
+   "バイオガスが 生まれる"
+  ],
+  "exp": "|原料《げんりょう》を ととのえて から |発酵槽《はっこうそう》に 入れます。メタン|菌《きん》が はたらきやすい |状態《じょうたい》に して おく ほうが、ガスが 安定して できるからです。",
+  "cardId": "c18"
+ },
+ {
+  "id": "a5m4",
+  "area": 5,
+  "course": "master",
+  "type": "choice3",
+  "q": "メタン|菌《きん》が バイオガスを つくる とき、|分解《ぶんかい》して いるのは どれ？",
+  "choices": [
+   "タンクの 中の 水",
+   "タンクの |鉄《てつ》",
+   "生ごみの |有機分《ゆうきぶん》"
+  ],
+  "answer": 2,
+  "exp": "メタン|発酵槽《はっこうそう》では メタン|菌《きん》が |有機分《ゆうきぶん》を 分解して バイオガスを つくります。有機分は もともと 生き物の 体を つくって いた |成分《せいぶん》なので 分解できるのです。",
+  "cardId": "c17"
+ },
+ {
+  "id": "a6j1",
+  "area": 6,
+  "course": "junior",
+  "type": "choice3",
+  "q": "ガスホルダーの しごとは？",
+  "choices": [
+   "ガスを ためて おく",
+   "ガスを もやす",
+   "ガスを つくる"
+  ],
+  "answer": 0,
+  "exp": "できた バイオガスを いちど ためて おきます。ためて おくと、はつでんきに おくる ガスの つよさが あんていするからです。",
+  "cardId": "c19"
+ },
+ {
+  "id": "a6j2",
+  "area": 6,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "ガスホルダーは メタンはっこうそうより おおきい タンク である。",
+  "answer": false,
+  "exp": "ガスホルダーは 600りっぽうメートルで、はっこうそう(3000りっぽうメートル)の 5ぶんの 1くらいです。つくる ばしょでは なく、いちじてきに ためる ための タンクだからです。",
+  "cardId": "c19"
+ },
+ {
+  "id": "a6j3",
+  "area": 6,
+  "course": "junior",
+  "type": "sort2",
+  "q": "ガスホルダーの しごとと メタンはっこうそうの しごとに わけよう。",
+  "bins": [
+   "ガスホルダー",
+   "メタンはっこうそう"
+  ],
+  "items": [
+   {
+    "label": "ガスを ためる",
+    "bin": 0
+   },
+   {
+    "label": "おくる つよさを そろえる",
+    "bin": 0
+   },
+   {
+    "label": "ためた ガスを はつでんきへ おくる",
+    "bin": 0
+   },
+   {
+    "label": "ガスを つくる",
+    "bin": 1
+   },
+   {
+    "label": "メタンきんが すんで いる",
+    "bin": 1
+   },
+   {
+    "label": "なまごみを ぶんかいする",
+    "bin": 1
+   }
+  ],
+  "exp": "つくるのが はっこうそう、ためて おくるのが ガスホルダーです。やくわりを わけて いるから、ガスの できかたが かわっても あんていして はつでん できます。",
+  "cardId": "c19"
+ },
+ {
+  "id": "a6j4",
+  "area": 6,
+  "course": "junior",
+  "type": "choice3",
+  "q": "バイオガスの なかで いちばん おおい ガスは？",
+  "choices": [
+   "さんそ",
+   "メタン",
+   "すいじょうき"
+  ],
+  "answer": 1,
+  "exp": "バイオガスKOBEの バイオガスは メタンが やく60パーセントです。はんぶんより すこし おおいくらいが メタンなので、もやすと よく もえます。",
+  "cardId": "c20"
+ },
+ {
+  "id": "a6m1",
+  "area": 6,
+  "course": "master",
+  "type": "choice3",
+  "q": "バイオガスKOBEの バイオガスの メタン|濃度《のうど》は およそ どれくらい？",
+  "choices": [
+   "約20%",
+   "約95%",
+   "約60%"
+  ],
+  "answer": 2,
+  "exp": "メタン|濃度《のうど》は 約60%です。半分より 少し 多いくらいが もえる |成分《せいぶん》なので、そのまま |燃料《ねんりょう》として 使えます。",
+  "cardId": "c20"
+ },
+ {
+  "id": "a6m2",
+  "area": 6,
+  "course": "master",
+  "type": "order",
+  "q": "バイオガスが |発電機《はつでんき》に とどくまでの |順《じゅん》に ならべよう。",
+  "steps": [
+   "メタン|発酵槽《はっこうそう》で ガスが できる",
+   "ガスホルダーに ためる",
+   "|供給圧《きょうきゅうあつ》を |安定《あんてい》させて 送り出す",
+   "発電機で 使われる"
+  ],
+  "exp": "いったん ためる |工程《こうてい》が ある から、ガスの できる |量《りょう》が |変《か》わっても 発電を 止めずに すみます。",
+  "cardId": "c21"
+ },
+ {
+  "id": "a6m3",
+  "area": 6,
+  "course": "master",
+  "type": "truefalse",
+  "q": "バイオガスKOBEの バイオガス|供給量《きょうきゅうりょう》は 日|平均《へいきん》 約6,900N㎥/日 である。",
+  "answer": true,
+  "exp": "日平均 約6,900N㎥/日を |供給《きょうきゅう》して います。N㎥は ガスの |量《りょう》を きめられた |条件《じょうけん》で くらべる ときの |単位《たんい》です。ガスホルダーで |調整《ちょうせい》して いる から、毎日 ほぼ 同じ量を 送り出せます。",
+  "cardId": "c21"
+ },
+ {
+  "id": "a6m4",
+  "area": 6,
+  "course": "master",
+  "type": "choice3",
+  "q": "ガスホルダーの |貯留《ちょりゅう》|容量《ようりょう》は？",
+  "choices": [
+   "60㎥",
+   "6,000㎥",
+   "600㎥"
+  ],
+  "answer": 2,
+  "exp": "600㎥です。メタン|発酵槽《はっこうそう》(3,000㎥)の およそ 5分の1で、ガスの できる |量《りょう》が |変《か》わっても |発電機《はつでんき》へ 送る |圧力《あつりょく》を |安定《あんてい》させる ための タンクです。",
+  "cardId": "c19"
+ },
+ {
+  "id": "a7j1",
+  "area": 7,
+  "course": "junior",
+  "type": "order",
+  "q": "ガスが まちの あかりに なるまでの じゅんばんは？",
+  "steps": [
+   "ガスホルダーから ガスを おくる",
+   "はつでんきで ガスを もやす",
+   "でんきが つくられる",
+   "まちの あかりが つく"
+  ],
+  "exp": "ガスを もやして はつでんきを うごかすと でんきが つくられます。じぶんたちの だした ごみが まちの あかりに かわるのです。",
+  "cardId": "c22"
+ },
+ {
+  "id": "a7j2",
+  "area": 7,
+  "course": "junior",
+  "type": "choice3",
+  "q": "おなじ しきちに ある はつでんきの おおきさは？",
+  "choices": [
+   "1000キロワットが 1き",
+   "10キロワットが 1き",
+   "1000キロワットが 100き"
+  ],
+  "answer": 0,
+  "exp": "キロワットは でんきを つくる ちからを あらわす たんいです。1000キロワットの はつでんきが 1き あります。1きでも 1ねんかんで たくさんの おうちの でんきを つくれます。",
+  "cardId": "c22"
+ },
+ {
+  "id": "a7j3",
+  "area": 7,
+  "course": "junior",
+  "type": "truefalse",
+  "q": "こうじょうの においは、そのまま そとへ だされる。",
+  "answer": false,
+  "exp": "においは あつめて だっしゅうせつびで しょりして から そとへ だします。まわりで くらす ひとたちに めいわくを かけない ためです。",
+  "cardId": "c24"
+ },
+ {
+  "id": "a7j4",
+  "area": 7,
+  "course": "junior",
+  "type": "choice3",
+  "q": "1ねんかんに つくられる でんきは、どれくらいの おうちの ぶん？",
+  "choices": [
+   "やく15けん",
+   "やく15まんけん",
+   "やく1500けん"
+  ],
+  "answer": 2,
+  "exp": "1ねんに やく5000メガワットアワー、いっぱんの おうち やく1500けんぶんの でんきです。ごみから これだけの エネルギーが とりだせるのです。",
+  "cardId": "c23"
+ },
+ {
+  "id": "a7m1",
+  "area": 7,
+  "course": "master",
+  "type": "choice3",
+  "q": "年間|発電量《はつでんりょう》 約5,000MWhは、|一般家庭《いっぱんかてい》の 何|世帯《せたい》分に あたる？",
+  "choices": [
+   "約150|世帯《せたい》分",
+   "約1,500|世帯《せたい》分",
+   "約15,000|世帯《せたい》分"
+  ],
+  "answer": 1,
+  "exp": "約5,000MWhは |一般家庭《いっぱんかてい》 約1,500|世帯《せたい》分に あたります。すてられる はずだった ものから 電気を つくるので、|資源《しげん》を むだに しません。",
+  "cardId": "c23"
+ },
+ {
+  "id": "a7m2",
+  "area": 7,
+  "course": "master",
+  "type": "sort2",
+  "q": "|発電機《はつでんき》の |仕事《しごと》と |脱臭設備《だっしゅうせつび》の 仕事に 分けよう。",
+  "bins": [
+   "|発電機《はつでんき》",
+   "|脱臭設備《だっしゅうせつび》"
+  ],
+  "items": [
+   {
+    "label": "バイオガスを もやして 電気を つくる",
+    "bin": 0
+   },
+   {
+    "label": "1,000kWの |出力《しゅつりょく》を 出す",
+    "bin": 0
+   },
+   {
+    "label": "バイオガスを |燃料《ねんりょう》に して うごく",
+    "bin": 0
+   },
+   {
+    "label": "|悪臭《あくしゅう》を 集めて |処理《しょり》する",
+    "bin": 1
+   },
+   {
+    "label": "|生物脱臭装置《せいぶつだっしゅうそうち》を 使う",
+    "bin": 1
+   },
+   {
+    "label": "|活性炭吸着塔《かっせいたんきゅうちゃくとう》を 使う",
+    "bin": 1
+   }
+  ],
+  "exp": "発電機は 電気を つくり、|脱臭設備《だっしゅうせつび》は においを 処理して から |大気《たいき》へ 出します。まちの 中で |運転《うんてん》する しせつだから、どちらも |必要《ひつよう》です。",
+  "cardId": "c24"
+ },
+ {
+  "id": "a7m3",
+  "area": 7,
+  "course": "master",
+  "type": "truefalse",
+  "q": "|脱臭設備《だっしゅうせつび》は |生物脱臭装置《せいぶつだっしゅうそうち》と |活性炭吸着塔《かっせいたんきゅうちゃくとう》で できて いる。",
+  "answer": true,
+  "exp": "|微生物《びせいぶつ》の 力で においを |分解《ぶんかい》し、さらに |活性炭《かっせいたん》で |吸着《きゅうちゃく》します。2|段階《だんかい》で |処理《しょり》する ことで においを しっかり |減《へ》らせるからです。",
+  "cardId": "c24"
+ },
+ {
+  "id": "a7m4",
+  "area": 7,
+  "course": "master",
+  "type": "order",
+  "q": "|地産地消《ちさんちしょう》の エネルギーが 生まれる 流れを ならべよう。",
+  "steps": [
+   "神戸の まちで 食品|廃棄物《はいきぶつ》が 出る",
+   "バイオガスKOBEで バイオガスに なる",
+   "|発電機《はつでんき》で 電気に なる",
+   "神戸の まちで 電気が 使われる"
+  ],
+  "exp": "出た 場所の 近くで エネルギーに 変えて 使う ことを |地産地消《ちさんちしょう》と いいます。運ぶ |距離《きょり》が 短くて すむ ぶん、むだが 少なく なります。",
+  "cardId": "c04"
+ }
+];
+
+var AREAS = [
+  {id:1, name:'まちから あつめよう',   img:'quiz_scene_catch.png'},
+  {id:2, name:'うけいれホッパ',        img:'quiz_scene_catch.png'},
+  {id:3, name:'なまごみ 分別そうち',   img:'quiz_scene_catch.png'},
+  {id:4, name:'ようき 分別き',         img:'quiz_scene_catch.png'},
+  {id:5, name:'メタン発酵そう',        img:'quiz_scene_grid.png'},
+  {id:6, name:'ガスホルダー',          img:'quiz_scene_grid.png'},
+  {id:7, name:'発電きと まちのあかり', img:'quiz_scene_plant.png'}
+];
+var AREA_COUNTS = [3,2,3,2,3,2,3];          /* = 18問 */
+var TOTAL_Q = 18;
+/* 制限時間(秒)。1プレイ5〜10分に収めるための要。
+   変更したら必ず tests/quiztest.js の所要時間シミュレーションを再実行すること。 */
+var TIME_LIMIT = {
+  /* sort2 は1個ごとに 420ms の正誤フィードバックで入力がロックされるので、
+     その分（6個で約2.5秒）を上乗せしてある */
+  junior:{choice3:21,truefalse:18,sort2:30,order:25,findbad:24},
+  master:{choice3:19,truefalse:16,sort2:29,order:24,findbad:22}
+};
+var TYPE_LABEL = {choice3:'3たく',truefalse:'○か×か',sort2:'なかまわけ',order:'じゅんばん',findbad:'さがせ！'};
+/* 出題形式ごとの操作説明。チュートリアルは3枚しか出さないので、
+   ここで毎回1行だけ出して初見でも操作が分かるようにする。 */
+var TYPE_HINT = {
+  choice3:  '正しいと おもう ものを 1つ えらんでね',
+  truefalse:'あって いたら ◯、ちがったら ✕ をタップ',
+  sort2:    'でてくる ものを、下の 2つの どちらかに ふりわけてね',
+  order:    '正しい じゅんばんに なるように、下から 1つずつ えらんでね',
+  findbad:  'あてはまる ものを ぜんぶ えらんでから「けってい」'
+};
+var RANKS = [
+  {min:16, name:'コベックはかせ',      color:'#F5A623'},
+  {min:12, name:'エコリーダー',        color:'#3FA757'},
+  {min:8,  name:'リサイクルたんてい',  color:'#2E7CB8'},
+  {min:0,  name:'みならいスタッフ',    color:'#5d6b61'}
+];
+var SAVE_KEY='kobec_quiz_save', MUTE_KEY='kobec_quiz_mute', TUT_KEY='kobec_quiz_tut';
+
+/* ============================================================
+   CORE  (DOM非依存 / ヘッドレステスト対象)
+   ============================================================ */
+var CORE = {};
+
+/* --- 乱数（シード付き。テストの再現性のため） --- */
+CORE.rng = function(seed){
+  var s = seed>>>0 || 1;
+  return function(){ s ^= s<<13; s>>>=0; s ^= s>>17; s ^= s<<5; s>>>=0; return s/4294967296; };
+};
+CORE.shuffle = function(arr, rnd){
+  var a = arr.slice(), i, j, t;
+  for(i=a.length-1;i>0;i--){ j = Math.floor(rnd()*(i+1)); t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+};
+
+/* --- ルビ記法 |漢字《かんじ》 → HTML --- */
+CORE.escapeHtml = function(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+};
+CORE.rubify = function(s){
+  return CORE.escapeHtml(s).replace(/\|([^|《》]+)《([^》]+)》/g, function(m,base,yomi){
+    return '<ruby>'+base+'<rt>'+yomi+'</rt></ruby>';
+  });
+};
+/* ルビを外した素のテキスト（テスト・長さ判定用） */
+CORE.plain = function(s){
+  return String(s).replace(/\|([^|《》]+)《([^》]+)》/g,'$1');
+};
+
+/* 手を動かす出題形式。3択・○×以外 */
+CORE.isInteractive = function(q){
+  return q.type==='sort2' || q.type==='order' || q.type==='findbad';
+};
+
+/* --- 出題抽選 ---
+   エリア順(1→7)は必ず保つ。エリア内の並びだけを入れ替えて、
+   同じ出題形式が3問続かないようにする（単調さの回避）。 */
+CORE.pickQuestions = function(all, course, rnd){
+  var out = [], ai;
+  for(ai=0; ai<AREAS.length; ai++){
+    var area = AREAS[ai].id;
+    var pool = CORE.shuffle(all.filter(function(q){ return q.area===area && q.course===course; }), rnd);
+    var rest  = pool.slice(0, AREA_COUNTS[ai]);   /* このエリアの採用分 */
+    var spare = pool.slice(AREA_COUNTS[ai]);      /* 控え（差し替え用） */
+    /* 各エリアに最低1問はインタラクティブ形式を入れる（仕様書）。
+       3択と○×だけのエリアが続くと、ただのプリントになって手触りが死ぬ。 */
+    if(!rest.some(CORE.isInteractive)){
+      for(var si=0; si<spare.length; si++){
+        if(CORE.isInteractive(spare[si])){
+          /* 置き換えるのは非インタラクティブのうち最後の1問 */
+          for(var ri=rest.length-1; ri>=0; ri--){
+            if(!CORE.isInteractive(rest[ri])){ rest[ri] = spare.splice(si,1)[0]; break; }
+          }
+          break;
+        }
+      }
+    }
+    while(rest.length){
+      var n = out.length;
+      var p1 = n>=1 ? out[n-1] : null;
+      var p2 = n>=2 ? out[n-2] : null;
+      var idx = -1, k;
+      if(p1 && p2 && p1.type === p2.type){
+        /* まず採用分の中から別形式を探す */
+        for(k=0;k<rest.length;k++){ if(rest[k].type !== p1.type){ idx = k; break; } }
+        /* 採用分が全部同形式なら、控えから別形式を1問だけ差し替える */
+        if(idx < 0){
+          for(k=0;k<spare.length;k++){
+            if(spare[k].type !== p1.type){ rest[0] = spare.splice(k,1)[0]; idx = 0; break; }
+          }
+        }
+      }
+      if(idx < 0) idx = 0;
+      out.push(rest.splice(idx,1)[0]);
+    }
+  }
+  return out;
+};
+
+/* --- 採点 --- */
+CORE.checkAnswer = function(q, resp){
+  var i, n=0, r;
+  if(q.type==='choice3'){
+    r = (resp === q.answer); return {correct:r, ratio:r?1:0};
+  }
+  if(q.type==='truefalse'){
+    r = (resp === q.answer); return {correct:r, ratio:r?1:0};
+  }
+  if(q.type==='sort2'){
+    for(i=0;i<q.items.length;i++){ if(resp[i]===q.items[i].bin) n++; }
+    return {correct:n>=q.items.length-1, ratio:n/q.items.length, detail:n};
+  }
+  if(q.type==='order'){
+    for(i=0;i<q.steps.length;i++){ if(resp[i]===i) n++; }
+    return {correct:n===q.steps.length, ratio:n/q.steps.length, detail:n};
+  }
+  if(q.type==='findbad'){
+    var bad=0, tp=0, fp=0;
+    for(i=0;i<q.grid.length;i++){
+      var sel = resp.indexOf(i)>=0;
+      if(q.grid[i].bad){ bad++; if(sel) tp++; }
+      else if(sel) fp++;
+    }
+    var ratio = bad ? Math.max(0,(tp-fp)/bad) : 0;
+    /* 全部見つけていれば誤選択1つまでは正解。sort2（6問中1問ミスまで可）と
+       寛容度を揃えるため。ここを厳しくすると低学年に理不尽になる。 */
+    return {correct:(tp===bad && fp<=1), ratio:Math.min(1,ratio), detail:tp};
+  }
+  return {correct:false, ratio:0};
+};
+
+/* --- スコア --- */
+CORE.scoreFor = function(o){
+  var base = Math.round(100 * o.ratio);
+  var bonus = Math.round(50 * Math.max(0, Math.min(1, o.timeLeft/o.timeLimit)) * o.ratio);
+  var mult = 1 + 0.2 * Math.min(Math.max(0, o.streak-1), 5);
+  return { base:base, bonus:bonus, mult:mult, total:Math.round((base+bonus)*mult) };
+};
+
+CORE.rankFor = function(correct){
+  for(var i=0;i<RANKS.length;i++){ if(correct>=RANKS[i].min) return RANKS[i]; }
+  return RANKS[RANKS.length-1];
+};
+
+/* --- セーブ --- */
+CORE.defaultSave = function(){
+  return {best:0, bestRank:'', cards:{}, totalCorrect:0, plays:0};
+};
+CORE.normalizeSave = function(o){
+  var d = CORE.defaultSave();
+  if(!o || typeof o!=='object') return d;
+  d.best = (typeof o.best==='number' && isFinite(o.best) && o.best>=0) ? Math.floor(o.best) : 0;
+  d.bestRank = typeof o.bestRank==='string' ? o.bestRank.slice(0,24) : '';
+  d.totalCorrect = (typeof o.totalCorrect==='number' && isFinite(o.totalCorrect) && o.totalCorrect>=0) ? Math.floor(o.totalCorrect) : 0;
+  d.plays = (typeof o.plays==='number' && isFinite(o.plays) && o.plays>=0) ? Math.floor(o.plays) : 0;
+  if(o.cards && typeof o.cards==='object'){
+    for(var k in o.cards){ if(Object.prototype.hasOwnProperty.call(o.cards,k) && o.cards[k]) d.cards[k]=1; }
+  }
+  return d;
+};
+CORE.checksum = function(str){
+  var h=0;
+  for(var i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+};
+CORE.b64encode = function(s){
+  if(typeof btoa!=='undefined') return btoa(unescape(encodeURIComponent(s)));
+  return Buffer.from(s,'utf8').toString('base64');
+};
+CORE.b64decode = function(s){
+  if(typeof atob!=='undefined') return decodeURIComponent(escape(atob(s)));
+  return Buffer.from(s,'base64').toString('utf8');
+};
+CORE.makeCode = function(save){
+  var json = JSON.stringify(CORE.normalizeSave(save));
+  var b = CORE.b64encode(json);
+  return 'KOBECQ1.'+b+'.'+CORE.checksum(b);
+};
+CORE.parseCode = function(code){
+  if(typeof code!=='string') return null;
+  var p = code.trim().split('.');
+  if(p.length!==3 || p[0]!=='KOBECQ1') return null;
+  if(CORE.checksum(p[1]) !== p[2]) return null;
+  try{ return CORE.normalizeSave(JSON.parse(CORE.b64decode(p[1]))); }
+  catch(e){ return null; }
+};
+
+/* --- データ健全性（テストから呼ぶ） --- */
+CORE.validateData = function(cards, questions){
+  var errs = [], ids={}, cids={}, i;
+  cards.forEach(function(c){
+    if(cids[c.id]) errs.push('dup card '+c.id);
+    cids[c.id]=1;
+    if(!c.title || !c.body) errs.push('empty card '+c.id);
+    if(c.area<1 || c.area>7) errs.push('bad card area '+c.id);
+  });
+  questions.forEach(function(q){
+    if(ids[q.id]) errs.push('dup q '+q.id);
+    ids[q.id]=1;
+    if(!cids[q.cardId]) errs.push('bad cardId '+q.id);
+    if(!q.exp) errs.push('no exp '+q.id);
+    if(q.area<1||q.area>7) errs.push('bad area '+q.id);
+    if(q.course!=='junior'&&q.course!=='master') errs.push('bad course '+q.id);
+    if(q.type==='choice3'){
+      if(!q.choices||q.choices.length!==3) errs.push('choices '+q.id);
+      if(!(q.answer>=0&&q.answer<=2)) errs.push('answer '+q.id);
+    } else if(q.type==='truefalse'){
+      if(typeof q.answer!=='boolean') errs.push('tf '+q.id);
+    } else if(q.type==='sort2'){
+      if(!q.items||q.items.length!==6) errs.push('items '+q.id);
+      if(!q.bins||q.bins.length!==2) errs.push('bins '+q.id);
+      var b0=0,b1=0; (q.items||[]).forEach(function(it){ it.bin===0?b0++:b1++; });
+      if(b0<2||b1<2) errs.push('bin balance '+q.id);
+    } else if(q.type==='order'){
+      if(!q.steps||q.steps.length<3||q.steps.length>4) errs.push('steps '+q.id);
+    } else if(q.type==='findbad'){
+      if(!q.grid||q.grid.length!==9) errs.push('grid '+q.id);
+      var nb=0; (q.grid||[]).forEach(function(g){ if(g.bad) nb++; });
+      if(nb<2||nb>3) errs.push('bad count '+q.id);
+    } else errs.push('bad type '+q.id);
+    /* ジュニアに漢字が混ざっていないか */
+    if(q.course==='junior'){
+      var txt = [q.q, q.exp].concat(q.choices||[], q.steps||[],
+        (q.items||[]).map(function(x){return x.label;}),
+        (q.grid||[]).map(function(x){return x.label;}),
+        q.bins||[]).join('');
+      if(/[一-鿿]/.test(txt)) errs.push('kanji in junior '+q.id);
+    }
+  });
+  /* 各エリア・各コースで必要数を満たすか */
+  for(i=0;i<AREAS.length;i++){
+    ['junior','master'].forEach(function(c){
+      var n = questions.filter(function(q){ return q.area===AREAS[i].id && q.course===c; }).length;
+      if(n < AREA_COUNTS[i]) errs.push('not enough q area'+AREAS[i].id+' '+c+' ('+n+'/'+AREA_COUNTS[i]+')');
+    });
+  }
+  return errs;
+};
+
+CORE.AREAS = AREAS; CORE.AREA_COUNTS = AREA_COUNTS; CORE.RANKS = RANKS;
+CORE.TIME_LIMIT = TIME_LIMIT; CORE.TOTAL_Q = TOTAL_Q;
+
+if(typeof module!=='undefined' && module.exports){
+  module.exports = {CORE:CORE, QUIZ_CARDS:QUIZ_CARDS, QUIZ_QUESTIONS:QUIZ_QUESTIONS};
+}
+if(typeof window==='undefined') return;
+
+/* ============================================================
+   UI
+   ============================================================ */
+var $ = function(id){ return document.getElementById(id); };
+var stage = $('stage');
+
+/* --- ステージのフィット --- */
+function fit(){
+  var vw = window.innerWidth || 0, vh = window.innerHeight || 0;
+  var s = Math.min(vw/420, vh/740);
+  /* 読み込み途中などで 0 が返ることがある。そのまま入れるとステージが
+     scale(0) で潰れたまま次のリサイズまで戻らないので、必ず弾いて再試行する。 */
+  if(!(s > 0)){ requestAnimationFrame(fit); return; }
+  /* transform ではなく CSS 変数に入れる。shake 中も scale が維持されるようにするため */
+  stage.style.setProperty('--fit', String(s));
+  document.body.classList.toggle('landscapeWarn', vh < 500 && vw > vh);
+}
+window.addEventListener('resize', fit);
+window.addEventListener('load', fit);
+window.addEventListener('orientationchange', function(){ setTimeout(fit,80); });
+
+/* --- セーブ --- */
+var save = CORE.defaultSave();
+function loadSave(){
+  try{
+    var raw = localStorage.getItem(SAVE_KEY);
+    if(raw) save = CORE.normalizeSave(JSON.parse(raw));
+  }catch(e){ save = CORE.defaultSave(); }
+}
+function writeSave(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){}
+}
+loadSave();
+
+/* --- サウンド --- */
+var muted = false;
+try{ muted = localStorage.getItem(MUTE_KEY)==='1'; }catch(e){}
+var actx = null;
+function unlockAudio(){
+  try{
+    if(!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) actx = new AC();
+    }
+    /* iOS Safari はバックグラウンド復帰で suspended のまま戻る。
+       resume を呼ばないと一度ホームに戻っただけで以降ずっと無音になる。 */
+    if(actx && actx.state === 'suspended' && actx.resume) actx.resume();
+  }catch(e){ actx = actx || null; }
+}
+function beep(freq, dur, type, vol, delay){
+  if(muted || !actx) return;
+  try{
+    var t0 = actx.currentTime + (delay||0);
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = type||'sine'; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol||0.16, t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t0); o.stop(t0+dur+0.02);
+  }catch(e){}
+}
+var SE = {
+  tap:  function(){ beep(660,0.06,'triangle',0.10); },
+  ok:   function(){ beep(784,0.10,'triangle',0.16,0); beep(1047,0.16,'triangle',0.14,0.09); beep(1319,0.22,'sine',0.12,0.18); },
+  ng:   function(){ beep(233,0.16,'sawtooth',0.10,0); beep(175,0.26,'sawtooth',0.09,0.11); },
+  tick: function(){ beep(1200,0.03,'square',0.05); },
+  gain: function(){ beep(880,0.07,'sine',0.10); },
+  card: function(){ beep(1047,0.09,'sine',0.13,0); beep(1568,0.16,'sine',0.11,0.08); },
+  fin:  function(){ [523,659,784,1047,1319].forEach(function(f,i){ beep(f,0.34,'triangle',0.15,i*0.13); }); },
+  page: function(){ beep(520,0.05,'sine',0.08); }
+};
+function syncMute(){
+  $('btnMute').textContent = muted ? '🔇 おと オフ' : '🔊 おと オン';
+  $('gMute').textContent   = muted ? '🔇' : '🔊';
+}
+function toggleMute(){
+  muted = !muted;
+  try{ localStorage.setItem(MUTE_KEY, muted?'1':'0'); }catch(e){}
+  syncMute(); if(!muted) SE.tap();
+}
+syncMute();
+
+/* --- 画像（無ければ仮描画にフォールバック） --- */
+var IMG = {};
+function tryImage(name, onOk){
+  var im = new Image();
+  im.onload = function(){ IMG[name]=im; if(onOk) onOk(im); };
+  im.onerror = function(){ IMG[name]=null; };
+  im.src = 'assets/'+name;
+}
+/* 証明書枠は内蔵canvas描画を使う。存在しない任意画像を取りに行かず404を出さない。 */
+['title_bg.png','finale_kobe_night.png'].forEach(function(n){
+  tryImage(n, function(){
+    if(n==='title_bg.png') $('titleArt').style.backgroundImage = 'url(assets/'+n+')';
+    if(n==='finale_kobe_night.png') $('finArt').style.backgroundImage = 'url(assets/'+n+')';
+    if(n==='certificate_frame.png') $('certArt').style.backgroundImage = 'url(assets/'+n+')';
+  });
+});
+AREAS.forEach(function(a){ tryImage(a.img); });
+
+/* マスコット：画像が無ければ canvas で描いた data URL を使う */
+var MASCOT_SRC = {};
+/* 公式マスコット「メタンくん」の簡易描画（assets/mascot*.png が無いときのフォールバック）。
+   固定要素: 大きな淡い水色の丸い頭 / 左に巻きのある緑の葉 / 右上へ伸びる細い茎 /
+   縦長楕円の目 / 小さな鼻と口 / 3点の頬印 / 緑のリボン状の胴体 / 丸く長い腕 /
+   短い脚 / 左腕先端の黄色い四つ星。原画の比率を崩さないこと。 */
+var KB = {head:'#CFE2E6', line:'#2E7D6F', body:'#4E9082', leaf:'#8CC152', star:'#F5D33F'};
+function drawMethankun(ctx, x, y, size, mood){
+  var s = size/100;
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  var lean = mood==='sad' ? 0.07 : (mood==='joy' ? -0.05 : 0);
+  ctx.rotate(lean);
+  var hop = mood==='joy' ? -5 : 0;
+
+  /* 脚 */
+  ctx.strokeStyle=KB.body; ctx.lineWidth=8;
+  ctx.beginPath(); ctx.moveTo(-9,28+hop); ctx.lineTo(-12,44+hop); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(9,28+hop);  ctx.lineTo(12,44+hop);  ctx.stroke();
+
+  /* 胴体（リボン状。白抜きを内側に持つ） */
+  ctx.fillStyle=KB.body; ctx.strokeStyle=KB.line; ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.ellipse(0,20+hop,20,13,0,0,6.3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.ellipse(0,20+hop,7.5,4.6,0,0,6.3); ctx.fill();
+
+  /* 腕（丸く長い） */
+  ctx.strokeStyle=KB.body; ctx.lineWidth=8.5;
+  var starX, starY;
+  if(mood==='joy'){
+    ctx.beginPath(); ctx.moveTo(-16,14+hop); ctx.quadraticCurveTo(-36,2+hop,-34,-16+hop); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16,14+hop);  ctx.quadraticCurveTo(36,2+hop,34,-16+hop);  ctx.stroke();
+    starX=-34; starY=-16+hop;
+  } else if(mood==='point'){
+    ctx.beginPath(); ctx.moveTo(16,16); ctx.quadraticCurveTo(36,10,48,-2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-16,16); ctx.quadraticCurveTo(-32,22,-30,32); ctx.stroke();
+    starX=-30; starY=32;
+  } else {
+    ctx.beginPath(); ctx.moveTo(-16,16+hop); ctx.quadraticCurveTo(-34,22+hop,-32,34+hop); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16,16+hop);  ctx.quadraticCurveTo(34,22+hop,32,34+hop);  ctx.stroke();
+    starX=-32; starY=34+hop;
+  }
+  /* 左腕先端の黄色い四つ星 */
+  ctx.save(); ctx.translate(starX,starY);
+  ctx.fillStyle=KB.star; ctx.beginPath();
+  [0,1,2,3].forEach(function(i){
+    var a=i*Math.PI/2;
+    ctx.lineTo(Math.cos(a)*9, Math.sin(a)*9);
+    ctx.quadraticCurveTo(Math.cos(a+0.785)*2.6, Math.sin(a+0.785)*2.6,
+                         Math.cos(a+1.571)*9, Math.sin(a+1.571)*9);
+  });
+  ctx.closePath(); ctx.fill(); ctx.restore();
+
+  /* 頭 */
+  var hy = -18+hop;
+  ctx.fillStyle=KB.head; ctx.strokeStyle=KB.line; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(0,hy,33,0,6.3); ctx.fill(); ctx.stroke();
+
+  /* 緑の葉（左上をおおう。左端に巻き） */
+  ctx.fillStyle=KB.leaf; ctx.strokeStyle=KB.line; ctx.lineWidth=2.6;
+  ctx.beginPath();
+  ctx.moveTo(-33,hy-2);
+  ctx.bezierCurveTo(-30,hy-26, -12,hy-36, 10,hy-31);
+  ctx.bezierCurveTo(22,hy-28, 30,hy-20, 32,hy-11);
+  ctx.bezierCurveTo(14,hy-19, -8,hy-16, -20,hy-4);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  /* 葉の巻き */
+  ctx.beginPath(); ctx.arc(-22,hy-9,5.2,0.6,5.4); ctx.stroke();
+  /* 右上へ伸びる細い茎 */
+  ctx.lineWidth=2.8;
+  ctx.beginPath(); ctx.moveTo(16,hy-30); ctx.quadraticCurveTo(27,hy-42,22,hy-48); ctx.stroke();
+
+  /* 目（縦長の楕円） */
+  ctx.fillStyle=KB.line;
+  var ey = hy+2, eo = mood==='point' ? 2 : 0;
+  if(mood==='joy'){
+    ctx.strokeStyle=KB.line; ctx.lineWidth=3.4;
+    [-12,12].forEach(function(ex){
+      ctx.beginPath(); ctx.arc(ex,ey+2,7,3.5,6.0); ctx.stroke();
+    });
+  } else {
+    [-12,12].forEach(function(ex){
+      ctx.beginPath(); ctx.ellipse(ex+eo,ey,5,7.4,0,0,6.3); ctx.fill();
+    });
+    if(mood==='sad'){
+      ctx.strokeStyle=KB.line; ctx.lineWidth=2.6;
+      ctx.beginPath(); ctx.moveTo(-19,ey-11); ctx.lineTo(-7,ey-8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(19,ey-11);  ctx.lineTo(7,ey-8);  ctx.stroke();
+    }
+  }
+  /* 小さな鼻と口 */
+  ctx.strokeStyle=KB.line; ctx.lineWidth=2.6;
+  ctx.beginPath(); ctx.arc(0,ey+7,2.6,3.5,6.0); ctx.stroke();
+  ctx.beginPath();
+  if(mood==='sad'){ ctx.moveTo(-5,ey+18); ctx.quadraticCurveTo(0,ey+14,5,ey+18); ctx.stroke(); }
+  else {
+    ctx.fillStyle=KB.line;
+    ctx.ellipse(0,ey+15,6,mood==='joy'?5.6:4.2,0,0,3.14); ctx.fill();
+  }
+  /* 3点の頬印 */
+  ctx.fillStyle=KB.line;
+  [-1,1].forEach(function(sgn){
+    [[20,4],[24,8],[19,10]].forEach(function(p){
+      ctx.beginPath(); ctx.arc(sgn*p[0], ey+p[1], 1.5, 0, 6.3); ctx.fill();
+    });
+  });
+  ctx.restore();
+}
+function mascotFallback(mood){
+  if(MASCOT_SRC[mood]) return MASCOT_SRC[mood];
+  var c = document.createElement('canvas'); c.width=200; c.height=200;
+  var ctx = c.getContext('2d');
+  drawMethankun(ctx,100,104,168,mood);
+  MASCOT_SRC[mood] = c.toDataURL();
+  return MASCOT_SRC[mood];
+}
+var MASCOT_FILE = {normal:'mascot.png', joy:'mascot_joy.png', sad:'mascot_sad.png', point:'mascot_point.png'};
+function setMascot(el, mood){
+  var f = MASCOT_FILE[mood];
+  el.onerror = function(){ el.onerror=null; el.src = mascotFallback(mood); };
+  el.src = 'assets/'+f;
+}
+setMascot($('titleMascot'),'normal');
+
+/* --- パーティクル --- */
+var fx = $('fx'), fxc = fx.getContext('2d'), parts = [];
+function fxResize(){
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  fx.width = 420*dpr; fx.height = 740*dpr;
+  fxc.setTransform(dpr,0,0,dpr,0,0);
+}
+fxResize();
+function burst(x,y,color,n,opt){
+  opt = opt||{};
+  for(var i=0;i<n;i++){
+    var a = Math.random()*Math.PI*2, sp = (opt.sp||1)*(1.4+Math.random()*3.6);
+    parts.push({
+      x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - (opt.up||1.2),
+      life:1, decay:0.012+Math.random()*0.016, r:2+Math.random()*3.4,
+      c:color, g:opt.g===undefined?0.10:opt.g, sq:!!opt.sq
+    });
+  }
+}
+function riseGas(x,y,n){
+  for(var i=0;i<n;i++){
+    parts.push({
+      x:x+(Math.random()-0.5)*40, y:y, vx:(Math.random()-0.5)*0.5, vy:-(0.7+Math.random()*1.4),
+      life:1, decay:0.009, r:2.4+Math.random()*3.6, c:'#3EC8E0', g:-0.005
+    });
+  }
+}
+function stepParts(){
+  fxc.clearRect(0,0,420,740);
+  for(var i=parts.length-1;i>=0;i--){
+    var p = parts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=0.985; p.life-=p.decay;
+    if(p.life<=0){ parts.splice(i,1); continue; }
+    fxc.globalAlpha = Math.max(0,p.life);
+    fxc.fillStyle = p.c;
+    if(p.sq){
+      fxc.save(); fxc.translate(p.x,p.y); fxc.rotate(p.life*7);
+      fxc.fillRect(-p.r,-p.r*0.6,p.r*2,p.r*1.2); fxc.restore();
+    } else {
+      fxc.beginPath(); fxc.arc(p.x,p.y,p.r,0,6.3); fxc.fill();
+    }
+  }
+  fxc.globalAlpha = 1;
+}
+
+/* --- 浮きスコア --- */
+function floatScore(text, x, y, color){
+  var d = document.createElement('div');
+  d.textContent = text;
+  d.style.cssText = 'position:absolute;left:'+x+'px;top:'+y+'px;z-index:35;pointer-events:none;'+
+    'font-size:27px;font-weight:900;color:'+color+';text-shadow:0 2px 0 rgba(255,255,255,.85),0 3px 8px rgba(0,0,0,.2);'+
+    'transform:translate(-50%,-50%);transition:transform .85s cubic-bezier(.2,.9,.3,1),opacity .85s';
+  stage.appendChild(d);
+  requestAnimationFrame(function(){
+    d.style.transform = 'translate(-50%,-160%) scale(1.18)'; d.style.opacity='0';
+  });
+  setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 900);
+}
+var toastT = null;
+function toast(text, color){
+  var t = $('toast');
+  clearTimeout(toastT);
+  t.textContent = text; t.style.color = color;
+  t.style.transition='none'; t.style.opacity='0'; t.style.transform='translate(-50%,-50%) scale(.55)';
+  requestAnimationFrame(function(){
+    t.style.transition='transform .42s cubic-bezier(.2,1.5,.4,1),opacity .42s';
+    t.style.opacity='1'; t.style.transform='translate(-50%,-50%) scale(1)';
+    /* 解説オーバーレイは 850ms で開く。それまでに消えていること */
+    toastT = setTimeout(function(){
+      t.style.transition='opacity .25s'; t.style.opacity='0';
+    }, 300);
+  });
+}
+function shake(){ stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); }
+
+/* --- 自前モーダル（confirm/prompt はキオスク・WebViewで抑止されうるため使わない） --- */
+function modal(o){
+  $('modalTitle').textContent = o.title || '';
+  $('modalBody').innerHTML = o.body || '';
+  var inp = $('modalInput');
+  if(o.value !== undefined){
+    inp.classList.add('on'); inp.value = o.value; inp.readOnly = !!o.readonly;
+  } else {
+    inp.classList.remove('on'); inp.value = '';
+  }
+  $('modalYes').textContent = o.yes || 'OK';
+  $('modalNo').textContent  = o.no  || 'とじる';
+  $('modalNo').classList.toggle('hide', !o.no);
+  function close(){ $('modal').classList.remove('on'); }
+  $('modalYes').onclick = function(){
+    SE.tap();
+    /* onYes が true を返したときは閉じない（コピー・入力エラー時） */
+    if(!(o.onYes && o.onYes() === true)) close();
+  };
+  $('modalNo').onclick = function(){ SE.page(); close(); if(o.onNo) o.onNo(); };
+  $('modal').classList.add('on');
+}
+
+/* --- 画面遷移 --- */
+var SCREENS = ['scTitle','scCourse','scTut','scGame','scFin','scResult','scCards'];
+var current = 'scTitle';
+function show(id){
+  SCREENS.forEach(function(s){ $(s).classList.toggle('on', s===id); });
+  current = id;
+  if(id==='scResult'||id==='scCards') $(id).scrollTop = 0;
+}
+
+/* ============================================================
+   エリア背景の仮描画
+   ============================================================ */
+var artCv = $('gArtCv'), artCtx = artCv.getContext('2d');
+function artResize(){
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  artCv.width = 420*dpr; artCv.height = 168*dpr;
+  artCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+artResize();
+
+function sky(g1,g2){
+  var g = artCtx.createLinearGradient(0,0,0,168);
+  g.addColorStop(0,g1); g.addColorStop(1,g2);
+  artCtx.fillStyle=g; artCtx.fillRect(0,0,420,168);
+}
+function rokko(y,col){
+  artCtx.fillStyle=col; artCtx.beginPath(); artCtx.moveTo(0,y+30);
+  var pts=[[0,18],[52,-2],[104,14],[158,-8],[214,10],[268,-4],[330,16],[396,2],[420,12]];
+  pts.forEach(function(p,i){ i?artCtx.lineTo(p[0],y+p[1]):artCtx.lineTo(p[0],y+p[1]); });
+  artCtx.lineTo(420,168); artCtx.lineTo(0,168); artCtx.closePath(); artCtx.fill();
+}
+function tank(x,y,w,h,fill,band){
+  artCtx.fillStyle=fill; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2.5;
+  artCtx.beginPath();
+  artCtx.moveTo(x,y+h); artCtx.lineTo(x,y+12);
+  artCtx.quadraticCurveTo(x, y-4, x+w/2, y-4);
+  artCtx.quadraticCurveTo(x+w, y-4, x+w, y+12);
+  artCtx.lineTo(x+w,y+h); artCtx.closePath();
+  artCtx.fill(); artCtx.stroke();
+  if(band){ artCtx.fillStyle=band; artCtx.fillRect(x+1.5,y+h*0.42,w-3,7); }
+}
+function truck(x,y,sc){
+  artCtx.save(); artCtx.translate(x,y); artCtx.scale(sc,sc);
+  artCtx.fillStyle='#7CC24E'; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2.4;
+  artCtx.beginPath(); artCtx.roundRect(-30,-20,42,22,5); artCtx.fill(); artCtx.stroke();
+  artCtx.beginPath(); artCtx.roundRect(12,-13,18,15,4); artCtx.fill(); artCtx.stroke();
+  artCtx.fillStyle='#cfe9f5'; artCtx.beginPath(); artCtx.roundRect(16,-10,10,8,2); artCtx.fill();
+  artCtx.fillStyle='#24332B';
+  [[-18,4],[20,4]].forEach(function(w){ artCtx.beginPath(); artCtx.arc(w[0],w[1],6,0,6.3); artCtx.fill(); });
+  artCtx.restore();
+}
+function pipe(x1,y1,x2,y2,col,w){
+  artCtx.strokeStyle=col||'#9fb3a6'; artCtx.lineWidth=w||7; artCtx.lineCap='round';
+  artCtx.beginPath(); artCtx.moveTo(x1,y1); artCtx.lineTo(x2,y2); artCtx.stroke();
+}
+function flowDots(x1,y1,x2,y2,t,col,n){
+  for(var i=0;i<(n||4);i++){
+    var f = ((t*0.4 + i/(n||4)) % 1);
+    artCtx.fillStyle=col; artCtx.globalAlpha=0.9;
+    artCtx.beginPath(); artCtx.arc(x1+(x2-x1)*f, y1+(y2-y1)*f, 3.2, 0, 6.3); artCtx.fill();
+  }
+  artCtx.globalAlpha=1;
+}
+function bldg(x,y,w,h,col,win){
+  artCtx.fillStyle=col; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2.2;
+  artCtx.beginPath(); artCtx.roundRect(x,y,w,h,4); artCtx.fill(); artCtx.stroke();
+  if(win){
+    artCtx.fillStyle=win;
+    for(var r=0;r<Math.floor(h/16);r++) for(var c=0;c<Math.floor(w/16);c++)
+      artCtx.fillRect(x+7+c*16, y+8+r*16, 7, 7);
+  }
+}
+
+function drawArea(areaId, t){
+  artCtx.clearRect(0,0,420,168);
+  if(!artCtx.roundRect){
+    artCtx.roundRect = function(x,y,w,h,r){
+      this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r);
+      this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); this.closePath();
+    };
+  }
+  if(areaId===1){
+    sky('#cfe9f5','#eaf4e6'); rokko(66,'#2b6e4a');
+    bldg(18,74,74,50,'#F6F3EA','#F5A623');
+    bldg(104,86,62,38,'#F6F3EA','#3EC8E0');
+    bldg(178,68,84,56,'#e8ede6','#F5A623');
+    artCtx.fillStyle='#4a5a50'; artCtx.fillRect(0,124,420,44);
+    artCtx.strokeStyle='#F6F3EA'; artCtx.lineWidth=2.5; artCtx.setLineDash([16,14]);
+    artCtx.beginPath(); artCtx.moveTo(0,146); artCtx.lineTo(420,146); artCtx.stroke(); artCtx.setLineDash([]);
+    truck(300 + Math.sin(t*0.7)*10, 132, 1.15);
+    /* ごみ袋 */
+    [[196,116],[214,118],[232,115]].forEach(function(p,i){
+      artCtx.fillStyle=['#7CC24E','#F5A623','#7CC24E'][i];
+      artCtx.beginPath(); artCtx.arc(p[0],p[1]+Math.sin(t*2+i)*1.2,8,0,6.3); artCtx.fill();
+      artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2; artCtx.stroke();
+    });
+  } else if(areaId===2){
+    sky('#eef4ee','#dfe9e0');
+    artCtx.fillStyle='#e4ebe4'; artCtx.fillRect(0,110,420,58);
+    /* ホッパ */
+    artCtx.fillStyle='#F6F3EA'; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.moveTo(120,46); artCtx.lineTo(268,46);
+    artCtx.lineTo(228,112); artCtx.lineTo(160,112); artCtx.closePath();
+    artCtx.fill(); artCtx.stroke();
+    /* 落ちる袋 */
+    for(var i=0;i<4;i++){
+      var yy = 8 + ((t*46 + i*30) % 46);
+      artCtx.fillStyle=['#7CC24E','#F5A623','#3EC8E0','#7CC24E'][i];
+      artCtx.beginPath(); artCtx.arc(150+i*32, yy, 8.5, 0, 6.3); artCtx.fill();
+      artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2; artCtx.stroke();
+    }
+    /* コンベア */
+    artCtx.strokeStyle='#2E7CB8'; artCtx.lineWidth=11; artCtx.lineCap='round';
+    artCtx.beginPath(); artCtx.moveTo(226,112); artCtx.lineTo(396,66); artCtx.stroke();
+    flowDots(232,110,392,68,t,'#7CC24E',5);
+    truck(58,116,1.0);
+  } else if(areaId===3){
+    sky('#eef4ee','#dfe9e0'); artCtx.fillStyle='#e4ebe4'; artCtx.fillRect(0,116,420,52);
+    artCtx.fillStyle='#F6F3EA'; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.roundRect(126,52,168,66,14); artCtx.fill(); artCtx.stroke();
+    /* 回転ドラム */
+    artCtx.save(); artCtx.translate(210,85); artCtx.rotate(t*1.5);
+    artCtx.strokeStyle='#7CC24E'; artCtx.lineWidth=4;
+    for(var k=0;k<4;k++){ artCtx.beginPath(); artCtx.moveTo(0,0);
+      artCtx.lineTo(Math.cos(k*1.571)*24, Math.sin(k*1.571)*24); artCtx.stroke(); }
+    artCtx.strokeStyle='#2E7CB8'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.arc(0,0,25,0,6.3); artCtx.stroke();
+    artCtx.restore();
+    pipe(30,92,124,88,'#2E7CB8',10); flowDots(34,92,120,88,t,'#F5A623',4);
+    /* 2出力 */
+    pipe(296,66,392,44,'#8a9690',8); flowDots(300,65,388,45,t,'#5d6b61',3);
+    pipe(296,104,392,124,'#7CC24E',8); flowDots(300,105,388,123,t,'#7CC24E',3);
+  } else if(areaId===4){
+    sky('#eef4ee','#dfe9e0'); artCtx.fillStyle='#e4ebe4'; artCtx.fillRect(0,118,420,50);
+    artCtx.fillStyle='#F6F3EA'; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.roundRect(150,50,124,70,14); artCtx.fill(); artCtx.stroke();
+    artCtx.fillStyle='#2E7CB8'; artCtx.beginPath(); artCtx.roundRect(162,62,100,20,5); artCtx.fill();
+    /* 缶・ボトル */
+    [[54,74,'#8a9690'],[86,78,'#3EC8E0'],[118,74,'#F6F3EA']].forEach(function(c,i){
+      artCtx.fillStyle=c[2]; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2.2;
+      artCtx.beginPath(); artCtx.roundRect(c[0], c[1]+Math.sin(t*2+i)*2, 15, 26, 4);
+      artCtx.fill(); artCtx.stroke();
+    });
+    pipe(276,104,392,128,'#F5A623',8); flowDots(280,105,388,127,t,'#F5A623',3);
+    pipe(276,68,392,48,'#8a9690',8);  flowDots(280,68,388,49,t,'#5d6b61',3);
+  } else if(areaId===5){
+    sky('#cfe9f5','#eaf4e6'); rokko(72,'#2b6e4a');
+    artCtx.fillStyle='#dfe9e0'; artCtx.fillRect(0,132,420,36);
+    tank(146,24,134,108,'#F6F3EA','#1D5C3C');
+    /* 中身 */
+    artCtx.save();
+    artCtx.beginPath(); artCtx.rect(150,72,126,58); artCtx.clip();
+    artCtx.fillStyle='#8a7a4e'; artCtx.fillRect(148,72,130,60);
+    for(var b=0;b<11;b++){
+      var by = 130 - ((t*30 + b*20) % 62);
+      artCtx.fillStyle='rgba(62,200,224,.85)';
+      artCtx.beginPath(); artCtx.arc(160+((b*37)%110), by, 3+((b*7)%4), 0, 6.3); artCtx.fill();
+    }
+    artCtx.restore();
+    /* ガス層 */
+    artCtx.fillStyle='rgba(62,200,224,.34)'; artCtx.fillRect(150,40,126,32);
+    /* 撹拌軸 */
+    artCtx.strokeStyle='#5d6b61'; artCtx.lineWidth=4;
+    artCtx.beginPath(); artCtx.moveTo(213,32); artCtx.lineTo(213,120); artCtx.stroke();
+    artCtx.save(); artCtx.translate(213,106); artCtx.scale(Math.cos(t*2.2),1);
+    artCtx.strokeStyle='#5d6b61'; artCtx.lineWidth=5;
+    artCtx.beginPath(); artCtx.moveTo(-24,0); artCtx.lineTo(24,0); artCtx.stroke(); artCtx.restore();
+    pipe(213,22,378,22,'#3EC8E0',7); flowDots(213,22,374,22,t,'#3EC8E0',4);
+    pipe(40,110,146,110,'#7CC24E',8); flowDots(44,110,142,110,t,'#7CC24E',3);
+  } else if(areaId===6){
+    sky('#cfe9f5','#eaf4e6'); rokko(78,'#2b6e4a');
+    artCtx.fillStyle='#dfe9e0'; artCtx.fillRect(0,132,420,36);
+    tank(120,46,116,86,'#F6F3EA','#2E7CB8');
+    /* たまったガス */
+    var lv = 0.62 + Math.sin(t*0.9)*0.09;
+    artCtx.save(); artCtx.beginPath(); artCtx.rect(124,50,108,80); artCtx.clip();
+    artCtx.fillStyle='rgba(62,200,224,.72)';
+    artCtx.fillRect(124, 130-80*lv, 108, 80*lv);
+    artCtx.fillStyle='rgba(255,255,255,.5)'; artCtx.fillRect(124,130-80*lv,108,4);
+    artCtx.restore();
+    artCtx.strokeStyle='#2E7CB8'; artCtx.lineWidth=2.5;
+    artCtx.strokeRect(124,50,108,80);
+    pipe(30,96,120,96,'#3EC8E0',7); flowDots(34,96,116,96,t,'#3EC8E0',3);
+    pipe(236,96,392,96,'#3EC8E0',7); flowDots(240,96,388,96,t,'#3EC8E0',4);
+    /* バルブ */
+    artCtx.strokeStyle='#5d6b61'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.arc(300,80,11,0,6.3); artCtx.stroke();
+  } else {
+    sky('#cfe9f5','#eaf4e6'); rokko(74,'#2b6e4a');
+    artCtx.fillStyle='#dfe9e0'; artCtx.fillRect(0,128,420,40);
+    /* 発電機コンテナ */
+    artCtx.fillStyle='#1D5C3C'; artCtx.strokeStyle='#14432c'; artCtx.lineWidth=2.5;
+    artCtx.beginPath(); artCtx.roundRect(96,74,142,54,9); artCtx.fill(); artCtx.stroke();
+    artCtx.fillStyle='#F6F3EA';
+    for(var v=0;v<6;v++) artCtx.fillRect(108+v*21, 86, 13, 30);
+    /* 脱臭塔 */
+    artCtx.fillStyle='#7CC24E'; artCtx.strokeStyle='#1D5C3C'; artCtx.lineWidth=2.5;
+    artCtx.beginPath(); artCtx.roundRect(30,58,26,70,8); artCtx.fill(); artCtx.stroke();
+    artCtx.fillStyle='#2E7CB8';
+    artCtx.beginPath(); artCtx.roundRect(62,72,20,56,7); artCtx.fill(); artCtx.stroke();
+    for(var p2=0;p2<3;p2++){
+      var pa = 1 - ((t*0.5 + p2*0.33) % 1);
+      artCtx.globalAlpha = pa*0.6; artCtx.fillStyle='#fff';
+      artCtx.beginPath(); artCtx.arc(43, 54 - (1-pa)*26, 5+(1-pa)*4, 0, 6.3); artCtx.fill();
+    }
+    artCtx.globalAlpha=1;
+    pipe(0,100,96,100,'#3EC8E0',7); flowDots(0,100,92,100,t,'#3EC8E0',3);
+    /* 送電 */
+    artCtx.strokeStyle='#5d6b61'; artCtx.lineWidth=3;
+    [286,340].forEach(function(px){
+      artCtx.beginPath(); artCtx.moveTo(px,128); artCtx.lineTo(px,60); artCtx.stroke();
+      artCtx.beginPath(); artCtx.moveTo(px-11,66); artCtx.lineTo(px+11,66); artCtx.stroke();
+    });
+    artCtx.strokeStyle='#8a9690'; artCtx.lineWidth=2;
+    artCtx.beginPath(); artCtx.moveTo(238,90); artCtx.quadraticCurveTo(262,78,286,68); artCtx.stroke();
+    artCtx.beginPath(); artCtx.moveTo(286,68); artCtx.quadraticCurveTo(313,80,340,68); artCtx.stroke();
+    flowDots(238,90,286,68,t,'#F5A623',3); flowDots(286,68,340,68,t,'#F5A623',3);
+    /* まち */
+    bldg(356,84,20,44,'#F6F3EA','#F5A623');
+    bldg(382,96,18,32,'#F6F3EA','#F5A623');
+    artCtx.strokeStyle='#F5A623'; artCtx.lineWidth=3;
+    artCtx.beginPath(); artCtx.moveTo(368,84); artCtx.lineTo(368,56); artCtx.stroke();
+  }
+}
+
+/* ============================================================
+   タイトル背景の粒
+   ============================================================ */
+var tfCv = $('titleFall'), tfc = tfCv.getContext('2d'), tfParts = [];
+function tfResize(){
+  var dpr = Math.min(window.devicePixelRatio||1,2);
+  tfCv.width=420*dpr; tfCv.height=740*dpr; tfc.setTransform(dpr,0,0,dpr,0,0);
+}
+tfResize();
+for(var ti=0;ti<26;ti++){
+  tfParts.push({x:Math.random()*420, y:Math.random()*740, r:1.6+Math.random()*3.4,
+    v:0.16+Math.random()*0.5, a:0.2+Math.random()*0.4, c: Math.random()<0.5?'#3EC8E0':'#7CC24E'});
+}
+function stepTitle(){
+  tfc.clearRect(0,0,420,740);
+  tfParts.forEach(function(p){
+    p.y -= p.v; if(p.y < -8){ p.y = 748; p.x = Math.random()*420; }
+    tfc.globalAlpha = p.a; tfc.fillStyle = p.c;
+    tfc.beginPath(); tfc.arc(p.x,p.y,p.r,0,6.3); tfc.fill();
+  });
+  tfc.globalAlpha = 1;
+}
+
+/* ============================================================
+   フィナーレ
+   ============================================================ */
+var finCv = $('finCv'), finc = finCv.getContext('2d'), finLights = [], finT = 0;
+function finResize(){
+  var dpr = Math.min(window.devicePixelRatio||1,2);
+  finCv.width=420*dpr; finCv.height=740*dpr; finc.setTransform(dpr,0,0,dpr,0,0);
+}
+finResize();
+function buildFinale(litRatio){
+  finLights = [];
+  var i, bx = 8;
+  while(bx < 412){
+    var bw = 26+Math.random()*30, bh = 60+Math.random()*130;
+    var by = 560 - bh;
+    for(var r=0;r<Math.floor(bh/22);r++){
+      for(var c=0;c<Math.floor(bw/16);c++){
+        finLights.push({x:bx+7+c*16, y:by+12+r*22, w:7, h:9,
+          lit:Math.random()<litRatio, t:Math.random()*3, bx:bx, bw:bw, by:by, bh:bh});
+      }
+    }
+    finLights.push({build:true, x:bx, y:by, w:bw, h:bh});
+    bx += bw + 5 + Math.random()*10;
+  }
+}
+function stepFinale(dt){
+  finT += dt;
+  finc.clearRect(0,0,420,740);
+  if(!IMG['finale_kobe_night.png']){
+    var g = finc.createLinearGradient(0,0,0,740);
+    g.addColorStop(0,'#0e2033'); g.addColorStop(0.5,'#1b3f52'); g.addColorStop(1,'#0d1a16');
+    finc.fillStyle=g; finc.fillRect(0,0,420,740);
+    finc.fillStyle='rgba(255,255,255,.7)';
+    for(var s=0;s<40;s++){
+      var sx=(s*137)%420, sy=(s*89)%300;
+      finc.globalAlpha = 0.3+0.5*Math.abs(Math.sin(finT+s));
+      finc.fillRect(sx,sy,2,2);
+    }
+    finc.globalAlpha=1;
+    /* 六甲 */
+    finc.fillStyle='#0b2b1c'; finc.beginPath(); finc.moveTo(0,400);
+    [[0,-40],[70,-72],[150,-30],[230,-84],[320,-40],[420,-64]].forEach(function(p){ finc.lineTo(p[0],400+p[1]); });
+    finc.lineTo(420,740); finc.lineTo(0,740); finc.closePath(); finc.fill();
+    /* 海 */
+    finc.fillStyle='#0c2a3d'; finc.fillRect(0,560,420,180);
+  }
+  finLights.forEach(function(L){
+    if(L.build){
+      finc.fillStyle = IMG['finale_kobe_night.png'] ? 'rgba(10,25,20,.35)' : '#12332a';
+      finc.fillRect(L.x,L.y,L.w,L.h);
+      return;
+    }
+    if(!L.lit) return;
+    var fl = 0.72 + 0.28*Math.sin(finT*2.2 + L.t*4);
+    finc.globalAlpha = fl;
+    finc.fillStyle = '#F5A623';
+    finc.fillRect(L.x,L.y,L.w,L.h);
+    finc.globalAlpha = fl*0.22;
+    finc.fillRect(L.x-3,L.y-3,L.w+6,L.h+6);
+  });
+  finc.globalAlpha=1;
+  /* 送電のパルス */
+  for(var k=0;k<5;k++){
+    var f = ((finT*0.28 + k*0.2) % 1);
+    finc.globalAlpha = 0.85*(1-Math.abs(f-0.5)*1.2);
+    finc.fillStyle='#3EC8E0';
+    finc.beginPath(); finc.arc(f*420, 606 - Math.sin(f*3.14)*16, 4.4, 0, 6.3); finc.fill();
+  }
+  finc.globalAlpha=1;
+}
+
+/* ============================================================
+   認定証メダル
+   ============================================================ */
+function drawMedal(color){
+  var c = $('certMedal'), x = c.getContext('2d');
+  x.clearRect(0,0,132,132);
+  x.save(); x.translate(66,66);
+  /* リボン */
+  x.fillStyle='#2E7CB8';
+  x.beginPath(); x.moveTo(-24,10); x.lineTo(-40,58); x.lineTo(-16,46); x.lineTo(-6,16); x.closePath(); x.fill();
+  x.fillStyle='#1D5C3C';
+  x.beginPath(); x.moveTo(24,10); x.lineTo(40,58); x.lineTo(16,46); x.lineTo(6,16); x.closePath(); x.fill();
+  /* 外周 */
+  for(var i=0;i<18;i++){
+    x.save(); x.rotate(i*Math.PI/9); x.fillStyle=color;
+    x.beginPath(); x.ellipse(0,-40,6,10,0,0,6.3); x.fill(); x.restore();
+  }
+  x.beginPath(); x.arc(0,0,36,0,6.3); x.fillStyle=color; x.fill();
+  x.lineWidth=4; x.strokeStyle='rgba(255,255,255,.6)'; x.stroke();
+  x.beginPath(); x.arc(0,0,27,0,6.3); x.fillStyle='rgba(255,255,255,.28)'; x.fill();
+  /* 中央に葉 */
+  x.fillStyle='#fff';
+  x.beginPath(); x.moveTo(0,-16); x.bezierCurveTo(15,-8,15,10,0,18);
+  x.bezierCurveTo(-15,10,-15,-8,0,-16); x.closePath(); x.fill();
+  x.strokeStyle=color; x.lineWidth=2.4;
+  x.beginPath(); x.moveTo(0,-14); x.lineTo(0,16); x.stroke();
+  x.restore();
+}
+
+/* ============================================================
+   ゲーム進行
+   ============================================================ */
+var G = null;
+
+function newGame(course){
+  var seed = (Date.now() ^ (Math.random()*0xffffffff)) >>> 0;
+  var rnd = CORE.rng(seed);
+  G = {
+    course: course,
+    qs: CORE.pickQuestions(QUIZ_QUESTIONS, course, rnd),
+    idx: 0, score: 0, correct: 0, streak: 0, bestStreak: 0,
+    gas: 0, newCards: [], answered: false, timeLeft: 0, timeLimit: 0,
+    resp: null, running: false, rnd: rnd
+  };
+  buildRail();
+  renderQuestion();
+  show('scGame');
+  G.running = true;
+}
+
+function buildRail(){
+  var rail = $('gRail'); rail.innerHTML='';
+  for(var i=0;i<AREAS.length;i++){
+    var d = document.createElement('div'); d.className='railStep';
+    d.innerHTML = '<span>'+(i+1)+'</span>';
+    rail.appendChild(d);
+  }
+}
+function syncRail(){
+  var cur = G.qs[G.idx] ? G.qs[G.idx].area : 7;
+  var steps = $('gRail').children;
+  for(var i=0;i<steps.length;i++){
+    steps[i].className = 'railStep' + (AREAS[i].id < cur ? ' done' : (AREAS[i].id===cur ? ' cur' : ''));
+  }
+}
+function syncMeter(){
+  var pct = Math.round(G.gas/TOTAL_Q*100);
+  $('gMeterFill').style.width = pct+'%';
+  $('gMeterPct').textContent = pct;
+}
+
+function renderQuestion(){
+  var q = G.qs[G.idx];
+  G.answered = false; G.resp = null;
+  G.timeLimit = TIME_LIMIT[G.course][q.type];
+  G.timeLeft = G.timeLimit;
+
+  syncRail(); syncMeter();
+  var area = AREAS[q.area-1];
+  $('gAreaNo').textContent = 'エリア'+q.area;
+  $('gAreaName').textContent = area.name;
+  $('gArtImg').style.backgroundImage = IMG[area.img] ? 'url(assets/'+area.img+')' : 'none';
+  $('gArtImg').style.display = IMG[area.img] ? 'block' : 'none';
+
+  $('gQNo').textContent = 'だい'+(G.idx+1)+'もん / '+TOTAL_Q;
+  $('gType').textContent = TYPE_LABEL[q.type];
+  $('gQ').innerHTML = CORE.rubify(q.q);
+  $('gHint').innerHTML = TYPE_HINT[q.type] + (q.type==='findbad'
+    ? '　<b><span id="findLeft"></span></b>' : '');
+  /* コンボ表示は前回プレイの残りが出ないよう毎問リセットする */
+  $('gCombo').classList.toggle('on', G.streak>=2);
+  $('gCombo').textContent = G.streak>=2 ? '🔥 '+G.streak+'れんぞく' : '';
+  $('gTimerFill').style.width = '100%';
+  $('gTimerFill').className = '';
+
+  var box = $('gAns'); box.innerHTML = '';
+  if(q.type==='choice3')      buildChoice(box,q);
+  else if(q.type==='truefalse') buildTF(box,q);
+  else if(q.type==='sort2')     buildSort(box,q);
+  else if(q.type==='order')     buildOrder(box,q);
+  else                          buildFind(box,q);
+}
+
+/* ---- 3たく ---- */
+function buildChoice(box,q){
+  var keys=['A','B','C'];
+  var order = CORE.shuffle([0,1,2], G.rnd);
+  box.dataset.map = order.join(',');
+  order.forEach(function(oi,pos){
+    var b = document.createElement('button');
+    b.className='ansBtn'; b.dataset.oi = oi;
+    b.innerHTML = '<span class="k">'+keys[pos]+'</span><span>'+CORE.rubify(q.choices[oi])+'</span>';
+    b.onclick = function(){ if(G.answered) return; SE.tap(); submit(oi, b); };
+    box.appendChild(b);
+  });
+}
+/* ---- ○× ---- */
+function buildTF(box,q){
+  var w = document.createElement('div'); w.className='tfWrap';
+  [[true,'◯','そうだと おもう'],[false,'✕','ちがうと おもう']].forEach(function(o){
+    var b = document.createElement('button');
+    b.className='tfBtn '+(o[0]?'o':'x');
+    b.innerHTML = '<span class="mk">'+o[1]+'</span><span class="lb">'+o[2]+'</span>';
+    b.onclick = function(){ if(G.answered) return; SE.tap(); submit(o[0], b); };
+    w.appendChild(b);
+  });
+  box.appendChild(w);
+}
+/* ---- なかまわけ ---- */
+function buildSort(box,q){
+  var st = document.createElement('div'); st.id='sortStage';
+  st.innerHTML =
+    '<div id="sortProg">なかまわけ <b><span id="sortN">1</span></b> / '+q.items.length+'</div>'+
+    '<div id="sortItem"></div>'+
+    '<div id="sortBins"></div>';
+  box.appendChild(st);
+  var seq = CORE.shuffle(q.items.map(function(_,i){return i;}), G.rnd);
+  var picked = new Array(q.items.length), pos = 0;
+  G.resp = picked;
+  function showItem(){
+    $('sortItem').innerHTML = CORE.rubify(q.items[seq[pos]].label);
+    $('sortItem').style.animation='none'; void $('sortItem').offsetWidth; $('sortItem').style.animation='';
+    $('sortN').textContent = pos+1;
+  }
+  var bins = [];
+  q.bins.forEach(function(bn, bi){
+    var b = document.createElement('button');
+    b.className='binBtn'; b.innerHTML = CORE.rubify(bn);
+    bins.push(b);
+    b.onclick = function(){
+      if(G.answered || $('sortBins').style.pointerEvents==='none') return;
+      var it = seq[pos];
+      picked[it] = bi;
+      var right = (q.items[it].bin === bi);
+      /* 送りを待たずに次の題を出すと「何を間違えたか」が分からないまま流れる。
+         420ms は正誤を見せるための間。入力もその間ロックする。 */
+      $('sortBins').style.pointerEvents = 'none';
+      b.classList.add(right?'hitOk':'hitNg');
+      $('sortItem').classList.add(right?'okFly':'ngFly');
+      if(right){
+        SE.gain();
+        burst(bi ? 320 : 100, 660, '#7CC24E', 9, {sp:0.7});
+      } else {
+        SE.tick();
+        /* 正しかったほうの受け皿を光らせて教える */
+        bins[q.items[it].bin].classList.add('hitOk');
+      }
+      setTimeout(function(){
+        bins.forEach(function(x){ x.classList.remove('hitOk','hitNg'); });
+        $('sortItem').classList.remove('okFly','ngFly');
+        $('sortBins').style.pointerEvents = '';
+        pos++;
+        if(pos >= seq.length) submit(picked, null);
+        else showItem();
+      }, 420);
+    };
+    $('sortBins').appendChild(b);
+  });
+  showItem();
+}
+/* ---- じゅんばんならべ ---- */
+function buildOrder(box,q){
+  var n = q.steps.length;
+  var st = document.createElement('div'); st.id='orderStage';
+  st.innerHTML = '<div id="orderSlots"></div><div id="orderPool"></div>';
+  box.appendChild(st);
+  var slots = $('orderSlots'), pool = $('orderPool');
+  var placed = [];
+  G.resp = placed;
+  for(var i=0;i<n;i++){
+    var s = document.createElement('div'); s.className='slot'; s.dataset.pos = i;
+    s.innerHTML = '<span class="n">'+(i+1)+'</span><span class="tx">ここに いれてね</span>';
+    slots.appendChild(s);
+  }
+  var order = CORE.shuffle(q.steps.map(function(_,i){return i;}), G.rnd);
+  order.forEach(function(oi){
+    var b = document.createElement('button'); b.className='poolBtn'; b.dataset.oi = oi;
+    b.innerHTML = CORE.rubify(q.steps[oi]);
+    b.onclick = function(){
+      if(G.answered || placed.length>=n) return;
+      SE.tap();
+      placed.push(oi); b.classList.add('used');
+      redraw();
+      if(placed.length===n) setTimeout(function(){ submit(placed, null); }, 380);
+    };
+    pool.appendChild(b);
+  });
+  function redraw(){
+    for(var i=0;i<n;i++){
+      var s = slots.children[i];
+      if(i < placed.length){
+        s.className='slot filled';
+        s.children[1].innerHTML = CORE.rubify(q.steps[placed[i]]);
+        s.onclick = (function(ii){ return function(){
+          if(G.answered || ii !== placed.length-1) return;
+          SE.page();
+          var back = placed.pop();
+          Array.prototype.forEach.call(pool.children, function(pb){
+            if(+pb.dataset.oi === back) pb.classList.remove('used');
+          });
+          redraw();
+        };})(i);
+      } else {
+        s.className='slot'; s.children[1].innerHTML='ここに いれてね'; s.onclick=null;
+      }
+    }
+  }
+}
+/* ---- さがせ ---- */
+function buildFind(box,q){
+  var st = document.createElement('div'); st.id='findStage';
+  st.innerHTML = '<div id="findGrid"></div><button class="btn flame" id="findGo">これで けってい</button>';
+  box.appendChild(st);
+  var sel = [];
+  G.resp = sel;
+  var nBad = 0;
+  q.grid.forEach(function(g){ if(g.bad) nBad++; });
+  /* 何個さがすのかを必ず開示する。個数非開示＋完全一致判定は小学生には理不尽 */
+  function syncLeft(){
+    var el = $('findLeft');
+    if(el) el.textContent = 'あと '+Math.max(0, nBad-sel.length)+'こ';
+  }
+  var order = CORE.shuffle(q.grid.map(function(_,i){return i;}), G.rnd);
+  order.forEach(function(gi){
+    var c = document.createElement('button'); c.className='findCell'; c.dataset.gi = gi;
+    c.innerHTML = CORE.rubify(q.grid[gi].label);
+    c.onclick = function(){
+      if(G.answered) return;
+      var p = sel.indexOf(gi);
+      if(p>=0){ sel.splice(p,1); c.classList.remove('sel'); SE.page(); }
+      else { sel.push(gi); c.classList.add('sel'); SE.tap(); }
+      $('findGo').disabled = sel.length===0;
+      syncLeft();
+    };
+    $('findGrid').appendChild(c);
+  });
+  $('findGo').disabled = true;
+  syncLeft();
+  $('findGo').onclick = function(){ if(G.answered) return; SE.tap(); submit(sel, null); };
+}
+
+/* ---- 回答確定 ---- */
+function submit(resp, srcBtn){
+  if(G.answered) return;
+  G.answered = true; G.resp = resp;
+  var q = G.qs[G.idx];
+  var res = CORE.checkAnswer(q, resp);
+  G.streak = res.correct ? G.streak+1 : 0;
+  if(G.streak > G.bestStreak) G.bestStreak = G.streak;
+  var sc = CORE.scoreFor({ratio:res.ratio, timeLeft:G.timeLeft, timeLimit:G.timeLimit, streak:G.streak});
+  G.score += sc.total;
+  G.gas += res.ratio;
+  if(res.correct) G.correct++;
+
+  revealAnswer(q, resp, res);
+  syncMeter();
+
+  if(res.correct){
+    SE.ok();
+    burst(210, 300, '#7CC24E', 26, {sq:true});
+    burst(210, 300, '#F5A623', 16, {sp:1.2});
+    riseGas(210, 260, 14);
+    floatScore('+'+sc.total, 210, 300, '#F5A623');
+    if(G.streak>=3) toast(G.streak+'れんぞく！', '#F5A623');
+  } else {
+    SE.ng(); shake();
+    if(sc.total>0) floatScore('+'+sc.total, 210, 300, '#5d6b61');
+  }
+  $('gCombo').classList.toggle('on', G.streak>=2);
+  $('gCombo').textContent = G.streak>=2 ? '🔥 '+G.streak+'れんぞく' : '';
+
+  /* カード獲得 */
+  var gotCard = null;
+  if(res.correct && !save.cards[q.cardId]){
+    save.cards[q.cardId] = 1;
+    gotCard = QUIZ_CARDS.filter(function(c){ return c.id===q.cardId; })[0];
+    if(gotCard) G.newCards.push(gotCard);
+  }
+  /* 解説オーバーレイを出す前に、正解／不正解のマーキングを見る「間」を取る。
+     とくに不正解時は、どれが正解だったかを見せてから隠すこと。 */
+  setTimeout(function(){ showFeedback(q, res, sc, gotCard); }, res.correct ? 850 : 1350);
+}
+
+function revealAnswer(q, resp, res){
+  var box = $('gAns'), i;
+  if(q.type==='choice3'){
+    Array.prototype.forEach.call(box.children, function(b){
+      var oi = +b.dataset.oi;
+      if(oi===q.answer) b.classList.add('ok');
+      else if(oi===resp) b.classList.add('ng');
+      else b.classList.add('dim');
+    });
+  } else if(q.type==='truefalse'){
+    var btns = box.children[0].children;
+    var yes = btns[0], no = btns[1];
+    (q.answer?yes:no).classList.add('ok');
+    if(resp!==q.answer) (resp?yes:no).classList.add('ng');
+  } else if(q.type==='findbad'){
+    Array.prototype.forEach.call($('findGrid').children, function(c){
+      var gi = +c.dataset.gi, sel = resp.indexOf(gi)>=0, bad = q.grid[gi].bad;
+      if(bad && sel) c.classList.add('ok');
+      else if(bad && !sel) c.classList.add('miss');
+      else if(!bad && sel) c.classList.add('ng');
+    });
+    $('findGo').disabled = true;
+  } else if(q.type==='order'){
+    var slots = $('orderSlots').children;
+    for(i=0;i<slots.length;i++){
+      if(resp[i]===undefined) continue;
+      slots[i].classList.add(resp[i]===i ? 'ok':'ng');
+      if(resp[i]!==i) slots[i].children[1].innerHTML = CORE.rubify(q.steps[i]) + '　←せいかい';
+    }
+  }
+}
+
+function showFeedback(q, res, sc, gotCard){
+  var ok = res.correct;
+  $('fbVerdict').className = ok?'ok':'ng';
+  $('fbVerdict').textContent = ok ? 'せいかい！' : 'おしい！';
+  var extra = '';
+  if(q.type==='sort2')  extra = '（'+res.detail+'/'+q.items.length+'こ せいかい）';
+  if(q.type==='order')  extra = '（'+res.detail+'/'+q.steps.length+'こ あってた）';
+  if(q.type==='findbad')extra = '（'+res.detail+'こ 見つけた）';
+  $('fbGain').textContent = '+'+sc.total+'てん'+(sc.mult>1?'　×'+sc.mult.toFixed(1)+'ボーナス':'')+extra;
+  setMascot($('fbMascot'), ok?'joy':'sad');
+  $('fbExp').innerHTML = CORE.rubify(q.exp);
+  if(gotCard){
+    $('fbCardGot').classList.add('on');
+    $('fbCardGot').querySelector('.tx').innerHTML = 'はかせカード ゲット！<br><b>'+CORE.escapeHtml(gotCard.title)+'</b>';
+    SE.card();
+  } else {
+    $('fbCardGot').classList.remove('on');
+  }
+  $('fbNext').textContent = (G.idx>=TOTAL_Q-1) ? 'けっかを みる ▶' : 'つぎへ ▶';
+  $('fb').classList.add('on');
+  /* 放置しても止まらないよう自動送り。タップで即送りは維持（仕様書） */
+  var bar = $('fbAuto');
+  bar.style.transition = 'none'; bar.style.width = '0%';
+  requestAnimationFrame(function(){
+    bar.style.transition = 'width 9s linear'; bar.style.width = '100%';
+  });
+  clearTimeout(G.autoNextT);
+  G.autoNextT = setTimeout(function(){
+    if($('fb').classList.contains('on')) nextQuestion();
+  }, 9000);
+}
+
+function nextQuestion(){
+  if(!G || G.advancing) return;
+  G.advancing = true;
+  clearTimeout(G.autoNextT);
+  $('fb').classList.remove('on');
+  G.idx++;
+  if(G.idx >= TOTAL_Q){ G.advancing = false; startFinale(); return; }
+  renderQuestion();
+  /* 「つぎへ」の二度押しが、差し替わった直後の回答ボタンに着弾するのを防ぐ。
+     小学生は必ず連打するので、この 380ms は削らないこと。 */
+  $('gAns').style.pointerEvents = 'none';
+  setTimeout(function(){
+    $('gAns').style.pointerEvents = '';
+    if(G) G.advancing = false;
+  }, 380);
+}
+
+function timeUp(){
+  if(G.answered) return;
+  var q = G.qs[G.idx];
+  var resp;
+  if(q.type==='choice3') resp = -1;
+  else if(q.type==='truefalse') resp = null;
+  else if(q.type==='sort2'){ resp = G.resp || []; }
+  else if(q.type==='order'){ resp = G.resp || []; }
+  else resp = G.resp || [];
+  G.timeLeft = 0;
+  submit(resp, null);
+}
+
+/* ============================================================
+   フィナーレ → リザルト
+   ============================================================ */
+function startFinale(){
+  var ratio = G.correct/TOTAL_Q;
+  /* 今回の出来に加えて、これまでの累計正解でも街が明るくなる（永続報酬）。
+     カードは2〜3周で揃うので、その後の再訪動機はここが担う。 */
+  var lifetime = Math.min(1, (save.totalCorrect + G.correct) / 200);
+  buildFinale(0.12 + ratio*0.55 + lifetime*0.33);
+  var pct = Math.round(G.gas/TOTAL_Q*100);
+  $('finTitle').innerHTML = 'まちに<br>あかりが ついた！';
+  $('finSub').innerHTML = 'ガスメーター <b style="color:#3EC8E0;font-size:20px">'+pct+'%</b><br>'+
+    'せいかい '+G.correct+' / '+TOTAL_Q+' もん';
+  show('scFin'); SE.fin();
+  $('finSkip').classList.remove('on');
+  $('scFin').onclick = null;
+  setTimeout(function(){ if(current==='scFin') showResult(); }, 5200);
+  /* 直前の「けっかを みる」連打で本作の情緒的ピークが0秒でスキップされないよう、
+     タップ受付は 1.1秒 遅らせる。 */
+  setTimeout(function(){
+    if(current !== 'scFin') return;
+    $('finSkip').classList.add('on');
+    $('scFin').onclick = function(){ if(current==='scFin') showResult(); };
+  }, 1100);
+}
+
+function showResult(){
+  $('scFin').onclick = null;
+  var rank = CORE.rankFor(G.correct);
+  var pct = Math.round(G.gas/TOTAL_Q*100);
+
+  save.plays++;
+  save.totalCorrect += G.correct;
+  var isBest = G.score > save.best;
+  if(isBest){ save.best = G.score; save.bestRank = rank.name; }
+  writeSave();
+
+  $('certRank').textContent = rank.name;
+  $('certRank').style.color = rank.color;
+  drawMedal(rank.color);
+  $('certScore').innerHTML = 'スコア <em>'+G.score+'</em> てん<br>'+
+    'せいかい '+G.correct+' / '+TOTAL_Q+' もん　ガス '+pct+'%';
+  var d = new Date();
+  $('certDate').innerHTML =
+    d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日　'+
+    (G.course==='junior'?'ジュニアコース':'マスターコース')+'<br>'+
+    'バイオガスKOBE ／ 株式会社コベック様';
+
+  $('rsStats').innerHTML =
+    stat('さいこう れんぞく', G.bestStreak+'<small> もん</small>') +
+    stat('ベストスコア', (isBest?'🎉 ':'')+save.best+'<small> てん</small>') +
+    stat('はかせカード', Object.keys(save.cards).length+'<small> / '+QUIZ_CARDS.length+'まい</small>') +
+    stat('ともした あかり', save.totalCorrect+'<small> こ（るいけい）</small>');
+
+  /* 5,000MWh・1,500世帯は「同じ敷地にある バイオガス発電所」の数値。
+     コベック様の施設の実績として書かないこと（主語を必ず分ける）。
+     全問不正解でも 0けん と出さない（最後まで到達できる設計と矛盾するため）。 */
+  var homes = Math.max(120, Math.round(1500 * (G.gas/TOTAL_Q)));
+  $('rsImpact').innerHTML =
+    'きみが バイオガスKOBEで つくった ガスは、<br>となりの はつでんしょで でんきに なるよ。<br>'+
+    '1年つづけると まちの おうち <b>やく'+homes+'けん</b> ぶん！<br>'+
+    '<span style="font-size:11px;opacity:.85">※ となりの バイオガスはつでんしょの 年間 約5,000MWh'+
+    '（一般家庭 約1,500世帯分）を もとにした がいさんです</span>';
+
+  if(G.newCards.length){
+    var h = '<h3>🏅 あたらしく もらった カード '+G.newCards.length+'まい</h3>';
+    G.newCards.forEach(function(c){ h += '<div class="miniCard">'+CORE.escapeHtml(c.title)+'</div>'; });
+    $('rsNewCards').innerHTML = h;
+  } else $('rsNewCards').innerHTML = '';
+
+  show('scResult');
+  /* 紙吹雪は認定証の外側（左右の縁）から降らせる。
+     中央で炸裂させると肝心のランク・スコアが隠れて読めなくなるため。 */
+  setTimeout(function(){
+    [[16,120],[404,120],[42,60],[378,60]].forEach(function(p,i){
+      burst(p[0], p[1], [rank.color,'#7CC24E','#3EC8E0','#F5A623'][i], 11, {sq:true, sp:0.9, up:-0.6, g:0.16});
+    });
+    SE.card();
+  }, 250);
+}
+function stat(l,v){ return '<div class="stat"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>'; }
+
+/* ============================================================
+   はかせカード（図鑑）
+   ============================================================ */
+function showCards(from){
+  var got = Object.keys(save.cards).length;
+  $('cdCount').textContent = got+' / '+QUIZ_CARDS.length+' まい';
+  $('cdBarFill').style.width = (got/QUIZ_CARDS.length*100)+'%';
+  var h='';
+  AREAS.forEach(function(a){
+    var list = QUIZ_CARDS.filter(function(c){ return c.area===a.id; });
+    if(!list.length) return;
+    h += '<div class="cdArea"><h3>エリア'+a.id+'　'+CORE.escapeHtml(a.name)+'</h3>';
+    list.forEach(function(c){
+      var have = !!save.cards[c.id];
+      h += '<div class="cdItem'+(have?'':' locked')+'">'+
+        '<div class="t"><span class="no">'+CORE.escapeHtml(c.id.toUpperCase())+'</span>'+
+        (have?CORE.escapeHtml(c.title):'？？？')+'</div>'+
+        '<div class="b">'+(have?CORE.rubify(c.body):'クイズに せいかいすると よめるように なるよ。')+'</div></div>';
+    });
+    h += '</div>';
+  });
+  $('cdList').innerHTML = h;
+  $('cdBack').dataset.from = from;
+  show('scCards');
+}
+
+/* ============================================================
+   チュートリアル
+   ============================================================ */
+var TUT = [
+  {m:'point', t:'こんにちは！ ぼくは <b>メタンくん</b>。<br>こうべの こうじょう <b>バイオガスKOBE</b> で<br>はたらいて いるよ。'},
+  {m:'normal',t:'たべものの ごみが <b>ガス</b>に なって、<br><b>でんき</b>に かわるまでの 7つの エリアを<br>いっしょに たんけん しよう！'},
+  {m:'joy',   t:'クイズに せいかいすると <b>ガスメーター</b>が たまって、<br>さいごに 神戸の まちに あかりが つくよ。<br>じゃあ、いってみよう！'}
+];
+var tutI = 0, tutCourse = 'junior';
+function showTut(course){
+  tutCourse = course; tutI = 0; renderTut(); show('scTut');
+}
+function renderTut(){
+  var t = TUT[tutI];
+  setMascot($('tutMascot'), t.m);
+  $('tutText').innerHTML = t.t;
+  var dots = $('tutDots').children;
+  for(var i=0;i<dots.length;i++) dots[i].className = (i===tutI?'on':'');
+  $('tutNext').textContent = tutI===TUT.length-1 ? 'スタート！' : 'つぎへ';
+}
+
+/* ============================================================
+   イベント
+   ============================================================ */
+/* once ではなく毎回。復帰後の suspended を拾い直すため */
+document.addEventListener('pointerdown', unlockAudio);
+
+$('btnStart').onclick = function(){ unlockAudio(); SE.tap(); show('scCourse'); };
+$('btnCards').onclick = function(){ SE.tap(); showCards('scTitle'); };
+$('btnMute').onclick  = function(){ toggleMute(); };
+$('btnCourseBack').onclick = function(){ SE.page(); show('scTitle'); };
+$('gMute').onclick = function(){ toggleMute(); };
+
+Array.prototype.forEach.call(document.querySelectorAll('.courseCard'), function(b){
+  b.onclick = function(){
+    SE.tap();
+    var course = b.dataset.course;
+    var seen = false;
+    try{ seen = localStorage.getItem(TUT_KEY)==='1'; }catch(e){}
+    if(seen) newGame(course);
+    else showTut(course);
+  };
+});
+$('tutNext').onclick = function(){
+  SE.tap(); tutI++;
+  if(tutI >= TUT.length){
+    try{ localStorage.setItem(TUT_KEY,'1'); }catch(e){}
+    newGame(tutCourse);
+  } else renderTut();
+};
+$('fbNext').onclick = function(){ SE.page(); nextQuestion(); };
+$('gBack').onclick = function(){
+  SE.page();
+  modal({
+    title:'とちゅうで やめる？',
+    body:'いまの スコアは きえて しまうよ。',
+    yes:'やめる', no:'つづける',
+    onYes:function(){
+      if(G){ G.running = false; clearTimeout(G.autoNextT); }
+      $('fb').classList.remove('on');
+      show('scTitle'); syncTitle();
+    }
+  });
+};
+
+/* 引き継ぎコード（学校のPC → 家など、別のブラウザへ進行を移す用） */
+$('rsCode').onclick = function(){
+  SE.tap();
+  modal({
+    title:'ひきつぎコード',
+    body:'この コードを メモして おくと、ほかの パソコンや スマホでも つづきから あそべるよ。',
+    value:CORE.makeCode(save), readonly:true,
+    yes:'コピー', no:'とじる',
+    onYes:function(){
+      var t = $('modalInput');
+      t.select(); t.setSelectionRange(0, 99999);
+      var okCopy = false;
+      try{ okCopy = document.execCommand('copy'); }catch(e){}
+      if(!okCopy && navigator.clipboard){
+        try{ navigator.clipboard.writeText(t.value); okCopy = true; }catch(e){}
+      }
+      toast(okCopy ? 'コピーしたよ' : 'えらんで コピーしてね', '#3FA757');
+      return true;   /* 閉じない */
+    }
+  });
+};
+$('btnCode').onclick = function(){
+  SE.tap();
+  modal({
+    title:'コードを いれる',
+    body:'ひきつぎコードを はりつけてね。いまの きろくは 上書きされるよ。',
+    value:'', yes:'よみこむ', no:'やめる',
+    onYes:function(){
+      var got = CORE.parseCode($('modalInput').value);
+      if(!got){ toast('コードが ちがうよ', '#E0604A'); SE.ng(); return true; }
+      save = got; writeSave(); syncTitle();
+      toast('よみこんだ！', '#3FA757'); SE.card();
+    }
+  });
+};
+$('rsAgain').onclick = function(){ SE.tap(); show('scCourse'); };
+$('rsCards').onclick = function(){ SE.tap(); showCards('scResult'); };
+$('rsTitle').onclick = function(){ SE.tap(); syncTitle(); show('scTitle'); };
+function leaveCards(){ SE.page(); show($('cdBack').dataset.from || 'scTitle'); }
+$('cdBack').onclick = leaveCards;
+$('cdTop').onclick  = leaveCards;
+
+/* キーボード */
+document.addEventListener('keydown', function(e){
+  if(current==='scGame' && !G.answered && G){
+    var q = G.qs[G.idx];
+    if(q.type==='choice3' && /^[123]$/.test(e.key)){
+      var btns = $('gAns').children, b = btns[+e.key-1];
+      if(b){ SE.tap(); submit(+b.dataset.oi, b); }
+    }
+    if(q.type==='truefalse'){
+      if(e.key==='1'||e.key==='o'||e.key==='O'){ SE.tap(); submit(true,null); }
+      if(e.key==='2'||e.key==='x'||e.key==='X'){ SE.tap(); submit(false,null); }
+    }
+  }
+  if(e.key==='Enter'){
+    if($('fb').classList.contains('on')){ SE.page(); nextQuestion(); }
+    else if(current==='scTitle'){ unlockAudio(); SE.tap(); show('scCourse'); }
+    else if(current==='scTut'){ $('tutNext').click(); }
+    else if(current==='scFin'){ showResult(); }
+  }
+});
+
+/* タブ非表示でポーズ */
+var hidden = false;
+document.addEventListener('visibilitychange', function(){
+  hidden = document.hidden;
+  if(hidden) writeSave();
+  else unlockAudio();
+});
+
+function syncTitle(){
+  var got = Object.keys(save.cards).length;
+  $('titleBest').innerHTML = save.plays
+    ? 'ベスト '+save.best+'てん（'+save.bestRank+'）　カード '+got+'/'+QUIZ_CARDS.length
+    : 'はじめて あそぶ人は そのまま「はじめる」を おしてね';
+}
+syncTitle();
+
+/* ============================================================
+   メインループ
+   ============================================================ */
+var last = 0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  var dt = last ? Math.min((ts-last)/1000, 0.05) : 0.016;
+  last = ts;
+  if(hidden) return;
+
+  stepParts();
+
+  if(current==='scTitle') stepTitle();
+  else if(current==='scFin') stepFinale(dt);
+  else if(current==='scGame' && G){
+    drawArea(G.qs[G.idx] ? G.qs[G.idx].area : 1, ts/1000);
+    if(G.running && !G.answered && !$('fb').classList.contains('on')){
+      G.timeLeft -= dt;
+      var f = Math.max(0, G.timeLeft/G.timeLimit);
+      $('gTimerFill').style.width = (f*100)+'%';
+      $('gTimerFill').className = f<0.3 ? 'warn' : '';
+      var sec = Math.max(0, Math.ceil(G.timeLeft));
+      if(sec !== G.lastSec){
+        G.lastSec = sec;
+        $('gSec').innerHTML = 'のこり <b>'+sec+'</b> びょう';
+        $('gSec').className = f<0.3 ? 'warn' : '';
+      }
+      if(f<0.3 && Math.floor(G.timeLeft*2)!==Math.floor((G.timeLeft+dt)*2)) SE.tick();
+      if(G.timeLeft<=0) timeUp();
+    }
+  }
+}
+fit();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

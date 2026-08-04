@@ -73,6 +73,7 @@ button,a{font:inherit}
 .card .game-logo{display:block;width:100%;max-width:240px;height:auto;margin:-2px auto 0;filter:drop-shadow(0 3px 5px rgba(3,49,73,.24))}
 /* もぐもぐキャッチのロゴは装飾が横広で枠に接触するため、少し小さく＋上に余白 */
 .card-catch .game-logo{max-width:210px;margin-top:4px}
+.card-quiz .game-logo{max-width:232px;margin-top:3px}
 .card .desc{display:none;font-size:12px;line-height:1.38;margin-top:3px;color:#245A65;
   text-shadow:0 1px 0 rgba(255,255,255,.88)}
 .card .prog{position:absolute;left:14px;right:108px;bottom:8px;font-size:11.5px;font-weight:800;
@@ -121,7 +122,7 @@ button,a{font:inherit}
     font-size:13px;padding:10px 14px}
   #greet::after{left:auto;right:-16px;top:24px;border-width:8px;border-left-color:var(--cyan);border-bottom-color:transparent}
   #cards{position:absolute;left:50%;top:clamp(625px,62vh,660px);transform:translateX(-50%);
-    width:min(1120px,calc(100vw - 64px));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    width:min(1500px,calc(100vw - 64px));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
     gap:18px;margin:0}
   .card{height:clamp(255px,29vh,285px);border-radius:22px}
   .card:hover{transform:translateY(-6px);border-color:#fff;
@@ -132,6 +133,7 @@ button,a{font:inherit}
   .card .txt{left:18px;right:18px;top:16px;width:auto;max-width:none}
   .card .age{font-size:10px;min-height:24px;padding:4px 11px;margin-bottom:7px}
   .card .game-logo{width:clamp(230px,19vw,260px);margin:-3px auto 3px}
+  .card-quiz .game-logo{width:clamp(210px,17vw,248px);margin:0 auto 5px}
   .card .desc{display:block;font-size:clamp(10px,.9vw,12px);font-weight:800;line-height:1.42;margin-top:0;
     max-width:calc(100% - 126px);color:#153D45;background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.9);
     border-radius:9px;padding:4px 7px;text-shadow:none;box-shadow:0 3px 10px rgba(8,75,91,.13);backdrop-filter:blur(5px)}
@@ -141,6 +143,14 @@ button,a{font:inherit}
   #foot{position:absolute;left:50%;right:auto;bottom:var(--safe-bottom);transform:translateX(-50%);
     width:max-content;max-width:calc(100vw - 32px);font-size:11px;line-height:1.55;padding:6px 18px}
   #foot b{font-size:12px}
+}
+@media (min-width:900px) and (max-width:1100px){
+  #cards{width:calc(100vw - 40px);gap:10px}
+  .card .txt{left:11px;right:11px}
+  .card .game-logo{width:min(100%,210px)}
+  .card .desc{display:none}
+  .card .prog{left:10px;max-width:calc(100% - 112px);font-size:10px}
+  .card .go{right:9px;min-width:92px;font-size:12px}
 }
 @media (min-width:900px) and (max-height:950px){
   #mascotBox{top:430px;width:150px;height:165px}
@@ -207,10 +217,11 @@ function fit(){
 }
 
 function readJson(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
-var sCatch=readJson('kobec_catch_save'),sGrid=readJson('kobec_grid_save'),sPlant=readJson('kobec_plant_meta');
+var sCatch=readJson('kobec_catch_save'),sGrid=readJson('kobec_grid_save'),sPlant=readJson('kobec_plant_meta'),sQuiz=readJson('kobec_quiz_save');
 var lights=sCatch?sCatch.lights|0:0;
 var stars=0;if(sGrid&&Array.isArray(sGrid.stars))for(var si=0;si<sGrid.stars.length;si++)stars+=sGrid.stars[si]|0;
 var bestMwh=sPlant?+sPlant.bestMwh||0:0;
+var quizCards=sQuiz&&sQuiz.cards&&typeof sQuiz.cards==='object'?Object.keys(sQuiz.cards).length:0;
 var nightT=Math.min(1,(Math.min(lights,60)/60+Math.min(stars,36)/36+Math.min(bestMwh,410)/410)/3);
 var GAMES=[
  {href:'catch.html',title:'もぐもぐキャッチ！',logo:'mogumogu-catch.png',age:'しょうがくせい むけ',ageC:'#F25F92',ageInk:'#FFFFFF',ageShadow:'#AD315F',
@@ -221,13 +232,16 @@ var GAMES=[
   prog:sGrid?('★'+stars+'/36　ランドマーク '+Math.min(6,Math.floor(stars/6))+'/6'):'はじめてプレイ',art:'card_grid.jpg',artDraw:drawCardGrid},
  {href:'plant.html',title:'操業マスター 〜バイオガスKOBE〜',logo:'operation-master.png',age:'大人向け',ageC:'#FF9F2E',ageInk:'#5B3200',ageShadow:'#C66D00',
   desc:'実データで挑む30日経営シム。受入・発酵・売電のすべてを指揮する工場長はあなた',
-  prog:sPlant&&bestMwh?('ベスト '+bestMwh+' MWh（'+(sPlant.bestRank||'-')+'ランク）　称号 '+((sPlant.titles||[]).length)+'/6'):'はじめてプレイ',art:'card_plant.jpg',artDraw:drawCardPlant}
+  prog:sPlant&&bestMwh?('ベスト '+bestMwh+' MWh（'+(sPlant.bestRank||'-')+'ランク）　称号 '+((sPlant.titles||[]).length)+'/6'):'はじめてプレイ',art:'card_plant.jpg',artDraw:drawCardPlant},
+ {href:'quiz/index.html',slug:'quiz',title:'コベック たんけんクイズ',logo:'kobec-exploration-quiz.png',age:'全年齢向け',ageC:'#7557D9',ageInk:'#FFFFFF',ageShadow:'#4932A4',
+  desc:'バイオガスKOBEをめぐる全7エリア・18問。ジュニアとマスター、2つのコースで楽しく学ぼう',
+  prog:sQuiz&&sQuiz.plays?('ベスト '+(sQuiz.best|0)+'点　はかせカード '+quizCards+'/24'):'はじめてプレイ',art:'card_quiz.png',artDraw:drawCardQuiz}
 ];
 
 var cardViews=[];
 var cards=document.getElementById('cards');
 GAMES.forEach(function(g){
-  var el=document.createElement('a');el.className='card card-'+g.href.replace('.html','');el.href=g.href;
+  var el=document.createElement('a');el.className='card card-'+(g.slug||g.href.replace('.html',''));el.href=g.href;
   el.setAttribute('aria-label',g.title+'をあそぶ。'+g.prog);
   var art=document.createElement('canvas');art.className='art';art.setAttribute('aria-hidden','true');el.appendChild(art);
   var sh=document.createElement('span');sh.className='shade';sh.setAttribute('aria-hidden','true');el.appendChild(sh);
@@ -292,6 +306,15 @@ function drawCardPlant(c,w,h){
   c.fillStyle='#DDE7EE';c.beginPath();c.arc(rx,base-18*s,20*s,Math.PI,0);c.fill();c.fillRect(rx-20*s,base-18*s,40*s,18*s);
   c.fillStyle='#43DFF2';c.beginPath();c.arc(rx,base-14*s,12*s,Math.PI,0);c.fill();
   c.fillStyle='#2E7CB8';c.beginPath();c.roundRect(rx+28*s,base-30*s,30*s,30*s,4*s);c.fill();
+}
+function drawCardQuiz(c,w,h){
+  var g=c.createLinearGradient(0,0,w,h);g.addColorStop(0,'#55CBE8');g.addColorStop(.5,'#FFE9A8');g.addColorStop(1,'#1D5C3C');
+  c.fillStyle=g;c.fillRect(0,0,w,h);
+  c.fillStyle='rgba(255,255,255,.48)';
+  for(var i=0;i<8;i++){c.beginPath();c.arc(w*(.48+(i%4)*.14),h*(.16+Math.floor(i/4)*.31),5+(i%3)*3,0,7);c.fill()}
+  c.fillStyle='#1D5C3C';c.beginPath();c.roundRect(w*.69,h*.44,w*.24,h*.52,8);c.fill();
+  c.fillStyle='#7CC24E';c.beginPath();c.ellipse(w*.81,h*.66,w*.045,h*.09,-.55,0,7);c.fill();
+  c.fillStyle='#2E7CB8';c.beginPath();c.roundRect(w*.54,h*.68,w*.19,h*.28,6);c.fill();
 }
 
 var mb=document.getElementById('mascotBox'),m2=mb.getContext('2d');
